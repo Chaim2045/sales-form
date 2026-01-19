@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>טופס מכר | משרד עו"ד גיא הרשקוביץ</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- Environment Configuration -->
+    <script src="env-config.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-blue: #2563eb;
+            --primary-blue-hover: #1d4ed8;
+            --light-blue: #eff6ff;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --white: #ffffff;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: 'Heebo', sans-serif;
+            background: linear-gradient(135deg, var(--gray-50) 0%, var(--light-blue) 100%);
+            min-height: 100vh;
+            color: var(--gray-800);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 16px;
+            }
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo-placeholder {
+            width: 120px;
+            height: 60px;
+            background: var(--gray-200);
+            border-radius: 8px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gray-400);
+            font-size: 12px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gray-800);
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+
+        .header p {
+            color: var(--gray-500);
+            font-size: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .header p {
+                font-size: 14px;
+            }
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-bottom: 40px;
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 8px;
+        }
+
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--gray-200);
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+
+        .progress-line {
+            position: absolute;
+            top: 50%;
+            right: 0;
+            height: 2px;
+            background: var(--primary-blue);
+            transform: translateY(-50%);
+            z-index: 2;
+            transition: width 0.4s ease;
+        }
+
+        .step-indicator {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--white);
+            border: 2px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--gray-400);
+            position: relative;
+            z-index: 3;
+            transition: all 0.3s ease;
+        }
+
+        .step-indicator.active {
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
+        }
+
+        .step-indicator.completed {
+            background: var(--primary-blue);
+            border-color: var(--primary-blue);
+            color: var(--white);
+        }
+
+        .step-labels {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .step-label {
+            font-size: 12px;
+            color: var(--gray-400);
+            text-align: center;
+            width: 70px;
+            transition: color 0.3s ease;
+        }
+
+        .step-label.active {
+            color: var(--primary-blue);
+            font-weight: 500;
+        }
+
+        /* Form Card */
+        .form-card {
+            background: var(--white);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .form-card {
+                padding: 24px 20px;
+                border-radius: 12px;
+            }
+        }
+
+        .step-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .step-title {
+                font-size: 18px;
+                margin-bottom: 20px;
+            }
+        }
+
+        .step-title-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--light-blue);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Form Elements */
+        .form-step {
+            display: none;
+        }
+
+        .form-step.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 500px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 6px;
+        }
+
+        label .required {
+            color: var(--error);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: 'Heebo', sans-serif;
+            color: var(--gray-800);
+            transition: all 0.2s ease;
+            background: var(--white);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: var(--gray-400);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: left 12px center;
+            background-size: 20px;
+            padding-left: 40px;
+        }
+
+        /* Radio & Checkbox Groups */
+        .radio-group, .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .radio-option, .checkbox-option {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .radio-option input, .checkbox-option input {
+            display: none;
+        }
+
+        .radio-option label, .checkbox-option label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 16px;
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 400;
+            text-align: center;
+        }
+
+        .radio-option input:checked + label,
+        .checkbox-option input:checked + label {
+            border-color: var(--primary-blue);
+            background: var(--light-blue);
+            color: var(--primary-blue);
+            font-weight: 500;
+        }
+
+        .radio-option label:hover,
+        .checkbox-option label:hover {
+            border-color: var(--gray-300);
+            background: var(--gray-50);
+        }
+
+        /* Conditional Fields */
+        .conditional-field {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .conditional-field.show {
+            display: block;
+        }
+
+        /* Buttons */
+        .buttons-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 32px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 500;
+            font-family: 'Heebo', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-blue-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--white);
+            color: var(--gray-600);
+            border: 1px solid var(--gray-200);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-50);
+            border-color: var(--gray-300);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* User Selection */
+        .user-selection {
+            background: var(--white);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 32px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .user-selection {
+                padding: 24px 20px;
+                border-radius: 12px;
+            }
+        }
+
+        .user-selection h2 {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: var(--gray-800);
+        }
+
+        .user-selection p {
+            color: var(--gray-500);
+            margin-bottom: 24px;
+        }
+
+        .user-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 12px;
+        }
+
+        @media (max-width: 500px) {
+            .user-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+        }
+
+        .user-btn {
+            padding: 16px;
+            border: 2px solid var(--gray-200);
+            border-radius: 12px;
+            background: var(--white);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Heebo', sans-serif;
+        }
+
+        .user-btn:hover {
+            border-color: var(--primary-blue);
+            background: var(--light-blue);
+        }
+
+        .user-avatar {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, #60a5fa 100%);
+            border-radius: 50%;
+            margin: 0 auto 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .user-name {
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        /* Success Message */
+        .success-screen {
+            display: none;
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .success-screen.show {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--success) 0%, #34d399 100%);
+            border-radius: 50%;
+            margin: 0 auto 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .success-icon svg {
+            width: 40px;
+            height: 40px;
+            color: var(--white);
+        }
+
+        .success-screen h2 {
+            font-size: 24px;
+            color: var(--gray-800);
+            margin-bottom: 8px;
+        }
+
+        .success-screen p {
+            color: var(--gray-500);
+            margin-bottom: 32px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--white);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Hidden class */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Error State */
+        .error-message {
+            color: var(--error);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        input.error, select.error {
+            border-color: var(--error);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-placeholder">לוגו המשרד</div>
+            <h1>טופס מכר</h1>
+            <p>משרד עו"ד גיא הרשקוביץ ושות'</p>
+        </div>
+
+        <!-- User Selection Screen -->
+        <div id="userSelection" class="user-selection">
+            <h2>שלום! מי מזין את הטופס?</h2>
+            <p>בחר/י את שמך להמשך</p>
+            <div class="user-grid">
+                <button class="user-btn" onclick="selectUser('גיא הרשקוביץ')">
+                    <div class="user-avatar">ג</div>
+                    <div class="user-name">גיא</div>
+                </button>
+                <button class="user-btn" onclick="selectUser('מירי טל')">
+                    <div class="user-avatar">מ</div>
+                    <div class="user-name">מירי</div>
+                </button>
+                <button class="user-btn" onclick="selectUser('רועי הרשקוביץ')">
+                    <div class="user-avatar">ר</div>
+                    <div class="user-name">רועי</div>
+                </button>
+                <button class="user-btn" onclick="selectUser('אורי שטיינברג')">
+                    <div class="user-avatar">א</div>
+                    <div class="user-name">אורי</div>
+                </button>
+                <button class="user-btn" onclick="selectUser('חיים')">
+                    <div class="user-avatar">ח</div>
+                    <div class="user-name">חיים</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Form -->
+        <div id="mainForm" class="hidden">
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-steps">
+                    <div class="progress-line" id="progressLine"></div>
+                    <div class="step-indicator active" data-step="1">1</div>
+                    <div class="step-indicator" data-step="2">2</div>
+                    <div class="step-indicator" data-step="3">3</div>
+                    <div class="step-indicator" data-step="4">4</div>
+                </div>
+                <div class="step-labels">
+                    <span class="step-label active">פרטי לקוח</span>
+                    <span class="step-label">העסקה</span>
+                    <span class="step-label">תשלום</span>
+                    <span class="step-label">סיכום</span>
+                </div>
+            </div>
+
+            <form id="salesForm">
+                <!-- Step 1: Client Details -->
+                <div class="form-card form-step active" data-step="1">
+                    <h3 class="step-title">
+                        <span class="step-title-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                        </span>
+                        פרטי הלקוח
+                    </h3>
+
+                    <div class="form-group">
+                        <label>שם הלקוח <span class="required">*</span></label>
+                        <input type="text" id="clientName" placeholder="שם מלא / שם החברה" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>טלפון <span class="required">*</span></label>
+                            <input type="tel" id="phone" placeholder="050-0000000" required>
+                        </div>
+                        <div class="form-group">
+                            <label>ת.ז / ח.פ <span class="required">*</span></label>
+                            <input type="text" id="idNumber" placeholder="מספר זהות או ח.פ" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>מייל <span class="required">*</span></label>
+                        <input type="email" id="email" placeholder="email@example.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>כתובת</label>
+                        <input type="text" id="address" placeholder="רחוב, עיר (אופציונלי)">
+                    </div>
+
+                    <div class="form-group">
+                        <label>סטטוס לקוח</label>
+                        <div class="radio-group">
+                            <div class="radio-option">
+                                <input type="radio" id="newClient" name="clientStatus" value="חדש" checked>
+                                <label for="newClient">לקוח חדש</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="existingClient" name="clientStatus" value="קיים">
+                                <label for="existingClient">לקוח קיים</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="buttons-row">
+                        <button type="button" class="btn btn-primary" onclick="nextStep()">
+                            המשך
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Transaction Details -->
+                <div class="form-card form-step" data-step="2">
+                    <h3 class="step-title">
+                        <span class="step-title-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                            </svg>
+                        </span>
+                        פרטי העסקה
+                    </h3>
+
+                    <div class="form-group">
+                        <label>סוג העסקה <span class="required">*</span></label>
+                        <select id="transactionType" required>
+                            <option value="">בחר סוג עסקה</option>
+                            <option value="פגישת ייעוץ">פגישת ייעוץ</option>
+                            <option value="ריטיינר">ריטיינר</option>
+                            <option value="תוכנית שעות">תוכנית שעות</option>
+                            <option value="הליך משפטי - תקרת שעות">הליך משפטי - תקרת שעות</option>
+                            <option value="הליך משפטי - פיקס">הליך משפטי - פיקס</option>
+                            <option value="אחר">אחר</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>תיאור העסקה <span class="required">*</span></label>
+                        <textarea id="transactionDescription" placeholder="תאר את העסקה בקצרה..." required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>סכום (לפני מע"מ) <span class="required">*</span></label>
+                        <input type="number" id="amount" placeholder="0" min="0" required>
+                    </div>
+
+                    <div class="buttons-row">
+                        <button type="button" class="btn btn-secondary" onclick="prevStep()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                            חזור
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="nextStep()">
+                            המשך
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Payment -->
+                <div class="form-card form-step" data-step="3">
+                    <h3 class="step-title">
+                        <span class="step-title-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2">
+                                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                                <line x1="1" y1="10" x2="23" y2="10"></line>
+                            </svg>
+                        </span>
+                        פרטי תשלום
+                    </h3>
+
+                    <div class="form-group">
+                        <label>אמצעי תשלום <span class="required">*</span></label>
+                        <div class="radio-group">
+                            <div class="radio-option">
+                                <input type="radio" id="creditCard" name="paymentMethod" value="כרטיס אשראי" required>
+                                <label for="creditCard">אשראי</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="bankTransfer" name="paymentMethod" value="העברה בנקאית">
+                                <label for="bankTransfer">העברה</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="cash" name="paymentMethod" value="מזומן">
+                                <label for="cash">מזומן</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="bit" name="paymentMethod" value="ביט">
+                                <label for="bit">ביט</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="checks" name="paymentMethod" value="שיקים דחויים">
+                                <label for="checks">שיקים</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Credit Card Confirmation (conditional) -->
+                    <div id="creditCardConfirmation" class="form-group conditional-field">
+                        <label>האם בוצע חיוב?</label>
+                        <div class="radio-group">
+                            <div class="radio-option">
+                                <input type="radio" id="ccDone" name="creditCardConfirmed" value="בוצע">
+                                <label for="ccDone">בוצע</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="ccNotDone" name="creditCardConfirmed" value="לא בוצע">
+                                <label for="ccNotDone">לא בוצע</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Checks Details (conditional) -->
+                    <div id="checksDetails" class="form-group conditional-field">
+                        <label>פרטי השיקים</label>
+                        <textarea id="checksDetailsText" placeholder="תאריך, מספר שיק, סכום..."></textarea>
+                    </div>
+
+                    <div class="buttons-row">
+                        <button type="button" class="btn btn-secondary" onclick="prevStep()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                            חזור
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="nextStep()">
+                            המשך
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Summary & Submit -->
+                <div class="form-card form-step" data-step="4">
+                    <h3 class="step-title">
+                        <span class="step-title-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                        </span>
+                        פרטים נוספים וסיכום
+                    </h3>
+
+                    <div class="form-group">
+                        <label>עו"ד מטפל <span class="required">*</span></label>
+                        <select id="attorney" required>
+                            <option value="">בחר עו"ד</option>
+                            <option value="גיא הרשקוביץ">גיא הרשקוביץ</option>
+                            <option value="מירי טל">מירי טל</option>
+                            <option value="רועי הרשקוביץ">רועי הרשקוביץ</option>
+                            <option value="אורי שטיינברג">אורי שטיינברג</option>
+                            <option value="חיים">חיים</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>מספר תיק בעודכנית</label>
+                            <input type="text" id="caseNumber" placeholder="אם ידוע">
+                        </div>
+                        <div class="form-group">
+                            <label>סניף</label>
+                            <select id="branch">
+                                <option value="תל אביב" selected>תל אביב</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>הערות</label>
+                        <textarea id="notes" placeholder="הערות נוספות (אופציונלי)"></textarea>
+                    </div>
+
+                    <div class="buttons-row">
+                        <button type="button" class="btn btn-secondary" onclick="prevStep()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                            חזור
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <span id="submitText">שלח טופס</span>
+                            <div class="spinner hidden" id="submitSpinner"></div>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Success Screen -->
+        <div id="successScreen" class="form-card success-screen">
+            <div class="success-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+            <h2>הטופס נשלח בהצלחה!</h2>
+            <p>הרשומה נוספה למערכת</p>
+            <button class="btn btn-primary" onclick="resetForm()" style="max-width: 200px; margin: 0 auto;">
+                טופס חדש
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration - Using environment variables
+        const firebaseConfig = {
+            apiKey: window.ENV_CONFIG.FIREBASE_API_KEY,
+            authDomain: window.ENV_CONFIG.FIREBASE_AUTH_DOMAIN,
+            databaseURL: window.ENV_CONFIG.FIREBASE_DATABASE_URL,
+            projectId: window.ENV_CONFIG.FIREBASE_PROJECT_ID,
+            storageBucket: window.ENV_CONFIG.FIREBASE_STORAGE_BUCKET,
+            messagingSenderId: window.ENV_CONFIG.FIREBASE_MESSAGING_SENDER_ID,
+            appId: window.ENV_CONFIG.FIREBASE_APP_ID,
+            measurementId: window.ENV_CONFIG.FIREBASE_MEASUREMENT_ID
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Global Variables
+        let currentStep = 1;
+        let currentUser = '';
+        const totalSteps = 4;
+
+        // User Selection
+        function selectUser(userName) {
+            currentUser = userName;
+            document.getElementById('userSelection').classList.add('hidden');
+            document.getElementById('mainForm').classList.remove('hidden');
+        }
+
+        // Step Navigation
+        function updateProgress() {
+            const progressLine = document.getElementById('progressLine');
+            const percentage = ((currentStep - 1) / (totalSteps - 1)) * 100;
+            progressLine.style.width = `${100 - percentage}%`;
+
+            document.querySelectorAll('.step-indicator').forEach((indicator, index) => {
+                indicator.classList.remove('active', 'completed');
+                if (index + 1 < currentStep) {
+                    indicator.classList.add('completed');
+                    indicator.innerHTML = '✓';
+                } else if (index + 1 === currentStep) {
+                    indicator.classList.add('active');
+                    indicator.innerHTML = index + 1;
+                } else {
+                    indicator.innerHTML = index + 1;
+                }
+            });
+
+            document.querySelectorAll('.step-label').forEach((label, index) => {
+                label.classList.toggle('active', index + 1 === currentStep);
+            });
+        }
+
+        function showStep(step) {
+            document.querySelectorAll('.form-step').forEach(s => s.classList.remove('active'));
+            document.querySelector(`.form-step[data-step="${step}"]`).classList.add('active');
+            currentStep = step;
+            updateProgress();
+        }
+
+        function validateStep(step) {
+            const stepElement = document.querySelector(`.form-step[data-step="${step}"]`);
+            const requiredFields = stepElement.querySelectorAll('[required]');
+            let isValid = true;
+
+            requiredFields.forEach(field => {
+                if (!field.value) {
+                    field.classList.add('error');
+                    isValid = false;
+                } else {
+                    field.classList.remove('error');
+                }
+            });
+
+            // Special validation for radio buttons in step 3
+            if (step === 3) {
+                const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked');
+                if (!paymentMethod) {
+                    isValid = false;
+                }
+            }
+
+            return isValid;
+        }
+
+        function nextStep() {
+            if (validateStep(currentStep)) {
+                if (currentStep < totalSteps) {
+                    showStep(currentStep + 1);
+                }
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                showStep(currentStep - 1);
+            }
+        }
+
+        // Conditional Fields Logic
+        document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const ccConfirm = document.getElementById('creditCardConfirmation');
+                const checksDetail = document.getElementById('checksDetails');
+                
+                ccConfirm.classList.remove('show');
+                checksDetail.classList.remove('show');
+
+                if (this.value === 'כרטיס אשראי') {
+                    ccConfirm.classList.add('show');
+                } else if (this.value === 'שיקים דחויים') {
+                    checksDetail.classList.add('show');
+                }
+            });
+        });
+
+        // Form Submission
+        document.getElementById('salesForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!validateStep(4)) return;
+
+            const submitBtn = document.getElementById('submitBtn');
+            const submitText = document.getElementById('submitText');
+            const submitSpinner = document.getElementById('submitSpinner');
+
+            submitBtn.disabled = true;
+            submitText.classList.add('hidden');
+            submitSpinner.classList.remove('hidden');
+
+            try {
+                const formData = {
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    date: new Date().toISOString().split('T')[0],
+                    formFillerName: currentUser,
+                    clientName: document.getElementById('clientName').value,
+                    phone: document.getElementById('phone').value,
+                    email: document.getElementById('email').value,
+                    idNumber: document.getElementById('idNumber').value,
+                    address: document.getElementById('address').value || '',
+                    clientStatus: document.querySelector('input[name="clientStatus"]:checked')?.value || 'חדש',
+                    transactionType: document.getElementById('transactionType').value,
+                    transactionDescription: document.getElementById('transactionDescription').value,
+                    amount: parseFloat(document.getElementById('amount').value),
+                    paymentMethod: document.querySelector('input[name="paymentMethod"]:checked')?.value || '',
+                    creditCardConfirmed: document.querySelector('input[name="creditCardConfirmed"]:checked')?.value || '',
+                    checksDetails: document.getElementById('checksDetailsText').value || '',
+                    attorney: document.getElementById('attorney').value,
+                    caseNumber: document.getElementById('caseNumber').value || '',
+                    branch: document.getElementById('branch').value,
+                    notes: document.getElementById('notes').value || '',
+                    invoiceNumber: '',
+                    receiptNumber: ''
+                };
+
+                // Save to Firestore
+                await db.collection('sales_records').add(formData);
+
+                // Sync to Google Sheets
+                await syncToSheets(formData);
+
+                // Show success
+                document.getElementById('mainForm').classList.add('hidden');
+                document.getElementById('successScreen').classList.add('show');
+
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                alert('אירעה שגיאה בשליחת הטופס. נסה שנית.');
+            } finally {
+                submitBtn.disabled = false;
+                submitText.classList.remove('hidden');
+                submitSpinner.classList.add('hidden');
+            }
+        });
+
+        // Sync to Google Sheets
+        async function syncToSheets(data) {
+            const WEBHOOK_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
+
+            try {
+                await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+            } catch (error) {
+                console.error('Error syncing to sheets:', error);
+                // Continue even if sync fails - data is safe in Firestore
+            }
+        }
+
+        // Reset Form
+        function resetForm() {
+            document.getElementById('salesForm').reset();
+            document.getElementById('successScreen').classList.remove('show');
+            document.getElementById('mainForm').classList.remove('hidden');
+            
+            // Reset conditional fields
+            document.getElementById('creditCardConfirmation').classList.remove('show');
+            document.getElementById('checksDetails').classList.remove('show');
+            
+            // Reset to step 1
+            showStep(1);
+        }
+
+        // Initialize
+        updateProgress();
+    </script>
+</body>
+</html>
