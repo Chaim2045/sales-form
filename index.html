@@ -13,6 +13,7 @@
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
     <!-- Environment Configuration -->
     <script src="env-config.js"></script>
@@ -556,6 +557,107 @@
         input.error, select.error {
             border-color: var(--error);
         }
+
+        /* VAT Display */
+        .vat-display {
+            background: var(--light-blue);
+            border: 1px solid var(--primary-blue);
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .vat-display.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .vat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .vat-row:last-child {
+            margin-bottom: 0;
+            font-weight: 600;
+            font-size: 16px;
+            padding-top: 8px;
+            border-top: 1px solid var(--primary-blue);
+        }
+
+        .vat-label {
+            color: var(--gray-600);
+            font-size: 14px;
+        }
+
+        .vat-value {
+            color: var(--gray-800);
+            font-weight: 500;
+        }
+
+        /* File Upload */
+        .file-upload-container {
+            border: 2px dashed var(--gray-300);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            background: var(--gray-50);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .file-upload-container:hover {
+            border-color: var(--primary-blue);
+            background: var(--light-blue);
+        }
+
+        .file-upload-container.has-file {
+            border-color: var(--success);
+            background: #f0fdf4;
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 12px;
+            opacity: 0.6;
+        }
+
+        .upload-text {
+            color: var(--gray-600);
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .upload-subtext {
+            color: var(--gray-400);
+            font-size: 12px;
+        }
+
+        .file-preview {
+            margin-top: 12px;
+            display: none;
+        }
+
+        .file-preview.show {
+            display: block;
+        }
+
+        .file-preview img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        .file-name {
+            color: var(--success);
+            font-weight: 500;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -704,14 +806,44 @@
                         </select>
                     </div>
 
-                    <div class="form-group">
+                    <!-- Conditional: Hours Package Fields -->
+                    <div id="hoursPackageFields" class="conditional-field">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>כמות שעות <span class="required">*</span></label>
+                                <input type="number" id="hoursQuantity" placeholder="מספר שעות" min="1" step="0.5">
+                            </div>
+                            <div class="form-group">
+                                <label>מחיר לשעה (לפני מע"מ) <span class="required">*</span></label>
+                                <input type="number" id="hourlyRate" placeholder="0" min="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="transactionDescriptionGroup">
                         <label>תיאור העסקה <span class="required">*</span></label>
                         <textarea id="transactionDescription" placeholder="תאר את העסקה בקצרה..." required></textarea>
                     </div>
 
                     <div class="form-group">
                         <label>סכום (לפני מע"מ) <span class="required">*</span></label>
-                        <input type="number" id="amount" placeholder="0" min="0" required>
+                        <input type="number" id="amount" placeholder="0" min="0" step="0.01" required>
+                    </div>
+
+                    <!-- VAT Calculation Display -->
+                    <div id="vatDisplay" class="vat-display">
+                        <div class="vat-row">
+                            <span class="vat-label">סכום לפני מע"מ:</span>
+                            <span class="vat-value" id="amountBeforeVat">₪0</span>
+                        </div>
+                        <div class="vat-row">
+                            <span class="vat-label">מע"מ (18%):</span>
+                            <span class="vat-value" id="vatAmount">₪0</span>
+                        </div>
+                        <div class="vat-row">
+                            <span class="vat-label">סכום כולל מע"מ:</span>
+                            <span class="vat-value" id="amountWithVat">₪0</span>
+                        </div>
                     </div>
 
                     <div class="buttons-row">
@@ -784,9 +916,41 @@
                     </div>
 
                     <!-- Checks Details (conditional) -->
-                    <div id="checksDetails" class="form-group conditional-field">
-                        <label>פרטי השיקים</label>
-                        <textarea id="checksDetailsText" placeholder="תאריך, מספר שיק, סכום..."></textarea>
+                    <div id="checksDetails" class="conditional-field">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>מספר שיקים <span class="required">*</span></label>
+                                <input type="number" id="checksCount" placeholder="כמה שיקים?" min="1">
+                            </div>
+                            <div class="form-group">
+                                <label>סכום כולל <span class="required">*</span></label>
+                                <input type="number" id="checksTotalAmount" placeholder="0" min="0" step="0.01">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>צילום שיקים <span class="required">*</span></label>
+                            <div class="file-upload-container" id="checksUploadContainer" onclick="document.getElementById('checksPhoto').click()">
+                                <input type="file" id="checksPhoto" accept="image/*" capture="environment" style="display: none;">
+                                <div class="upload-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                        <circle cx="12" cy="13" r="4"></circle>
+                                    </svg>
+                                </div>
+                                <div class="upload-text">לחץ לצילום או בחירת תמונה</div>
+                                <div class="upload-subtext">תמונה ברורה של השיקים</div>
+                            </div>
+                            <div class="file-preview" id="checksPreview">
+                                <div class="file-name" id="checksFileName"></div>
+                                <img id="checksImage" alt="צילום שיקים">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>הערות על השיקים (אופציונלי)</label>
+                            <textarea id="checksDetailsText" placeholder="תאריכים, מספרי שיקים, הערות נוספות..."></textarea>
+                        </div>
                     </div>
 
                     <div class="buttons-row">
@@ -894,6 +1058,7 @@
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const storage = firebase.storage();
 
         // Global Variables
         let currentStep = 1;
@@ -977,27 +1142,130 @@
             }
         }
 
-        // Conditional Fields Logic
+        // Transaction Type Change Handler
+        document.getElementById('transactionType').addEventListener('change', function() {
+            const hoursPackageFields = document.getElementById('hoursPackageFields');
+            const descriptionGroup = document.getElementById('transactionDescriptionGroup');
+            const hoursQuantity = document.getElementById('hoursQuantity');
+            const hourlyRate = document.getElementById('hourlyRate');
+
+            if (this.value === 'תוכנית שעות') {
+                hoursPackageFields.classList.add('show');
+                descriptionGroup.style.display = 'none';
+                document.getElementById('transactionDescription').removeAttribute('required');
+                hoursQuantity.setAttribute('required', 'required');
+                hourlyRate.setAttribute('required', 'required');
+            } else {
+                hoursPackageFields.classList.remove('show');
+                descriptionGroup.style.display = 'block';
+                document.getElementById('transactionDescription').setAttribute('required', 'required');
+                hoursQuantity.removeAttribute('required');
+                hourlyRate.removeAttribute('required');
+                hoursQuantity.value = '';
+                hourlyRate.value = '';
+            }
+        });
+
+        // Hours Package Calculation
+        function updateAmountFromHours() {
+            const hours = parseFloat(document.getElementById('hoursQuantity').value) || 0;
+            const rate = parseFloat(document.getElementById('hourlyRate').value) || 0;
+            const totalAmount = hours * rate;
+
+            if (totalAmount > 0) {
+                document.getElementById('amount').value = totalAmount.toFixed(2);
+                updateVatDisplay();
+            }
+        }
+
+        document.getElementById('hoursQuantity').addEventListener('input', updateAmountFromHours);
+        document.getElementById('hourlyRate').addEventListener('input', updateAmountFromHours);
+
+        // VAT Calculation Display
+        function updateVatDisplay() {
+            const amountBeforeVat = parseFloat(document.getElementById('amount').value) || 0;
+
+            if (amountBeforeVat > 0) {
+                const vatAmount = amountBeforeVat * 0.18;
+                const amountWithVat = amountBeforeVat + vatAmount;
+
+                document.getElementById('amountBeforeVat').textContent = '₪' + amountBeforeVat.toFixed(2);
+                document.getElementById('vatAmount').textContent = '₪' + vatAmount.toFixed(2);
+                document.getElementById('amountWithVat').textContent = '₪' + amountWithVat.toFixed(2);
+                document.getElementById('vatDisplay').classList.add('show');
+            } else {
+                document.getElementById('vatDisplay').classList.remove('show');
+            }
+        }
+
+        document.getElementById('amount').addEventListener('input', updateVatDisplay);
+
+        // Payment Method Change Handler
         document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
             radio.addEventListener('change', function() {
                 const ccConfirm = document.getElementById('creditCardConfirmation');
                 const checksDetail = document.getElementById('checksDetails');
-                
+                const checksPhoto = document.getElementById('checksPhoto');
+                const checksCount = document.getElementById('checksCount');
+                const checksTotalAmount = document.getElementById('checksTotalAmount');
+
                 ccConfirm.classList.remove('show');
                 checksDetail.classList.remove('show');
 
                 if (this.value === 'כרטיס אשראי') {
                     ccConfirm.classList.add('show');
+                    checksPhoto.removeAttribute('required');
+                    checksCount.removeAttribute('required');
+                    checksTotalAmount.removeAttribute('required');
                 } else if (this.value === 'שיקים דחויים') {
                     checksDetail.classList.add('show');
+                    checksPhoto.setAttribute('required', 'required');
+                    checksCount.setAttribute('required', 'required');
+                    checksTotalAmount.setAttribute('required', 'required');
+                } else {
+                    checksPhoto.removeAttribute('required');
+                    checksCount.removeAttribute('required');
+                    checksTotalAmount.removeAttribute('required');
                 }
             });
         });
 
+        // File Upload Handler
+        document.getElementById('checksPhoto').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const container = document.getElementById('checksUploadContainer');
+                const preview = document.getElementById('checksPreview');
+                const fileName = document.getElementById('checksFileName');
+                const image = document.getElementById('checksImage');
+
+                container.classList.add('has-file');
+                fileName.textContent = '✓ ' + file.name;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    image.src = e.target.result;
+                    preview.classList.add('show');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Upload File to Firebase Storage
+        async function uploadFile(file, path) {
+            if (!file) return null;
+
+            const storageRef = storage.ref();
+            const fileRef = storageRef.child(path);
+            await fileRef.put(file);
+            const downloadURL = await fileRef.getDownloadURL();
+            return downloadURL;
+        }
+
         // Form Submission
         document.getElementById('salesForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
             if (!validateStep(4)) return;
 
             const submitBtn = document.getElementById('submitBtn');
@@ -1009,6 +1277,33 @@
             submitSpinner.classList.remove('hidden');
 
             try {
+                const transactionType = document.getElementById('transactionType').value;
+                const amountBeforeVat = parseFloat(document.getElementById('amount').value);
+                const vatAmount = amountBeforeVat * 0.18;
+                const amountWithVat = amountBeforeVat + vatAmount;
+
+                let transactionDescription = document.getElementById('transactionDescription').value;
+
+                // If hours package, build description from hours and rate
+                if (transactionType === 'תוכנית שעות') {
+                    const hours = document.getElementById('hoursQuantity').value;
+                    const rate = document.getElementById('hourlyRate').value;
+                    transactionDescription = `תוכנית ${hours} שעות במחיר ₪${rate} לשעה`;
+                }
+
+                // Upload checks photo if exists
+                let checksPhotoURL = '';
+                const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || '';
+
+                if (paymentMethod === 'שיקים דחויים') {
+                    const checksPhotoFile = document.getElementById('checksPhoto').files[0];
+                    if (checksPhotoFile) {
+                        const timestamp = Date.now();
+                        const fileName = `checks/${timestamp}_${checksPhotoFile.name}`;
+                        checksPhotoURL = await uploadFile(checksPhotoFile, fileName);
+                    }
+                }
+
                 const formData = {
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                     date: new Date().toISOString().split('T')[0],
@@ -1019,11 +1314,19 @@
                     idNumber: document.getElementById('idNumber').value,
                     address: document.getElementById('address').value || '',
                     clientStatus: document.querySelector('input[name="clientStatus"]:checked')?.value || 'חדש',
-                    transactionType: document.getElementById('transactionType').value,
-                    transactionDescription: document.getElementById('transactionDescription').value,
-                    amount: parseFloat(document.getElementById('amount').value),
-                    paymentMethod: document.querySelector('input[name="paymentMethod"]:checked')?.value || '',
+                    transactionType: transactionType,
+                    transactionDescription: transactionDescription,
+                    hoursQuantity: document.getElementById('hoursQuantity').value || '',
+                    hourlyRate: document.getElementById('hourlyRate').value || '',
+                    amountBeforeVat: amountBeforeVat,
+                    vatAmount: vatAmount,
+                    amountWithVat: amountWithVat,
+                    amount: amountBeforeVat, // Keep for backwards compatibility
+                    paymentMethod: paymentMethod,
                     creditCardConfirmed: document.querySelector('input[name="creditCardConfirmed"]:checked')?.value || '',
+                    checksCount: document.getElementById('checksCount').value || '',
+                    checksTotalAmount: document.getElementById('checksTotalAmount').value || '',
+                    checksPhotoURL: checksPhotoURL,
                     checksDetails: document.getElementById('checksDetailsText').value || '',
                     attorney: document.getElementById('attorney').value,
                     caseNumber: document.getElementById('caseNumber').value || '',
@@ -1077,11 +1380,19 @@
             document.getElementById('salesForm').reset();
             document.getElementById('successScreen').classList.remove('show');
             document.getElementById('mainForm').classList.remove('hidden');
-            
+
             // Reset conditional fields
+            document.getElementById('hoursPackageFields').classList.remove('show');
+            document.getElementById('transactionDescriptionGroup').style.display = 'block';
+            document.getElementById('vatDisplay').classList.remove('show');
             document.getElementById('creditCardConfirmation').classList.remove('show');
             document.getElementById('checksDetails').classList.remove('show');
-            
+
+            // Reset file upload
+            document.getElementById('checksUploadContainer').classList.remove('has-file');
+            document.getElementById('checksPreview').classList.remove('show');
+            document.getElementById('checksImage').src = '';
+
             // Reset to step 1
             showStep(1);
         }
