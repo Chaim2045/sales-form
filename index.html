@@ -901,16 +901,36 @@
                     </div>
 
                     <!-- Credit Card Confirmation (conditional) -->
-                    <div id="creditCardConfirmation" class="form-group conditional-field">
-                        <label>האם בוצע חיוב?</label>
-                        <div class="radio-group">
-                            <div class="radio-option">
-                                <input type="radio" id="ccDone" name="creditCardConfirmed" value="בוצע">
-                                <label for="ccDone">בוצע</label>
+                    <div id="creditCardConfirmation" class="conditional-field">
+                        <div class="form-group">
+                            <label>סטטוס החיוב באשראי <span class="required">*</span></label>
+                            <div class="radio-group">
+                                <div class="radio-option">
+                                    <input type="radio" id="ccCharged" name="creditCardStatus" value="בוצע חיוב מלא">
+                                    <label for="ccCharged">בוצע חיוב מלא</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="ccDeposit" name="creditCardStatus" value="פיקדון">
+                                    <label for="ccDeposit">פיקדון</label>
+                                </div>
                             </div>
-                            <div class="radio-option">
-                                <input type="radio" id="ccNotDone" name="creditCardConfirmed" value="לא בוצע">
-                                <label for="ccNotDone">לא בוצע</label>
+                        </div>
+
+                        <!-- Deposit Details (conditional) -->
+                        <div id="depositDetails" class="conditional-field">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>סכום חודשי לחיוב <span class="required">*</span></label>
+                                    <input type="number" id="monthlyCharge" placeholder="0" min="0" step="0.01">
+                                </div>
+                                <div class="form-group">
+                                    <label>מספר חודשים</label>
+                                    <input type="number" id="monthsCount" placeholder="כמה חודשים?" min="1">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>פרטים נוספים על הפיקדון</label>
+                                <textarea id="depositDetailsText" placeholder="תאריך תחילת חיוב, הערות..."></textarea>
                             </div>
                         </div>
                     </div>
@@ -950,6 +970,26 @@
                         <div class="form-group">
                             <label>הערות על השיקים (אופציונלי)</label>
                             <textarea id="checksDetailsText" placeholder="תאריכים, מספרי שיקים, הערות נוספות..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>האם השיק יוחלף באמצעי תשלום אחר?</label>
+                            <div class="radio-group">
+                                <div class="radio-option">
+                                    <input type="radio" id="checkWillChange" name="checkWillChange" value="כן">
+                                    <label for="checkWillChange">כן</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="checkWillNotChange" name="checkWillChange" value="לא" checked>
+                                    <label for="checkWillNotChange">לא</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Check Replacement Details (conditional) -->
+                        <div id="checkReplacementDetails" class="form-group conditional-field">
+                            <label>פרט את אמצעי התשלום החלופי <span class="required">*</span></label>
+                            <textarea id="checkReplacementText" placeholder="לדוגמה: יוחלף בכרטיס אשראי ב-15/02/2025, העברה בנקאית וכו..."></textarea>
                         </div>
                     </div>
 
@@ -1230,6 +1270,42 @@
             });
         });
 
+        // Credit Card Status Change Handler
+        document.querySelectorAll('input[name="creditCardStatus"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const depositDetails = document.getElementById('depositDetails');
+                const monthlyCharge = document.getElementById('monthlyCharge');
+
+                if (this.value === 'פיקדון') {
+                    depositDetails.classList.add('show');
+                    monthlyCharge.setAttribute('required', 'required');
+                } else {
+                    depositDetails.classList.remove('show');
+                    monthlyCharge.removeAttribute('required');
+                    monthlyCharge.value = '';
+                    document.getElementById('monthsCount').value = '';
+                    document.getElementById('depositDetailsText').value = '';
+                }
+            });
+        });
+
+        // Check Will Change Handler
+        document.querySelectorAll('input[name="checkWillChange"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const checkReplacementDetails = document.getElementById('checkReplacementDetails');
+                const checkReplacementText = document.getElementById('checkReplacementText');
+
+                if (this.value === 'כן') {
+                    checkReplacementDetails.classList.add('show');
+                    checkReplacementText.setAttribute('required', 'required');
+                } else {
+                    checkReplacementDetails.classList.remove('show');
+                    checkReplacementText.removeAttribute('required');
+                    checkReplacementText.value = '';
+                }
+            });
+        });
+
         // File Upload Handler
         document.getElementById('checksPhoto').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -1328,11 +1404,18 @@
                     amountWithVat: amountWithVat,
                     amount: amountBeforeVat, // Keep for backwards compatibility
                     paymentMethod: paymentMethod,
-                    creditCardConfirmed: document.querySelector('input[name="creditCardConfirmed"]:checked')?.value || '',
+                    // Credit Card fields
+                    creditCardStatus: document.querySelector('input[name="creditCardStatus"]:checked')?.value || '',
+                    monthlyCharge: document.getElementById('monthlyCharge').value || '',
+                    monthsCount: document.getElementById('monthsCount').value || '',
+                    depositDetails: document.getElementById('depositDetailsText').value || '',
+                    // Checks fields
                     checksCount: document.getElementById('checksCount').value || '',
                     checksTotalAmount: document.getElementById('checksTotalAmount').value || '',
                     checksPhotoURL: checksPhotoURL,
                     checksDetails: document.getElementById('checksDetailsText').value || '',
+                    checkWillChange: document.querySelector('input[name="checkWillChange"]:checked')?.value || '',
+                    checkReplacementDetails: document.getElementById('checkReplacementText').value || '',
                     attorney: document.getElementById('attorney').value,
                     caseNumber: document.getElementById('caseNumber').value || '',
                     branch: document.getElementById('branch').value,
@@ -1391,7 +1474,9 @@
             document.getElementById('transactionDescriptionGroup').style.display = 'block';
             document.getElementById('vatDisplay').classList.remove('show');
             document.getElementById('creditCardConfirmation').classList.remove('show');
+            document.getElementById('depositDetails').classList.remove('show');
             document.getElementById('checksDetails').classList.remove('show');
+            document.getElementById('checkReplacementDetails').classList.remove('show');
 
             // Reset file upload
             document.getElementById('checksUploadContainer').classList.remove('has-file');
