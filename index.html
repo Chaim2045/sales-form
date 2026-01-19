@@ -1255,11 +1255,16 @@
         async function uploadFile(file, path) {
             if (!file) return null;
 
-            const storageRef = storage.ref();
-            const fileRef = storageRef.child(path);
-            await fileRef.put(file);
-            const downloadURL = await fileRef.getDownloadURL();
-            return downloadURL;
+            try {
+                const storageRef = storage.ref();
+                const fileRef = storageRef.child(path);
+                const snapshot = await fileRef.put(file);
+                const downloadURL = await snapshot.ref.getDownloadURL();
+                return downloadURL;
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                throw error;
+            }
         }
 
         // Form Submission
