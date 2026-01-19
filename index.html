@@ -1334,11 +1334,22 @@
             try {
                 const storageRef = storage.ref();
                 const fileRef = storageRef.child(path);
-                const snapshot = await fileRef.put(file);
-                const downloadURL = await snapshot.ref.getDownloadURL();
+
+                // Upload file
+                const uploadTask = await fileRef.put(file, {
+                    contentType: file.type,
+                    customMetadata: {
+                        'uploadedBy': currentUser,
+                        'uploadDate': new Date().toISOString()
+                    }
+                });
+
+                // Get download URL
+                const downloadURL = await uploadTask.ref.getDownloadURL();
                 return downloadURL;
             } catch (error) {
                 console.error('Error uploading file:', error);
+                alert('שגיאה בהעלאת התמונה: ' + error.message);
                 throw error;
             }
         }
