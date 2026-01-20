@@ -69,6 +69,33 @@
             margin-bottom: 40px;
         }
 
+        .celebration-image {
+            width: 200px;
+            height: auto;
+            margin: 0 auto 20px;
+            display: block;
+            animation: bounceIn 1s ease, float 3s ease-in-out infinite;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @media (max-width: 768px) {
+            .celebration-image {
+                width: 150px;
+            }
+        }
+
         .logo-placeholder {
             width: 120px;
             height: 60px;
@@ -680,6 +707,36 @@
             font-size: 18px;
         }
 
+        /* Encouragement Messages */
+        .encouragement-message {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin: 20px 0;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #92400e;
+            animation: slideInFromRight 0.5s ease;
+            box-shadow: 0 4px 6px rgba(245, 158, 11, 0.2);
+        }
+
+        @keyframes slideInFromRight {
+            0% {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            100% {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .encouragement-message.hide {
+            display: none;
+        }
+
         /* Error State */
         .error-message {
             color: var(--error);
@@ -797,6 +854,7 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
+            <img src="ChatGPT Image Jan 20, 2026, 03_22_42 PM.png" alt="יש מכירה!" class="celebration-image">
             <img src="‏‏logo - עותק.png" alt="לוגו משרד עו"ד גיא הרשקוביץ" style="max-width: 200px; max-height: 80px; width: auto; height: auto; margin-bottom: 10px; object-fit: contain;">
             <h1>טופס מכר</h1>
             <p>משרד עו"ד גיא הרשקוביץ ושות'</p>
@@ -1032,6 +1090,9 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Encouragement Message (appears after payment method selection) -->
+                    <div id="encouragementMessage" class="encouragement-message hide"></div>
 
                     <!-- Credit Card Confirmation (conditional) -->
                     <div id="creditCardConfirmation" class="conditional-field">
@@ -1455,6 +1516,9 @@
                 ccConfirm.classList.remove('show');
                 checksDetail.classList.remove('show');
 
+                // Show encouragement message based on payment method
+                showEncouragementMessage(this.value);
+
                 if (this.value === 'כרטיס אשראי') {
                     ccConfirm.classList.add('show');
                     updateAmountReminder('cc');
@@ -1474,6 +1538,42 @@
                 }
             });
         });
+
+        // Show Encouragement Message Function
+        function showEncouragementMessage(paymentMethod) {
+            const messageElement = document.getElementById('encouragementMessage');
+            let message = '';
+
+            switch(paymentMethod) {
+                case 'מזומן':
+                    message = '💵 אללק! קאש זה קינג! בואו נמשיך...';
+                    break;
+                case 'כרטיס אשראי':
+                    message = '💳 יפה! חכם ומודרני. בואו נמשיך...';
+                    break;
+                case 'שיקים דחויים':
+                    message = '📝 קלאסי ואמין! בואו למלא את הפרטים...';
+                    break;
+                case 'העברה בנקאית':
+                    message = '🏦 מקצוען! ישר וברור. בואו נמשיך...';
+                    break;
+                case 'ביט':
+                    message = '📱 דיגיטלי עד הסוף! יאללה להמשיך...';
+                    break;
+                default:
+                    message = '';
+            }
+
+            if (message) {
+                messageElement.textContent = message;
+                messageElement.classList.remove('hide');
+
+                // Hide after 4 seconds with fade out
+                setTimeout(() => {
+                    messageElement.classList.add('hide');
+                }, 4000);
+            }
+        }
 
         // Update Amount Reminder Function
         function updateAmountReminder(type) {
@@ -1737,6 +1837,7 @@
             document.getElementById('temporaryCreditDetails').classList.remove('show');
             document.getElementById('checksDetails').classList.remove('show');
             document.getElementById('checkReplacementDetails').classList.remove('show');
+            document.getElementById('encouragementMessage').classList.add('hide');
 
             // Reset file upload
             document.getElementById('checksUploadContainer').classList.remove('has-file');
