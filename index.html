@@ -916,6 +916,14 @@
                             </div>
                         </div>
 
+                        <!-- Full Charge Details (conditional) -->
+                        <div id="fullChargeDetails" class="conditional-field">
+                            <div class="form-group">
+                                <label>מספר תשלומים <span class="required">*</span></label>
+                                <input type="number" id="paymentsCount" placeholder="כמה תשלומים?" min="1" max="36">
+                            </div>
+                        </div>
+
                         <!-- Deposit Details (conditional) -->
                         <div id="depositDetails" class="conditional-field">
                             <div class="form-row">
@@ -1273,15 +1281,26 @@
         // Credit Card Status Change Handler
         document.querySelectorAll('input[name="creditCardStatus"]').forEach(radio => {
             radio.addEventListener('change', function() {
+                const fullChargeDetails = document.getElementById('fullChargeDetails');
                 const depositDetails = document.getElementById('depositDetails');
+                const paymentsCount = document.getElementById('paymentsCount');
                 const monthlyCharge = document.getElementById('monthlyCharge');
 
-                if (this.value === 'פיקדון') {
+                // Reset both sections
+                fullChargeDetails.classList.remove('show');
+                depositDetails.classList.remove('show');
+                paymentsCount.removeAttribute('required');
+                monthlyCharge.removeAttribute('required');
+
+                if (this.value === 'בוצע חיוב מלא') {
+                    fullChargeDetails.classList.add('show');
+                    paymentsCount.setAttribute('required', 'required');
+                } else if (this.value === 'פיקדון') {
                     depositDetails.classList.add('show');
                     monthlyCharge.setAttribute('required', 'required');
                 } else {
-                    depositDetails.classList.remove('show');
-                    monthlyCharge.removeAttribute('required');
+                    // Reset all fields
+                    paymentsCount.value = '';
                     monthlyCharge.value = '';
                     document.getElementById('monthsCount').value = '';
                     document.getElementById('depositDetailsText').value = '';
@@ -1417,6 +1436,7 @@
                     paymentMethod: paymentMethod,
                     // Credit Card fields
                     creditCardStatus: document.querySelector('input[name="creditCardStatus"]:checked')?.value || '',
+                    paymentsCount: document.getElementById('paymentsCount').value || '',
                     monthlyCharge: document.getElementById('monthlyCharge').value || '',
                     monthsCount: document.getElementById('monthsCount').value || '',
                     depositDetails: document.getElementById('depositDetailsText').value || '',
@@ -1485,6 +1505,7 @@
             document.getElementById('transactionDescriptionGroup').style.display = 'block';
             document.getElementById('vatDisplay').classList.remove('show');
             document.getElementById('creditCardConfirmation').classList.remove('show');
+            document.getElementById('fullChargeDetails').classList.remove('show');
             document.getElementById('depositDetails').classList.remove('show');
             document.getElementById('checksDetails').classList.remove('show');
             document.getElementById('checkReplacementDetails').classList.remove('show');
