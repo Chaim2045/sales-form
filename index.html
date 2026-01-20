@@ -69,30 +69,38 @@
             margin-bottom: 40px;
         }
 
-        .celebration-image {
-            width: 200px;
+        .celebration-banner {
+            width: 100%;
+            max-width: 500px;
+            margin: 20px auto 30px;
+            padding: 0 20px;
+            text-align: center;
+        }
+
+        .celebration-banner img {
+            width: 100%;
             height: auto;
-            margin: 0 auto 20px;
-            display: block;
-            animation: bounceIn 1s ease, float 3s ease-in-out infinite;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            animation: fadeInScale 1s ease;
         }
 
-        @keyframes bounceIn {
-            0% { transform: scale(0.3); opacity: 0; }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+        @keyframes fadeInScale {
+            0% {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
 
         @media (max-width: 768px) {
-            .celebration-image {
-                width: 150px;
+            .celebration-banner {
+                max-width: 100%;
+                margin: 15px auto 25px;
+                padding: 0 10px;
             }
         }
 
@@ -854,10 +862,14 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <img src="ChatGPT Image Jan 20, 2026, 03_22_42 PM.png" alt="יש מכירה!" class="celebration-image">
             <img src="‏‏logo - עותק.png" alt="לוגו משרד עו"ד גיא הרשקוביץ" style="max-width: 200px; max-height: 80px; width: auto; height: auto; margin-bottom: 10px; object-fit: contain;">
             <h1>טופס מכר</h1>
             <p>משרד עו"ד גיא הרשקוביץ ושות'</p>
+        </div>
+
+        <!-- Celebration Banner -->
+        <div class="celebration-banner">
+            <img src="ChatGPT Image Jan 20, 2026, 03_22_42 PM.png" alt="חגיגת מכירה">
         </div>
 
         <!-- User Selection Screen -->
