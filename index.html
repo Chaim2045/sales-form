@@ -662,6 +662,24 @@
             display: none !important;
         }
 
+        /* Amount Reminder */
+        .amount-reminder {
+            background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+            border: 2px solid #fb923c;
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 16px;
+            color: var(--gray-800);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .amount-reminder strong {
+            color: #ea580c;
+            font-size: 18px;
+        }
+
         /* Error State */
         .error-message {
             color: var(--error);
@@ -1017,6 +1035,11 @@
 
                     <!-- Credit Card Confirmation (conditional) -->
                     <div id="creditCardConfirmation" class="conditional-field">
+                        <!-- Amount Reminder -->
+                        <div class="amount-reminder">
+                            💰 סכום העסקה: <strong id="ccAmountReminder">₪0</strong> (כולל מע"מ)
+                        </div>
+
                         <div class="form-group">
                             <label>סטטוס החיוב באשראי <span class="required">*</span></label>
                             <div class="radio-group">
@@ -1027,6 +1050,10 @@
                                 <div class="radio-option">
                                     <input type="radio" id="ccDeposit" name="creditCardStatus" value="פיקדון">
                                     <label for="ccDeposit">פיקדון</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="ccTemporary" name="creditCardStatus" value="אשראי זמני - יוחלף">
+                                    <label for="ccTemporary">אשראי זמני - יוחלף</label>
                                 </div>
                             </div>
                         </div>
@@ -1056,10 +1083,23 @@
                                 <textarea id="depositDetailsText" placeholder="תאריך תחילת חיוב, הערות..."></textarea>
                             </div>
                         </div>
+
+                        <!-- Temporary Credit Card - Replacement Details (conditional) -->
+                        <div id="temporaryCreditDetails" class="conditional-field">
+                            <div class="form-group">
+                                <label>פרטי החלפה <span class="required">*</span></label>
+                                <textarea id="temporaryCreditText" placeholder="לדוגמה: יוחלף לצ'קים ב-01/03/2025, יוחלף להעברה בנקאית..."></textarea>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Checks Details (conditional) -->
                     <div id="checksDetails" class="conditional-field">
+                        <!-- Amount Reminder -->
+                        <div class="amount-reminder">
+                            💰 סכום העסקה: <strong id="checksAmountReminder">₪0</strong> (כולל מע"מ)
+                        </div>
+
                         <div class="form-row">
                             <div class="form-group">
                                 <label>מספר שיקים <span class="required">*</span></label>
@@ -1417,11 +1457,13 @@
 
                 if (this.value === 'כרטיס אשראי') {
                     ccConfirm.classList.add('show');
+                    updateAmountReminder('cc');
                     checksPhoto.removeAttribute('required');
                     checksCount.removeAttribute('required');
                     checksTotalAmount.removeAttribute('required');
                 } else if (this.value === 'שיקים דחויים') {
                     checksDetail.classList.add('show');
+                    updateAmountReminder('checks');
                     checksPhoto.setAttribute('required', 'required');
                     checksCount.setAttribute('required', 'required');
                     checksTotalAmount.setAttribute('required', 'required');
@@ -1433,19 +1475,38 @@
             });
         });
 
+        // Update Amount Reminder Function
+        function updateAmountReminder(type) {
+            const amountBeforeVat = parseFloat(document.getElementById('amount').value) || 0;
+            if (amountBeforeVat > 0) {
+                const amountWithVat = amountBeforeVat * 1.18;
+                const formattedAmount = '₪' + amountWithVat.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+                if (type === 'cc') {
+                    document.getElementById('ccAmountReminder').textContent = formattedAmount;
+                } else if (type === 'checks') {
+                    document.getElementById('checksAmountReminder').textContent = formattedAmount;
+                }
+            }
+        }
+
         // Credit Card Status Change Handler
         document.querySelectorAll('input[name="creditCardStatus"]').forEach(radio => {
             radio.addEventListener('change', function() {
                 const fullChargeDetails = document.getElementById('fullChargeDetails');
                 const depositDetails = document.getElementById('depositDetails');
+                const temporaryCreditDetails = document.getElementById('temporaryCreditDetails');
                 const paymentsCount = document.getElementById('paymentsCount');
                 const monthlyCharge = document.getElementById('monthlyCharge');
+                const temporaryCreditText = document.getElementById('temporaryCreditText');
 
-                // Reset both sections
+                // Reset all sections
                 fullChargeDetails.classList.remove('show');
                 depositDetails.classList.remove('show');
+                temporaryCreditDetails.classList.remove('show');
                 paymentsCount.removeAttribute('required');
                 monthlyCharge.removeAttribute('required');
+                temporaryCreditText.removeAttribute('required');
 
                 if (this.value === 'בוצע חיוב מלא') {
                     fullChargeDetails.classList.add('show');
@@ -1453,10 +1514,14 @@
                 } else if (this.value === 'פיקדון') {
                     depositDetails.classList.add('show');
                     monthlyCharge.setAttribute('required', 'required');
+                } else if (this.value === 'אשראי זמני - יוחלף') {
+                    temporaryCreditDetails.classList.add('show');
+                    temporaryCreditText.setAttribute('required', 'required');
                 } else {
                     // Reset all fields
                     paymentsCount.value = '';
                     monthlyCharge.value = '';
+                    temporaryCreditText.value = '';
                     document.getElementById('monthsCount').value = '';
                     document.getElementById('depositDetailsText').value = '';
                 }
@@ -1595,6 +1660,7 @@
                     monthlyCharge: document.getElementById('monthlyCharge').value || '',
                     monthsCount: document.getElementById('monthsCount').value || '',
                     depositDetails: document.getElementById('depositDetailsText').value || '',
+                    temporaryCreditDetails: document.getElementById('temporaryCreditText').value || '',
                     // Checks fields
                     checksCount: document.getElementById('checksCount').value || '',
                     checksTotalAmount: document.getElementById('checksTotalAmount').value || '',
@@ -1668,6 +1734,7 @@
             document.getElementById('creditCardConfirmation').classList.remove('show');
             document.getElementById('fullChargeDetails').classList.remove('show');
             document.getElementById('depositDetails').classList.remove('show');
+            document.getElementById('temporaryCreditDetails').classList.remove('show');
             document.getElementById('checksDetails').classList.remove('show');
             document.getElementById('checkReplacementDetails').classList.remove('show');
 

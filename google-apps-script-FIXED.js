@@ -70,6 +70,8 @@ function addRowToSheet(data) {
       creditCardInfo = `חיוב חודשי: ₪${data.monthlyCharge || ''} למשך ${data.monthsCount || ''} חודשים`;
     } else if (data.creditCardStatus === 'פיקדון') {
       creditCardInfo = `פיקדון: ${data.depositDetails || ''}`;
+    } else if (data.creditCardStatus === 'אשראי זמני - יוחלף') {
+      creditCardInfo = `אשראי זמני - ${data.temporaryCreditDetails || ''}`;
     }
   }
 
