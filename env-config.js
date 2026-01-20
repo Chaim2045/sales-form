@@ -15,6 +15,6 @@
         FIREBASE_MESSAGING_SENDER_ID: '120096251777',
         FIREBASE_APP_ID: '1:120096251777:web:c88b4d0b3d13a5713f9280',
         FIREBASE_MEASUREMENT_ID: '',
-        GOOGLE_SHEETS_WEBHOOK: 'https://script.google.com/macros/s/AKfycbx4en4xw-4cG7_ytYE66rLswHCoV8JDwg8g5-QL9geMFhhIdYY-2Qhw_ZgTR3R_e-7l/exec'
+        GOOGLE_SHEETS_WEBHOOK: 'https://script.google.com/macros/s/AKfycbxkAkkhx9V2s24A_ZUNwIgRV5iei7bt5-nwxXmfelIkQqHp5a8D17cMC0mrqBRPU0pe/exec'
     };
 })();
