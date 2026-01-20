@@ -492,7 +492,9 @@
         .success-screen {
             display: none;
             text-align: center;
-            padding: 60px 20px;
+            padding: 40px 20px;
+            position: relative;
+            overflow: hidden;
         }
 
         .success-screen.show {
@@ -501,32 +503,145 @@
         }
 
         .success-icon {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, var(--success) 0%, #34d399 100%);
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
             border-radius: 50%;
             margin: 0 auto 24px;
             display: flex;
             align-items: center;
             justify-content: center;
+            animation: successPop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 10px 40px rgba(16, 185, 129, 0.3);
+        }
+
+        @keyframes successPop {
+            0% {
+                transform: scale(0) rotate(-180deg);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.2) rotate(10deg);
+            }
+            100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
         }
 
         .success-icon svg {
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             color: var(--white);
+            stroke-width: 3;
+        }
+
+        .celebration-emoji {
+            font-size: 48px;
+            margin-bottom: 16px;
+            animation: bounce 0.8s ease infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
 
         .success-screen h2 {
-            font-size: 24px;
+            font-size: 28px;
             color: var(--gray-800);
             margin-bottom: 8px;
+            font-weight: 700;
         }
 
-        .success-screen p {
-            color: var(--gray-500);
-            margin-bottom: 32px;
+        .success-screen .subtitle {
+            color: var(--success);
+            margin-bottom: 24px;
+            font-size: 16px;
+            font-weight: 600;
         }
+
+        .sale-summary {
+            background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%);
+            border: 2px solid #10b981;
+            border-radius: 16px;
+            padding: 24px;
+            margin: 24px 0;
+            text-align: right;
+        }
+
+        .sale-summary-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gray-800);
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .sale-detail {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .sale-detail:last-child {
+            border-bottom: none;
+        }
+
+        .sale-detail-label {
+            color: var(--gray-600);
+            font-size: 14px;
+        }
+
+        .sale-detail-value {
+            color: var(--gray-800);
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .sale-amount {
+            background: var(--success);
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            margin-top: 16px;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        /* Confetti Animation */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #f0f;
+            position: absolute;
+            animation: confetti-fall 3s linear infinite;
+        }
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100%) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        .confetti:nth-child(1) { left: 10%; background: #ff6b6b; animation-delay: 0s; }
+        .confetti:nth-child(2) { left: 20%; background: #4ecdc4; animation-delay: 0.2s; }
+        .confetti:nth-child(3) { left: 30%; background: #ffe66d; animation-delay: 0.4s; }
+        .confetti:nth-child(4) { left: 40%; background: #a8e6cf; animation-delay: 0.6s; }
+        .confetti:nth-child(5) { left: 50%; background: #ff8b94; animation-delay: 0.8s; }
+        .confetti:nth-child(6) { left: 60%; background: #b4e7ce; animation-delay: 1s; }
+        .confetti:nth-child(7) { left: 70%; background: #ffd3b6; animation-delay: 1.2s; }
+        .confetti:nth-child(8) { left: 80%; background: #dcedc1; animation-delay: 1.4s; }
+        .confetti:nth-child(9) { left: 90%; background: #a8dadc; animation-delay: 1.6s; }
+        .confetti:nth-child(10) { left: 95%; background: #e4c1f9; animation-delay: 1.8s; }
 
         /* Loading Spinner */
         .spinner {
@@ -1077,15 +1192,55 @@
 
         <!-- Success Screen -->
         <div id="successScreen" class="form-card success-screen">
+            <!-- Confetti Elements -->
+            <div class="confetti"></div>
+            <div class="confetti"></div>
+            <div class="confetti"></div>
+            <div class="confetti"></div>
+            <div class="confetti"></div>
+            <div class="confetti"></div>
+            <div class="confetti"></div>
+            <div class="confetti"></div>
+            <div class="confetti"></div>
+            <div class="confetti"></div>
+
+            <div class="celebration-emoji">🎉</div>
+
             <div class="success-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
             </div>
-            <h2>הטופס נשלח בהצלחה!</h2>
-            <p>הרשומה נוספה למערכת</p>
-            <button class="btn btn-primary" onclick="resetForm()" style="max-width: 200px; margin: 0 auto;">
-                טופס חדש
+
+            <h2>כל הכבוד! מכירה חדשה!</h2>
+            <p class="subtitle">הרשומה נשמרה בהצלחה במערכת</p>
+
+            <div class="sale-summary">
+                <div class="sale-summary-title">📊 סיכום המכירה</div>
+
+                <div class="sale-detail">
+                    <span class="sale-detail-label">לקוח:</span>
+                    <span class="sale-detail-value" id="summaryClientName">-</span>
+                </div>
+
+                <div class="sale-detail">
+                    <span class="sale-detail-label">סוג עסקה:</span>
+                    <span class="sale-detail-value" id="summaryTransactionType">-</span>
+                </div>
+
+                <div class="sale-detail">
+                    <span class="sale-detail-label">אמצעי תשלום:</span>
+                    <span class="sale-detail-value" id="summaryPaymentMethod">-</span>
+                </div>
+
+                <div class="sale-amount">
+                    ₪<span id="summaryAmount">0</span>
+                    <div style="font-size: 14px; font-weight: 400; margin-top: 4px;">כולל מע"מ</div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="resetForm()" style="max-width: 250px; margin: 0 auto; font-size: 16px;">
+                🚀 מכירה נוספת
             </button>
         </div>
     </div>
@@ -1460,6 +1615,12 @@
 
                 // Sync to Google Sheets
                 await syncToSheets(formData);
+
+                // Update success screen with sale details
+                document.getElementById('summaryClientName').textContent = formData.clientName;
+                document.getElementById('summaryTransactionType').textContent = formData.transactionType;
+                document.getElementById('summaryPaymentMethod').textContent = formData.paymentMethod;
+                document.getElementById('summaryAmount').textContent = formData.amountWithVat.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
                 // Show success
                 document.getElementById('mainForm').classList.add('hidden');
