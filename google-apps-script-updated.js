@@ -216,7 +216,10 @@ function doPost(e) {
 
     return ContentService
       .createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeader('Access-Control-Allow-Origin', '*')
+      .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+      .setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   } catch (error) {
     const errorResult = {
@@ -231,7 +234,10 @@ function doPost(e) {
 
     return ContentService
       .createTextOutput(JSON.stringify(errorResult))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeader('Access-Control-Allow-Origin', '*')
+      .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+      .setHeader('Access-Control-Allow-Headers', 'Content-Type');
   }
 }
 
@@ -242,7 +248,20 @@ function doGet(e) {
       message: 'Webhook טופס מכר פעיל',
       timestamp: new Date().toISOString()
     }))
-    .setMimeType(ContentService.MimeType.JSON);
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeader('Access-Control-Allow-Origin', '*')
+    .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+function doOptions(e) {
+  return ContentService
+    .createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT)
+    .setHeader('Access-Control-Allow-Origin', '*')
+    .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    .setHeader('Access-Control-Max-Age', '86400');
 }
 
 
@@ -256,7 +275,16 @@ function addRowToSheet(data) {
     if (data.creditCardStatus === 'חיוב חודשי') {
       creditCardInfo = `חיוב חודשי: ₪${data.monthlyCharge || ''} למשך ${data.monthsCount || ''} חודשים`;
     } else if (data.creditCardStatus === 'פיקדון') {
-      creditCardInfo = `פיקדון: ${data.depositDetails || ''}`;
+      if (data.monthlyCharge && data.monthsCount) {
+        creditCardInfo = `פיקדון: ₪${data.monthlyCharge} למשך ${data.monthsCount} חודשים`;
+        if (data.depositDetails) {
+          creditCardInfo += ` | ${data.depositDetails}`;
+        }
+      } else if (data.depositDetails) {
+        creditCardInfo = `פיקדון: ${data.depositDetails}`;
+      }
+    } else if (data.creditCardStatus === 'אשראי זמני - יוחלף' && data.temporaryCreditDetails) {
+      creditCardInfo = `אשראי זמני: ${data.temporaryCreditDetails}`;
     }
   }
 
