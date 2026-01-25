@@ -271,6 +271,12 @@ function addRowToSheet(data) {
     }
   }
 
+  // טיפול בפיצול תשלום
+  let splitPaymentInfo = '';
+  if (data.isSplitPayment && data.paymentBreakdownText) {
+    splitPaymentInfo = data.paymentBreakdownText;
+  }
+
   // בניית השורה לפי סדר העמודות המעודכן
   const row = [
     data.timestamp || new Date().toISOString(),           // A: חותמת זמן
@@ -290,15 +296,17 @@ function addRowToSheet(data) {
     data.vatAmount || '',                                 // O: מע"מ
     data.amountWithVat || '',                             // P: סכום כולל מע"מ
     data.paymentMethod || '',                             // Q: אמצעי תשלום
-    creditCardInfo,                                       // R: פרטי כרטיס אשראי
-    checksInfo,                                           // S: פרטי צ'קים
-    data.checksPhotoURL || '',                            // T: קישור לתמונת צ'ק
-    data.attorney || '',                                  // U: עו"ד מטפל
-    data.caseNumber || '',                                // V: מספר תיק
-    data.branch || 'תל אביב',                             // W: סניף
-    data.notes || '',                                     // X: הערות
-    data.invoiceNumber || '',                             // Y: מס' חשבונית
-    data.receiptNumber || ''                              // Z: מס' קבלה
+    data.isSplitPayment ? 'כן' : 'לא',                    // R: פיצול תשלום?
+    splitPaymentInfo,                                     // S: פירוט פיצול תשלום
+    creditCardInfo,                                       // T: פרטי כרטיס אשראי
+    checksInfo,                                           // U: פרטי צ'קים
+    data.checksPhotoURL || '',                            // V: קישור לתמונת צ'ק
+    data.attorney || '',                                  // W: עו"ד מטפל
+    data.caseNumber || '',                                // X: מספר תיק
+    data.branch || 'תל אביב',                             // Y: סניף
+    data.notes || '',                                     // Z: הערות
+    data.invoiceNumber || '',                             // AA: מס' חשבונית
+    data.receiptNumber || ''                              // AB: מס' קבלה
   ];
 
   sheet.appendRow(row);
@@ -306,7 +314,7 @@ function addRowToSheet(data) {
 
   // אם יש קישור לתמונת צ'ק, הפוך אותו ל-HYPERLINK לחיץ
   if (data.checksPhotoURL) {
-    const checkPhotoCell = sheet.getRange(newRowNumber, 20); // עמודה T
+    const checkPhotoCell = sheet.getRange(newRowNumber, 22); // עמודה V
     checkPhotoCell.setFormula(`=HYPERLINK("${data.checksPhotoURL}", "📸 צפה בתמונה")`);
   }
 
@@ -439,15 +447,17 @@ function updateSheetHeaders() {
     'מע"מ',                   // O
     'סכום כולל מע"מ',         // P
     'אמצעי תשלום',            // Q
-    'פרטי כרטיס אשראי',       // R
-    'פרטי צ\'קים',            // S
-    'תמונת צ\'ק',             // T
-    'עו"ד מטפל',              // U
-    'מספר תיק',               // V
-    'סניף',                   // W
-    'הערות',                  // X
-    'מספר חשבונית',           // Y
-    'מספר קבלה'               // Z
+    'פיצול תשלום?',           // R
+    'פירוט פיצול תשלום',      // S
+    'פרטי כרטיס אשראי',       // T
+    'פרטי צ\'קים',            // U
+    'תמונת צ\'ק',             // V
+    'עו"ד מטפל',              // W
+    'מספר תיק',               // X
+    'סניף',                   // Y
+    'הערות',                  // Z
+    'מספר חשבונית',           // AA
+    'מספר קבלה'               // AB
   ];
 
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);

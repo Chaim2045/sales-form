@@ -831,6 +831,90 @@
             font-weight: 500;
             font-size: 14px;
         }
+
+        /* Split Payment Rows */
+        .split-payment-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 12px;
+            align-items: end;
+            margin-bottom: 12px;
+            padding: 16px;
+            background: var(--gray-50);
+            border-radius: 10px;
+            border: 1px solid var(--gray-200);
+        }
+
+        @media (max-width: 500px) {
+            .split-payment-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .split-payment-row .form-group {
+            margin-bottom: 0;
+        }
+
+        .split-payment-remove {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 1px solid var(--error);
+            background: var(--white);
+            color: var(--error);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            padding: 0;
+        }
+
+        .split-payment-remove:hover {
+            background: var(--error);
+            color: var(--white);
+        }
+
+        .split-payment-remove svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Split Payment Method Details */
+        .split-method-details {
+            grid-column: 1 / -1; /* Takes full width */
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--gray-300);
+        }
+
+        .split-cc-details,
+        .split-checks-details {
+            background: var(--white);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .conditional-subfield {
+            display: none;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed var(--gray-300);
+        }
+
+        .split-row-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 12px;
+            align-items: end;
+        }
+
+        @media (max-width: 500px) {
+            .split-row-header {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1070,11 +1154,51 @@
                                 <input type="radio" id="checks" name="paymentMethod" value="שיקים דחויים">
                                 <label for="checks">שיקים</label>
                             </div>
+                            <div class="radio-option">
+                                <input type="radio" id="splitPayment" name="paymentMethod" value="פיצול תשלום">
+                                <label for="splitPayment">פיצול תשלום</label>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Encouragement Message (appears after payment method selection) -->
                     <div id="encouragementMessage" class="encouragement-message hide"></div>
+
+                    <!-- Split Payment Details (conditional) -->
+                    <div id="splitPaymentDetails" class="conditional-field">
+                        <!-- Amount Reminder -->
+                        <div class="amount-reminder">
+                            💰 סכום העסקה: <strong id="splitAmountReminder">₪0</strong> (כולל מע"מ)
+                        </div>
+
+                        <div style="background: var(--light-blue); border: 2px solid var(--primary-blue); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                            <div style="font-weight: 600; margin-bottom: 8px; color: var(--gray-800);">פרט את אמצעי התשלום:</div>
+                            <div style="font-size: 13px; color: var(--gray-600);">הוסף כל אמצעי תשלום והסכום שלו</div>
+                        </div>
+
+                        <div id="splitPaymentRows">
+                            <!-- Split payment rows will be added here dynamically -->
+                        </div>
+
+                        <button type="button" class="btn btn-secondary" onclick="addSplitPaymentRow()" style="margin-bottom: 16px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            הוסף אמצעי תשלום
+                        </button>
+
+                        <div id="splitPaymentSummary" class="vat-display" style="display: none;">
+                            <div class="vat-row">
+                                <span class="vat-label">סכום כולל שהוזן:</span>
+                                <span class="vat-value" id="splitTotalEntered">₪0</span>
+                            </div>
+                            <div class="vat-row">
+                                <span class="vat-label">סכום נותר:</span>
+                                <span class="vat-value" id="splitRemaining" style="color: var(--error); font-weight: 700;">₪0</span>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Credit Card Confirmation (conditional) -->
                     <div id="creditCardConfirmation" class="conditional-field">
@@ -1248,6 +1372,7 @@
                             <label>סניף</label>
                             <select id="branch">
                                 <option value="תל אביב" selected>תל אביב</option>
+                                <option value="רחובות">רחובות</option>
                             </select>
                         </div>
                     </div>
@@ -1486,17 +1611,22 @@
 
         document.getElementById('amount').addEventListener('input', updateVatDisplay);
 
+        // Global variable for split payment rows
+        let splitPaymentRowCounter = 0;
+
         // Payment Method Change Handler
         document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
             radio.addEventListener('change', function() {
                 const ccConfirm = document.getElementById('creditCardConfirmation');
                 const checksDetail = document.getElementById('checksDetails');
+                const splitPaymentDetail = document.getElementById('splitPaymentDetails');
                 const checksPhoto = document.getElementById('checksPhoto');
                 const checksCount = document.getElementById('checksCount');
                 const checksTotalAmount = document.getElementById('checksTotalAmount');
 
                 ccConfirm.classList.remove('show');
                 checksDetail.classList.remove('show');
+                splitPaymentDetail.classList.remove('show');
 
                 // Show encouragement message based on payment method
                 showEncouragementMessage(this.value);
@@ -1513,6 +1643,17 @@
                     checksPhoto.setAttribute('required', 'required');
                     checksCount.setAttribute('required', 'required');
                     checksTotalAmount.setAttribute('required', 'required');
+                } else if (this.value === 'פיצול תשלום') {
+                    splitPaymentDetail.classList.add('show');
+                    updateAmountReminder('split');
+                    checksPhoto.removeAttribute('required');
+                    checksCount.removeAttribute('required');
+                    checksTotalAmount.removeAttribute('required');
+
+                    // Initialize with one row if empty
+                    if (document.getElementById('splitPaymentRows').children.length === 0) {
+                        addSplitPaymentRow();
+                    }
                 } else {
                     checksPhoto.removeAttribute('required');
                     checksCount.removeAttribute('required');
@@ -1548,6 +1689,10 @@
                     icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>';
                     text = 'דיגיטלי עד הסוף! יאללה להמשיך...';
                     break;
+                case 'פיצול תשלום':
+                    icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>';
+                    text = 'גמישות מקסימלית! בואו נפרט את התשלומים...';
+                    break;
                 default:
                     icon = '';
                     text = '';
@@ -1575,8 +1720,307 @@
                     document.getElementById('ccAmountReminder').textContent = formattedAmount;
                 } else if (type === 'checks') {
                     document.getElementById('checksAmountReminder').textContent = formattedAmount;
+                } else if (type === 'split') {
+                    document.getElementById('splitAmountReminder').textContent = formattedAmount;
                 }
             }
+        }
+
+        // Add Split Payment Row
+        function addSplitPaymentRow() {
+            splitPaymentRowCounter++;
+            const rowId = 'splitRow_' + splitPaymentRowCounter;
+            const container = document.getElementById('splitPaymentRows');
+
+            const rowHTML = `
+                <div class="split-payment-row" id="${rowId}" data-row-id="${rowId}">
+                    <div class="split-row-header">
+                        <div class="form-group">
+                            <label>אמצעי תשלום</label>
+                            <select class="split-payment-method" onchange="handleSplitMethodChange('${rowId}')">
+                                <option value="">בחר אמצעי תשלום</option>
+                                <option value="מזומן">מזומן</option>
+                                <option value="כרטיס אשראי">כרטיס אשראי</option>
+                                <option value="העברה בנקאית">העברה בנקאית</option>
+                                <option value="ביט">ביט</option>
+                                <option value="שיקים דחויים">שיקים דחויים</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>סכום (כולל מע"מ)</label>
+                            <input type="number" class="split-payment-amount" placeholder="0" min="0" step="0.01" oninput="updateSplitPaymentSummary()">
+                        </div>
+                        <button type="button" class="split-payment-remove" onclick="removeSplitPaymentRow('${rowId}')" title="הסר">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- אזור לשדות מפורטים - יוכנס דינמית -->
+                    <div class="split-method-details" id="details_${rowId}"></div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', rowHTML);
+            updateSplitPaymentSummary();
+        }
+
+        // Remove Split Payment Row
+        function removeSplitPaymentRow(rowId) {
+            const row = document.getElementById(rowId);
+            if (row) {
+                row.remove();
+                updateSplitPaymentSummary();
+            }
+        }
+
+        // Handle Split Method Change - Show method-specific fields
+        function handleSplitMethodChange(rowId) {
+            const row = document.getElementById(rowId);
+            const method = row.querySelector('.split-payment-method').value;
+            const detailsContainer = document.getElementById('details_' + rowId);
+
+            // Clear previous details
+            detailsContainer.innerHTML = '';
+
+            // Add method-specific fields
+            if (method === 'כרטיס אשראי') {
+                detailsContainer.innerHTML = getCreditCardDetailsHTML(rowId);
+            } else if (method === 'שיקים דחויים') {
+                detailsContainer.innerHTML = getChecksDetailsHTML(rowId);
+            }
+
+            updateSplitPaymentSummary();
+        }
+
+        // Get Credit Card Details HTML
+        function getCreditCardDetailsHTML(rowId) {
+            return `
+                <div class="split-cc-details">
+                    <div style="font-weight: 600; margin-bottom: 12px; color: var(--gray-700);">פרטי כרטיס אשראי:</div>
+
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="cc_full_${rowId}" name="cc_status_${rowId}" value="חיוב מלא" onchange="handleCreditCardStatusChange('${rowId}')">
+                            <label for="cc_full_${rowId}">בוצע חיוב מלא</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="cc_deposit_${rowId}" name="cc_status_${rowId}" value="פיקדון" onchange="handleCreditCardStatusChange('${rowId}')">
+                            <label for="cc_deposit_${rowId}">פיקדון</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="cc_temp_${rowId}" name="cc_status_${rowId}" value="אשראי זמני" onchange="handleCreditCardStatusChange('${rowId}')">
+                            <label for="cc_temp_${rowId}">אשראי זמני - יוחלף</label>
+                        </div>
+                    </div>
+
+                    <!-- חיוב מלא -->
+                    <div id="cc_full_details_${rowId}" class="conditional-subfield">
+                        <div class="form-group">
+                            <label>מספר תשלומים</label>
+                            <input type="number" id="cc_payments_${rowId}" min="1" max="36" placeholder="1">
+                        </div>
+                    </div>
+
+                    <!-- פיקדון -->
+                    <div id="cc_deposit_details_${rowId}" class="conditional-subfield">
+                        <div class="form-group">
+                            <label>חיוב חודשי</label>
+                            <input type="number" id="cc_monthly_${rowId}" step="0.01" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>למשך כמה חודשים</label>
+                            <input type="number" id="cc_months_${rowId}" min="1" placeholder="1">
+                        </div>
+                        <div class="form-group">
+                            <label>פרטי פיקדון</label>
+                            <textarea id="cc_deposit_text_${rowId}" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- אשראי זמני -->
+                    <div id="cc_temp_details_${rowId}" class="conditional-subfield">
+                        <div class="form-group">
+                            <label>פרטי החלפה</label>
+                            <textarea id="cc_temp_text_${rowId}" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Get Checks Details HTML
+        function getChecksDetailsHTML(rowId) {
+            return `
+                <div class="split-checks-details">
+                    <div style="font-weight: 600; margin-bottom: 12px; color: var(--gray-700);">פרטי שיקים:</div>
+
+                    <div class="form-group">
+                        <label>כמה צ'קים?</label>
+                        <input type="number" id="checks_count_${rowId}" min="1" placeholder="1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>סכום כל צ'ק</label>
+                        <input type="number" id="checks_amount_${rowId}" step="0.01" placeholder="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label>צילום צ'ק</label>
+                        <input type="file" id="checks_photo_${rowId}" accept="image/*" capture="environment">
+                    </div>
+
+                    <div class="form-group">
+                        <label>פרטי צ'קים נוספים (אופציונלי)</label>
+                        <textarea id="checks_details_${rowId}" rows="2" placeholder="תאריכים, מספרי צ'קים וכו'"></textarea>
+                    </div>
+
+                    <div style="margin-top: 12px;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 8px;">האם הצ'ק יוחלף?</label>
+                        <div class="radio-group">
+                            <div class="radio-option">
+                                <input type="radio" id="check_replace_no_${rowId}" name="check_replace_${rowId}" value="לא" checked onchange="handleCheckReplaceChange('${rowId}')">
+                                <label for="check_replace_no_${rowId}">לא</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="check_replace_yes_${rowId}" name="check_replace_${rowId}" value="כן" onchange="handleCheckReplaceChange('${rowId}')">
+                                <label for="check_replace_yes_${rowId}">כן</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="check_replace_details_${rowId}" class="conditional-subfield">
+                        <div class="form-group">
+                            <label>באיזה אופן יוחלף?</label>
+                            <textarea id="check_replace_text_${rowId}" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Handle Credit Card Status Change
+        function handleCreditCardStatusChange(rowId) {
+            const fullDetails = document.getElementById('cc_full_details_' + rowId);
+            const depositDetails = document.getElementById('cc_deposit_details_' + rowId);
+            const tempDetails = document.getElementById('cc_temp_details_' + rowId);
+
+            fullDetails.style.display = 'none';
+            depositDetails.style.display = 'none';
+            tempDetails.style.display = 'none';
+
+            const selectedStatus = document.querySelector(`input[name="cc_status_${rowId}"]:checked`)?.value;
+
+            if (selectedStatus === 'חיוב מלא') {
+                fullDetails.style.display = 'block';
+            } else if (selectedStatus === 'פיקדון') {
+                depositDetails.style.display = 'block';
+            } else if (selectedStatus === 'אשראי זמני') {
+                tempDetails.style.display = 'block';
+            }
+        }
+
+        // Handle Check Replace Change
+        function handleCheckReplaceChange(rowId) {
+            const replaceDetails = document.getElementById('check_replace_details_' + rowId);
+            const willReplace = document.querySelector(`input[name="check_replace_${rowId}"]:checked`)?.value;
+
+            replaceDetails.style.display = (willReplace === 'כן') ? 'block' : 'none';
+        }
+
+        // Update Split Payment Summary
+        function updateSplitPaymentSummary() {
+            const rows = document.querySelectorAll('.split-payment-row');
+            let totalEntered = 0;
+
+            rows.forEach(row => {
+                const amount = parseFloat(row.querySelector('.split-payment-amount').value) || 0;
+                totalEntered += amount;
+            });
+
+            const amountBeforeVat = parseFloat(document.getElementById('amount').value) || 0;
+            const totalRequired = amountBeforeVat * 1.18;
+            const remaining = totalRequired - totalEntered;
+
+            document.getElementById('splitTotalEntered').textContent = '₪' + totalEntered.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('splitRemaining').textContent = '₪' + remaining.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+            // Change color based on remaining amount
+            const remainingElement = document.getElementById('splitRemaining');
+            if (remaining === 0) {
+                remainingElement.style.color = 'var(--success)';
+            } else if (remaining < 0) {
+                remainingElement.style.color = 'var(--error)';
+            } else {
+                remainingElement.style.color = 'var(--error)';
+            }
+
+            // Show/hide summary
+            if (rows.length > 0 && totalEntered > 0) {
+                document.getElementById('splitPaymentSummary').style.display = 'block';
+            } else {
+                document.getElementById('splitPaymentSummary').style.display = 'none';
+            }
+        }
+
+        // Get Split Payment Data
+        async function getSplitPaymentData() {
+            const rows = document.querySelectorAll('.split-payment-row');
+            const splitPayments = [];
+
+            for (const row of rows) {
+                const rowId = row.getAttribute('data-row-id');
+                const method = row.querySelector('.split-payment-method').value;
+                const amount = parseFloat(row.querySelector('.split-payment-amount').value) || 0;
+
+                if (!method || amount <= 0) continue;
+
+                const paymentData = {
+                    method: method,
+                    amount: amount
+                };
+
+                // Collect method-specific details
+                if (method === 'כרטיס אשראי') {
+                    const ccStatus = document.querySelector(`input[name="cc_status_${rowId}"]:checked`)?.value || '';
+                    paymentData.creditCardStatus = ccStatus;
+
+                    if (ccStatus === 'חיוב מלא') {
+                        paymentData.paymentsCount = document.getElementById('cc_payments_' + rowId)?.value || '';
+                    } else if (ccStatus === 'פיקדון') {
+                        paymentData.monthlyCharge = document.getElementById('cc_monthly_' + rowId)?.value || '';
+                        paymentData.monthsCount = document.getElementById('cc_months_' + rowId)?.value || '';
+                        paymentData.depositDetails = document.getElementById('cc_deposit_text_' + rowId)?.value || '';
+                    } else if (ccStatus === 'אשראי זמני') {
+                        paymentData.temporaryCreditDetails = document.getElementById('cc_temp_text_' + rowId)?.value || '';
+                    }
+                } else if (method === 'שיקים דחויים') {
+                    paymentData.checksCount = document.getElementById('checks_count_' + rowId)?.value || '';
+                    paymentData.checksAmount = document.getElementById('checks_amount_' + rowId)?.value || '';
+                    paymentData.checksDetails = document.getElementById('checks_details_' + rowId)?.value || '';
+
+                    const checkReplace = document.querySelector(`input[name="check_replace_${rowId}"]:checked`)?.value || 'לא';
+                    paymentData.checkWillChange = checkReplace;
+
+                    if (checkReplace === 'כן') {
+                        paymentData.checkReplacementDetails = document.getElementById('check_replace_text_' + rowId)?.value || '';
+                    }
+
+                    // Upload check photo
+                    const checksPhotoFile = document.getElementById('checks_photo_' + rowId)?.files[0];
+                    if (checksPhotoFile) {
+                        const timestamp = Date.now();
+                        const fileName = `checks/${timestamp}_${rowId}_${checksPhotoFile.name}`;
+                        paymentData.checksPhotoURL = await uploadFile(checksPhotoFile, fileName);
+                    }
+                }
+
+                splitPayments.push(paymentData);
+            }
+
+            return splitPayments;
         }
 
         // Credit Card Status Change Handler
@@ -1724,6 +2168,35 @@
                     }
                 }
 
+                // Handle split payment data
+                let paymentBreakdown = '';
+                let paymentBreakdownText = '';
+                let isSplitPayment = false;
+
+                if (paymentMethod === 'פיצול תשלום') {
+                    isSplitPayment = true;
+                    const splitPayments = await getSplitPaymentData();
+                    paymentBreakdown = JSON.stringify(splitPayments);
+
+                    // Create detailed readable text for Google Sheets
+                    paymentBreakdownText = splitPayments.map(p => {
+                        let text = `${p.method}: ₪${p.amount.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+                        // Add additional details
+                        if (p.method === 'כרטיס אשראי' && p.creditCardStatus) {
+                            if (p.creditCardStatus === 'חיוב מלא' && p.paymentsCount) {
+                                text += ` (${p.paymentsCount} תשלומים)`;
+                            } else if (p.creditCardStatus === 'פיקדון' && p.monthlyCharge) {
+                                text += ` (₪${p.monthlyCharge} × ${p.monthsCount} חודשים)`;
+                            }
+                        } else if (p.method === 'שיקים דחויים' && p.checksCount) {
+                            text += ` (${p.checksCount} צ'קים)`;
+                        }
+
+                        return text;
+                    }).join(' + ');
+                }
+
                 const formData = {
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                     date: new Date().toISOString().split('T')[0],
@@ -1743,6 +2216,9 @@
                     amountWithVat: amountWithVat,
                     amount: amountBeforeVat, // Keep for backwards compatibility
                     paymentMethod: paymentMethod,
+                    isSplitPayment: isSplitPayment,
+                    paymentBreakdown: paymentBreakdown,
+                    paymentBreakdownText: paymentBreakdownText,
                     // Credit Card fields
                     creditCardStatus: document.querySelector('input[name="creditCardStatus"]:checked')?.value || '',
                     paymentsCount: document.getElementById('paymentsCount').value || '',
@@ -1774,7 +2250,16 @@
                 // Update success screen with sale details
                 document.getElementById('summaryClientName').textContent = formData.clientName;
                 document.getElementById('summaryTransactionType').textContent = formData.transactionType;
-                document.getElementById('summaryPaymentMethod').textContent = formData.paymentMethod;
+
+                // Handle payment method display for split payment
+                if (formData.isSplitPayment) {
+                    const splitPayments = JSON.parse(formData.paymentBreakdown);
+                    const paymentSummary = splitPayments.map(p => `${p.method}: ₪${p.amount.toLocaleString('he-IL')}`).join(', ');
+                    document.getElementById('summaryPaymentMethod').textContent = `פיצול תשלום (${paymentSummary})`;
+                } else {
+                    document.getElementById('summaryPaymentMethod').textContent = formData.paymentMethod;
+                }
+
                 document.getElementById('summaryAmount').textContent = formData.amountWithVat.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
                 // Show success
@@ -1826,7 +2311,13 @@
             document.getElementById('temporaryCreditDetails').classList.remove('show');
             document.getElementById('checksDetails').classList.remove('show');
             document.getElementById('checkReplacementDetails').classList.remove('show');
+            document.getElementById('splitPaymentDetails').classList.remove('show');
             document.getElementById('encouragementMessage').classList.add('hide');
+
+            // Reset split payment rows
+            document.getElementById('splitPaymentRows').innerHTML = '';
+            splitPaymentRowCounter = 0;
+            document.getElementById('splitPaymentSummary').style.display = 'none';
 
             // Reset file upload
             document.getElementById('checksUploadContainer').classList.remove('has-file');
