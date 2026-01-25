@@ -2300,31 +2300,16 @@
 
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
+                    mode: 'no-cors',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(sheetsData)
                 });
 
-                console.log('🟡 Response status:', response.status);
-                console.log('🟡 Response ok:', response.ok);
-
-                const responseText = await response.text();
-                console.log('🟢 Response from server:', responseText);
-
-                try {
-                    const responseData = JSON.parse(responseText);
-                    console.log('🟢 Parsed response:', responseData);
-
-                    if (responseData.success) {
-                        console.log('✅ Data synced successfully to Google Sheets!');
-                        console.log('✅ Row number:', responseData.rowNumber);
-                    } else {
-                        console.warn('⚠️ Sync to sheets failed:', responseData.error);
-                    }
-                } catch (e) {
-                    console.warn('⚠️ Could not parse response as JSON:', responseText);
-                }
+                console.log('🟡 Fetch completed with no-cors mode');
+                console.log('🟡 Response type:', response.type);
+                console.log('✅ Data sent to Google Sheets (cannot read response in no-cors mode)');
 
             } catch (error) {
                 console.error('🔴 Error syncing to sheets:', error);
