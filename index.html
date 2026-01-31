@@ -248,6 +248,80 @@
 
         .form-group {
             margin-bottom: 20px;
+            position: relative;
+        }
+
+        /* Autocomplete Dropdown */
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .autocomplete-dropdown.show {
+            display: block;
+            animation: slideDown 0.2s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .autocomplete-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--gray-100);
+            transition: background 0.15s ease;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item:hover {
+            background: var(--light-blue);
+        }
+
+        .autocomplete-item-name {
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 4px;
+        }
+
+        .autocomplete-item-details {
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+
+        .autocomplete-no-results {
+            padding: 16px;
+            text-align: center;
+            color: var(--gray-400);
+            font-size: 14px;
+        }
+
+        .autocomplete-loading {
+            padding: 16px;
+            text-align: center;
+            color: var(--primary-blue);
+            font-size: 14px;
         }
 
         .form-row {
@@ -988,7 +1062,8 @@
 
                     <div class="form-group">
                         <label>שם הלקוח <span class="required">*</span></label>
-                        <input type="text" id="clientName" placeholder="שם מלא / שם החברה" required>
+                        <input type="text" id="clientName" placeholder="שם מלא / שם החברה" required autocomplete="off">
+                        <div id="clientAutocomplete" class="autocomplete-dropdown"></div>
                     </div>
 
                     <div class="form-row">
@@ -1475,6 +1550,129 @@
         let currentStep = 1;
         let currentUser = '';
         const totalSteps = 4;
+        let searchTimeout = null;
+
+        // Client Autocomplete Functionality
+        async function searchClients(searchTerm) {
+            if (!searchTerm || searchTerm.length < 2) {
+                return [];
+            }
+
+            try {
+                // Search by client name - case insensitive
+                const searchLower = searchTerm.toLowerCase();
+
+                // Get all clients and filter on client side (Firestore has limited text search)
+                const snapshot = await db.collection('sales_records')
+                    .orderBy('timestamp', 'desc')
+                    .limit(100)
+                    .get();
+
+                const clientsMap = new Map();
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const clientName = data.clientName || '';
+                    const clientNameLower = clientName.toLowerCase();
+
+                    // Check if name contains search term
+                    if (clientNameLower.includes(searchLower)) {
+                        // Use clientName as key to avoid duplicates
+                        if (!clientsMap.has(clientName)) {
+                            clientsMap.set(clientName, {
+                                clientName: data.clientName,
+                                phone: data.phone,
+                                email: data.email,
+                                idNumber: data.idNumber,
+                                address: data.address || ''
+                            });
+                        }
+                    }
+                });
+
+                return Array.from(clientsMap.values());
+            } catch (error) {
+                console.error('Error searching clients:', error);
+                return [];
+            }
+        }
+
+        window.fillClientData = function(client) {
+            document.getElementById('clientName').value = client.clientName;
+            document.getElementById('phone').value = client.phone;
+            document.getElementById('email').value = client.email;
+            document.getElementById('idNumber').value = client.idNumber;
+            document.getElementById('address').value = client.address;
+
+            // Hide dropdown
+            document.getElementById('clientAutocomplete').classList.remove('show');
+        };
+
+        function displayAutocompleteResults(clients) {
+            const dropdown = document.getElementById('clientAutocomplete');
+
+            if (clients.length === 0) {
+                dropdown.innerHTML = '<div class="autocomplete-no-results">לא נמצאו לקוחות</div>';
+                dropdown.classList.add('show');
+                return;
+            }
+
+            dropdown.innerHTML = clients.map(client => `
+                <div class="autocomplete-item" onclick="fillClientData(${JSON.stringify(client).replace(/"/g, '&quot;')})">
+                    <div class="autocomplete-item-name">${client.clientName}</div>
+                    <div class="autocomplete-item-details">
+                        ${client.phone} • ${client.email}
+                    </div>
+                </div>
+            `).join('');
+
+            dropdown.classList.add('show');
+        }
+
+        // Initialize autocomplete on client name input
+        document.addEventListener('DOMContentLoaded', function() {
+            const clientNameInput = document.getElementById('clientName');
+            const dropdown = document.getElementById('clientAutocomplete');
+
+            clientNameInput.addEventListener('input', function(e) {
+                const searchTerm = e.target.value;
+
+                // Clear previous timeout
+                if (searchTimeout) {
+                    clearTimeout(searchTimeout);
+                }
+
+                // Hide dropdown if input is too short
+                if (searchTerm.length < 2) {
+                    dropdown.classList.remove('show');
+                    return;
+                }
+
+                // Show loading state
+                dropdown.innerHTML = '<div class="autocomplete-loading">מחפש...</div>';
+                dropdown.classList.add('show');
+
+                // Debounce search - wait 300ms after user stops typing
+                searchTimeout = setTimeout(async () => {
+                    const results = await searchClients(searchTerm);
+                    displayAutocompleteResults(results);
+                }, 300);
+            });
+
+            // Hide dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!clientNameInput.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.remove('show');
+                }
+            });
+
+            // Prevent form submission when selecting from dropdown
+            clientNameInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && dropdown.classList.contains('show')) {
+                    e.preventDefault();
+                }
+            });
+        });
 
         // User Selection
         function selectUser(userName) {
