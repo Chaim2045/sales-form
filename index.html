@@ -1159,7 +1159,7 @@
 
                     <div class="form-group">
                         <label>סכום (לפני מע"מ) <span class="required">*</span></label>
-                        <input type="number" id="amount" placeholder="0" min="0" step="0.01">
+                        <input type="number" id="amount" placeholder="0" min="0" step="any">
                     </div>
 
                     <!-- VAT Calculation Display -->
@@ -1737,7 +1737,7 @@
             // Special validation for amount field in step 2
             if (step === 2) {
                 const amountField = document.getElementById('amount');
-                const amountValue = parseFloat(amountField.value) || 0;
+                const amountValue = parseAmount(amountField.value);
                 if (amountValue <= 0) {
                     amountField.classList.add('error');
                     isValid = false;
@@ -1802,9 +1802,18 @@
         document.getElementById('hoursQuantity').addEventListener('input', updateAmountFromHours);
         document.getElementById('hourlyRate').addEventListener('input', updateAmountFromHours);
 
+        // Helper function to parse amount - handles commas and multiple decimal places
+        function parseAmount(value) {
+            if (!value) return 0;
+            // Remove commas and extra spaces
+            const cleaned = value.toString().replace(/,/g, '').trim();
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
         // VAT Calculation Display
         function updateVatDisplay() {
-            const amountBeforeVat = parseFloat(document.getElementById('amount').value) || 0;
+            const amountBeforeVat = parseAmount(document.getElementById('amount').value);
 
             if (amountBeforeVat > 0) {
                 const vatAmount = amountBeforeVat * 0.18;
