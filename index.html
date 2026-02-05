@@ -1851,8 +1851,42 @@
                     `;
                     container.appendChild(checkRow);
                 }
+
+                // Add event listeners for auto-calculation
+                setTimeout(() => {
+                    for (let i = 1; i <= count; i++) {
+                        const amountInput = document.getElementById(`check_amount_${i}`);
+                        if (amountInput) {
+                            amountInput.addEventListener('input', autoCalculateLastCheck);
+                        }
+                    }
+                }, 100);
             }
         });
+
+        // Auto-calculate last check amount
+        function autoCalculateLastCheck() {
+            const checksCount = parseInt(document.getElementById('checksCount').value) || 0;
+            if (checksCount <= 1) return;
+
+            const totalAmount = parseAmount(document.getElementById('checksTotalAmount').value);
+            if (totalAmount <= 0) return;
+
+            let sum = 0;
+            for (let i = 1; i < checksCount; i++) {
+                const amountInput = document.getElementById(`check_amount_${i}`);
+                if (amountInput) {
+                    sum += parseAmount(amountInput.value);
+                }
+            }
+
+            const lastCheckAmount = totalAmount - sum;
+            const lastCheckInput = document.getElementById(`check_amount_${checksCount}`);
+
+            if (lastCheckInput && lastCheckAmount >= 0) {
+                lastCheckInput.value = lastCheckAmount.toFixed(2);
+            }
+        }
 
         // Helper function to parse amount - handles commas and multiple decimal places
         function parseAmount(value) {
