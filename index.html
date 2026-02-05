@@ -1373,8 +1373,13 @@
                         </div>
 
                         <div class="form-group">
-                            <label>הערות על השיקים (אופציונלי)</label>
-                            <textarea id="checksDetailsText" placeholder="תאריכים, מספרי שיקים, הערות נוספות..."></textarea>
+                            <label>פירוט שיקים</label>
+                            <div id="checksDetailsContainer"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>הערות נוספות על השיקים (אופציונלי)</label>
+                            <textarea id="checksDetailsText" placeholder="הערות נוספות..."></textarea>
                         </div>
 
                         <div class="form-group">
@@ -1801,6 +1806,53 @@
 
         document.getElementById('hoursQuantity').addEventListener('input', updateAmountFromHours);
         document.getElementById('hourlyRate').addEventListener('input', updateAmountFromHours);
+
+        // Collect checks details
+        function collectChecksDetails() {
+            const count = parseInt(document.getElementById('checksCount').value) || 0;
+            const checks = [];
+
+            for (let i = 1; i <= count; i++) {
+                const dateInput = document.getElementById(`check_date_${i}`);
+                const amountInput = document.getElementById(`check_amount_${i}`);
+
+                if (dateInput && amountInput) {
+                    checks.push({
+                        checkNumber: i,
+                        date: dateInput.value,
+                        amount: parseAmount(amountInput.value)
+                    });
+                }
+            }
+
+            return JSON.stringify(checks);
+        }
+
+        // Checks Details - Dynamic Fields
+        document.getElementById('checksCount').addEventListener('input', function() {
+            const count = parseInt(this.value) || 0;
+            const container = document.getElementById('checksDetailsContainer');
+            container.innerHTML = '';
+
+            if (count > 0) {
+                for (let i = 1; i <= count; i++) {
+                    const checkRow = document.createElement('div');
+                    checkRow.className = 'form-row';
+                    checkRow.style.marginBottom = '12px';
+                    checkRow.innerHTML = `
+                        <div class="form-group" style="flex: 1;">
+                            <label>שיק ${i} - תאריך <span class="required">*</span></label>
+                            <input type="date" id="check_date_${i}" class="check-date" required>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>שיק ${i} - סכום <span class="required">*</span></label>
+                            <input type="number" id="check_amount_${i}" class="check-amount" placeholder="0" min="0" step="any" required>
+                        </div>
+                    `;
+                    container.appendChild(checkRow);
+                }
+            }
+        });
 
         // Helper function to parse amount - handles commas and multiple decimal places
         function parseAmount(value) {
@@ -2449,6 +2501,7 @@
                     checksCount: document.getElementById('checksCount').value || '',
                     checksTotalAmount: document.getElementById('checksTotalAmount').value || '',
                     checksPhotoURL: checksPhotoURL,
+                    checksDetailedList: collectChecksDetails(),
                     checksDetails: document.getElementById('checksDetailsText').value || '',
                     checkWillChange: document.querySelector('input[name="checkWillChange"]:checked')?.value || '',
                     checkReplacementDetails: document.getElementById('checkReplacementText').value || '',

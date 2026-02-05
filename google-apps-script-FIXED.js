@@ -78,6 +78,20 @@ function addRowToSheet(data) {
   let checksInfo = '';
   if (data.paymentMethod === 'שיקים דחויים') {
     checksInfo = `${data.checksCount || ''} צ'קים בסך ₪${data.checksTotalAmount || ''}`;
+
+    // Add detailed checks list if exists
+    if (data.checksDetailedList) {
+      try {
+        const checksList = JSON.parse(data.checksDetailedList);
+        const checksText = checksList.map(check =>
+          `שיק ${check.checkNumber}: ${check.date} - ₪${check.amount}`
+        ).join(' | ');
+        checksInfo += ` | ${checksText}`;
+      } catch (e) {
+        Logger.log('Error parsing checks list: ' + e);
+      }
+    }
+
     if (data.checksDetails) {
       checksInfo += ` | ${data.checksDetails}`;
     }
