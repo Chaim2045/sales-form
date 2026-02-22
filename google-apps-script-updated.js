@@ -209,7 +209,7 @@ const BILLING_SHEET_NAME = 'גבייה חודשית';
 const DASHBOARD_SHEET_NAME = 'לוח בקרה גבייה';
 const REMINDER_EMAIL_RECIPIENTS = ['haim@guylawoffice.co.il']; // עדכן לכתובות המייל הרלוונטיות
 const REMINDER_DAYS_BEFORE = 1;
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwXXXXXXXXXX/exec'; // עדכן אחרי deployment
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxI77_Ods8DkYgymloY-mwFkYjRJJpzWrxST7ivN3-01_P_ZfN8sk6SiUWuHmAZp06h/exec';
 
 
 function doPost(e) {
