@@ -3704,12 +3704,16 @@
 
             if (client.status === 'בוטל') return alreadyPaid;
 
+            // diffMonths = כמה חודשים עברו מתאריך ההתחלה המקורי
             let diffMonths = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
             if (now.getDate() >= (parseInt(client.recurringDayOfMonth) || 1)) {
                 diffMonths += 1;
             }
+            diffMonths = Math.max(0, diffMonths);
 
-            return Math.max(0, Math.min(diffMonths + alreadyPaid, totalMonths));
+            // alreadyPaid משמש כרצפה - למקרה שתאריך ההתחלה עתידי
+            // אבל לא מצטבר מעל diffMonths כי הוא כבר נכלל בספירת החודשים
+            return Math.min(Math.max(diffMonths, alreadyPaid), totalMonths);
         }
 
         function getNextReminderDate(client) {
