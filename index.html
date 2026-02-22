@@ -4516,7 +4516,13 @@
                             : '<span style="color:var(--gray-300);">—</span>') +
                     '</td>' +
                     '<td style="font-size:12px;">' + formatDate(nextDate) + '</td>' +
-                    '<td><button onclick="openEditModal(\'' + c.id + '\')" style="background:none;border:1px solid var(--gray-300);color:var(--gray-500);border-radius:6px;padding:4px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor=\'var(--primary-blue)\';this.style.color=\'var(--primary-blue)\'" onmouseout="this.style.borderColor=\'var(--gray-300)\';this.style.color=\'var(--gray-500)\'">עריכה</button></td>' +
+                    '<td style="white-space:nowrap;">' +
+                        '<div style="display:flex;gap:6px;">' +
+                            '<button onclick="openEditModal(\'' + c.id + '\')" style="background:none;border:1px solid var(--gray-300);color:var(--gray-500);border-radius:6px;padding:4px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;">עריכה</button>' +
+                            '<a href="https://merchant.sensepass.com/apps/transactions/list" target="_blank" style="background:none;border:1px solid #10b981;color:#10b981;border-radius:6px;padding:4px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;">סליקה</a>' +
+                            (c.cardEncrypted ? '<button onclick="revealAndCopy(\'' + c.id + '\')" style="background:none;border:1px solid #f59e0b;color:#f59e0b;border-radius:6px;padding:4px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;">העתק כרטיס</button>' : '') +
+                        '</div>' +
+                    '</td>' +
                 '</tr>';
             }).join('');
         }
@@ -4579,6 +4585,10 @@
                         '<div class="bm-card-progress-bar"><div class="bm-card-progress-fill' + progressClass + '" style="width:' + progressPct + '%"></div></div>' +
                     '</div>' +
                     (nextDate ? '<div style="margin-top:10px;font-size:11px;color:var(--gray-400);">תזכורת הבאה: ' + formatDate(nextDate) + '</div>' : '') +
+                    '<div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--gray-100);">' +
+                        '<a href="https://merchant.sensepass.com/apps/transactions/list" target="_blank" style="flex:1;text-align:center;background:#10b981;color:white;border:none;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;text-decoration:none;display:inline-block;">סליקת אשראי</a>' +
+                        (c.cardEncrypted ? '<button onclick="revealAndCopy(\'' + c.id + '\')" style="flex:1;background:none;border:1px solid #f59e0b;color:#f59e0b;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">העתק פרטי כרטיס</button>' : '') +
+                    '</div>' +
                 '</div>';
             }).join('');
         }
@@ -4646,6 +4656,95 @@
                 console.error('Error revealing card:', error);
                 alert('שגיאה בטעינת הנתונים');
             }
+        }
+
+        // ========== העתקת פרטי כרטיס ==========
+
+        async function revealAndCopy(docId) {
+            const passphrase = await requestPassword('decrypt');
+            if (!passphrase) return;
+
+            try {
+                const doc = await db.collection('recurring_billing').doc(docId).get();
+                if (!doc.exists) { alert('הרשומה לא נמצאה'); return; }
+
+                const data = doc.data();
+                if (!data.cardEncrypted) { alert('אין פרטי כרטיס לרשומה זו'); return; }
+
+                const decrypted = decryptCardData(data.cardEncrypted, passphrase);
+                if (!decrypted) { alert('סיסמה שגויה'); return; }
+
+                logCardView(docId, data.clientName);
+
+                var cvvDecrypted = data.cvvEncrypted ? (decryptCardData(data.cvvEncrypted, passphrase) || '') : '';
+                var formatted = decrypted.replace(/(\d{4})(?=\d)/g, '$1 ');
+
+                var overlay = document.createElement('div');
+                overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:2000;display:flex;align-items:center;justify-content:center;';
+                overlay.innerHTML =
+                    '<div style="background:white;border-radius:16px;padding:28px;max-width:400px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
+                        '<div style="text-align:center;margin-bottom:18px;">' +
+                            '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>' +
+                            '<div style="font-size:15px;font-weight:700;color:#1f2937;margin-top:8px;">' + (data.clientName || '') + '</div>' +
+                        '</div>' +
+                        '<div style="display:flex;flex-direction:column;gap:8px;">' +
+                            '<div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;">' +
+                                '<div><div style="font-size:10px;color:#9ca3af;">מספר כרטיס</div><div style="font-size:16px;font-weight:600;direction:ltr;font-variant-numeric:tabular-nums;color:#1f2937;">' + formatted + '</div></div>' +
+                                '<button onclick="copyToClipboard(\'' + decrypted + '\', this)" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;white-space:nowrap;">העתק</button>' +
+                            '</div>' +
+                            (data.cardExpiry ? '<div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;">' +
+                                '<div><div style="font-size:10px;color:#9ca3af;">תוקף</div><div style="font-size:15px;font-weight:600;direction:ltr;color:#1f2937;">' + data.cardExpiry + '</div></div>' +
+                                '<button onclick="copyToClipboard(\'' + data.cardExpiry + '\', this)" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">העתק</button>' +
+                            '</div>' : '') +
+                            (cvvDecrypted ? '<div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;">' +
+                                '<div><div style="font-size:10px;color:#9ca3af;">CVV</div><div style="font-size:15px;font-weight:600;direction:ltr;color:#1f2937;">' + cvvDecrypted + '</div></div>' +
+                                '<button onclick="copyToClipboard(\'' + cvvDecrypted + '\', this)" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">העתק</button>' +
+                            '</div>' : '') +
+                            (data.cardHolder ? '<div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;">' +
+                                '<div><div style="font-size:10px;color:#9ca3af;">שם בעל הכרטיס</div><div style="font-size:14px;font-weight:600;color:#1f2937;">' + data.cardHolder + '</div></div>' +
+                                '<button onclick="copyToClipboard(\'' + (data.cardHolder || '').replace(/'/g, "\\'") + '\', this)" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">העתק</button>' +
+                            '</div>' : '') +
+                        '</div>' +
+                        '<div style="text-align:center;margin-top:16px;">' +
+                            '<div style="font-size:11px;color:#ef4444;margin-bottom:10px;">החלון ייסגר אוטומטית בעוד 30 שניות</div>' +
+                            '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:#2563eb;color:white;border:none;padding:8px 28px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">סגור</button>' +
+                        '</div>' +
+                    '</div>';
+                document.body.appendChild(overlay);
+                overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+                setTimeout(function() { if (overlay.parentNode) overlay.remove(); }, 30000);
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('שגיאה בטעינת הנתונים');
+            }
+        }
+
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text).then(function() {
+                var original = btn.textContent;
+                btn.textContent = 'הועתק!';
+                btn.style.background = '#10b981';
+                setTimeout(function() {
+                    btn.textContent = original;
+                    btn.style.background = '#2563eb';
+                }, 1500);
+            }).catch(function() {
+                // fallback
+                var input = document.createElement('input');
+                input.value = text;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                var original = btn.textContent;
+                btn.textContent = 'הועתק!';
+                btn.style.background = '#10b981';
+                setTimeout(function() {
+                    btn.textContent = original;
+                    btn.style.background = '#2563eb';
+                }, 1500);
+            });
         }
 
         // ========== עריכת לקוח גבייה ==========
