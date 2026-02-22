@@ -15,6 +15,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
+    <!-- Encryption -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+
     <!-- Environment Configuration -->
     <script src="env-config.js"></script>
 
@@ -2142,6 +2145,7 @@
                             <th>שולם</th>
                             <th>התקדמות</th>
                             <th>סטטוס</th>
+                            <th>כרטיס</th>
                             <th>תזכורת הבאה</th>
                         </tr>
                     </thead>
@@ -2241,6 +2245,41 @@
                     <label>חודשים ששולמו כבר</label>
                     <input type="number" id="billingPaidMonths" placeholder="0 (אם הלקוח חדש)" min="0" max="60" value="0">
                     <div style="font-size: 11px; color: var(--gray-400); margin-top: 4px;">למקרה שהלקוח כבר שילם חלק מהתשלומים לפני ההכנסה למערכת</div>
+                </div>
+
+                <div class="billing-section-title">פרטי כרטיס אשראי</div>
+                <div style="font-size: 11px; color: var(--gray-400); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    המידע מוצפן ונשמר בצורה מאובטחת. לצפייה במספר המלא נדרשת סיסמת המשרד.
+                </div>
+
+                <div class="form-group">
+                    <label>מספר כרטיס אשראי</label>
+                    <input type="text" id="billingCardNumber" placeholder="0000 0000 0000 0000" maxlength="19" dir="ltr" style="text-align: left; letter-spacing: 2px; font-variant-numeric: tabular-nums;" autocomplete="off">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>תוקף</label>
+                        <input type="text" id="billingCardExpiry" placeholder="MM/YY" maxlength="5" dir="ltr" style="text-align: left;" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label>שם בעל הכרטיס</label>
+                        <input type="text" id="billingCardHolder" placeholder="שם כפי שמופיע על הכרטיס">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>סוג כרטיס</label>
+                    <select id="billingCardType">
+                        <option value="">בחר סוג</option>
+                        <option value="ויזה">ויזה (Visa)</option>
+                        <option value="מאסטרקארד">מאסטרקארד (Mastercard)</option>
+                        <option value="אמריקן אקספרס">אמריקן אקספרס (Amex)</option>
+                        <option value="ישראכרט">ישראכרט</option>
+                        <option value="דיינרס">דיינרס</option>
+                        <option value="אחר">אחר</option>
+                    </select>
                 </div>
 
                 <div class="billing-section-title">פרטים נוספים</div>
@@ -3454,6 +3493,46 @@
             showStep(1);
         }
 
+        // ========== הצפנת כרטיס אשראי ==========
+
+        function encryptCardData(cardNumber, passphrase) {
+            return CryptoJS.AES.encrypt(cardNumber, passphrase).toString();
+        }
+
+        function decryptCardData(encryptedData, passphrase) {
+            try {
+                var bytes = CryptoJS.AES.decrypt(encryptedData, passphrase);
+                var decrypted = bytes.toString(CryptoJS.enc.Utf8);
+                if (!decrypted) return null;
+                return decrypted;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // פורמט מספר כרטיס - רווח כל 4 ספרות
+        document.addEventListener('DOMContentLoaded', function() {
+            var cardInput = document.getElementById('billingCardNumber');
+            if (cardInput) {
+                cardInput.addEventListener('input', function(e) {
+                    var val = e.target.value.replace(/\D/g, '').substring(0, 16);
+                    var formatted = val.replace(/(\d{4})(?=\d)/g, '$1 ');
+                    e.target.value = formatted;
+                });
+            }
+
+            var expiryInput = document.getElementById('billingCardExpiry');
+            if (expiryInput) {
+                expiryInput.addEventListener('input', function(e) {
+                    var val = e.target.value.replace(/\D/g, '').substring(0, 4);
+                    if (val.length >= 3) {
+                        val = val.substring(0, 2) + '/' + val.substring(2);
+                    }
+                    e.target.value = val;
+                });
+            }
+        });
+
         // ========== מודאל גבייה חודשית ==========
 
         let billingSearchTimeout = null;
@@ -3476,6 +3555,10 @@
             document.getElementById('billingCaseNumber').value = '';
             document.getElementById('billingTransactionType').value = 'ריטיינר';
             document.getElementById('billingNotes').value = '';
+            document.getElementById('billingCardNumber').value = '';
+            document.getElementById('billingCardExpiry').value = '';
+            document.getElementById('billingCardHolder').value = '';
+            document.getElementById('billingCardType').value = '';
             document.getElementById('billingAutocomplete').classList.remove('show');
 
             // Restore form view (in case success was shown)
@@ -3555,6 +3638,26 @@
             document.getElementById('billingSubmitText').textContent = 'שומר...';
 
             try {
+                // הצפנת פרטי כרטיס אשראי
+                const cardNumber = (document.getElementById('billingCardNumber').value || '').replace(/\s/g, '');
+                const cardExpiry = document.getElementById('billingCardExpiry').value || '';
+                const cardHolder = document.getElementById('billingCardHolder').value || '';
+                const cardType = document.getElementById('billingCardType').value || '';
+                let cardEncrypted = '';
+                let cardLast4 = '';
+
+                if (cardNumber) {
+                    const passphrase = prompt('הזן סיסמת הצפנה למשרד (סיסמה זו נדרשת לצפייה במספר הכרטיס):');
+                    if (!passphrase) {
+                        alert('לא ניתן לשמור פרטי כרטיס ללא סיסמת הצפנה');
+                        submitBtn.disabled = false;
+                        document.getElementById('billingSubmitText').textContent = 'שמור וצור תזכורות';
+                        return;
+                    }
+                    cardEncrypted = encryptCardData(cardNumber, passphrase);
+                    cardLast4 = cardNumber.slice(-4);
+                }
+
                 const billingData = {
                     clientName: clientName,
                     phone: document.getElementById('billingPhone').value || '',
@@ -3576,6 +3679,11 @@
                     creditCardStatus: 'חיוב חודשי',
                     paymentMethod: 'כרטיס אשראי',
                     status: 'פעיל',
+                    cardEncrypted: cardEncrypted,
+                    cardLast4: cardLast4,
+                    cardExpiry: cardExpiry,
+                    cardHolder: cardHolder,
+                    cardType: cardType,
                     createdBy: currentUser || 'לא ידוע',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
@@ -3829,6 +3937,13 @@
                         '<div class="bm-progress-bar"><div class="bm-progress-fill" style="width:' + progressPct + '%"></div></div>' +
                     '</td>' +
                     '<td>' + getStatusBadge(c.status) + '</td>' +
+                    '<td style="font-size:12px;white-space:nowrap;">' +
+                        (c.cardLast4
+                            ? '<span style="font-variant-numeric:tabular-nums;">•••• ' + c.cardLast4 + '</span>' +
+                              (c.cardType ? '<br><span style="color:var(--gray-400);font-size:11px;">' + c.cardType + '</span>' : '') +
+                              ' <button onclick="revealCard(\'' + c.id + '\')" style="background:none;border:none;color:var(--primary-blue);cursor:pointer;font-size:11px;font-family:Heebo,sans-serif;padding:0;">הצג</button>'
+                            : '<span style="color:var(--gray-300);">—</span>') +
+                    '</td>' +
                     '<td style="font-size:12px;">' + formatDate(nextDate) + '</td>' +
                 '</tr>';
             }).join('');
@@ -3873,6 +3988,14 @@
                             '<div class="bm-card-field-value" style="color:var(--error);">₪' + remainingAmount.toLocaleString('he-IL') + '</div>' +
                         '</div>' +
                     '</div>' +
+                    (c.cardLast4 ?
+                        '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--gray-100);margin-bottom:6px;">' +
+                            '<span style="font-size:12px;color:var(--gray-500);font-variant-numeric:tabular-nums;">•••• ' + c.cardLast4 +
+                                (c.cardType ? ' <span style="color:var(--gray-400);">(' + c.cardType + ')</span>' : '') +
+                                (c.cardExpiry ? ' <span style="color:var(--gray-400);">' + c.cardExpiry + '</span>' : '') +
+                            '</span>' +
+                            '<button onclick="revealCard(\'' + c.id + '\')" style="background:none;border:1px solid var(--primary-blue);color:var(--primary-blue);border-radius:6px;padding:3px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;">הצג מספר</button>' +
+                        '</div>' : '') +
                     '<div class="bm-card-progress">' +
                         '<div class="bm-card-progress-text">' +
                             '<span>' + paidMonths + ' מתוך ' + totalMonths + ' תשלומים</span>' +
@@ -3883,6 +4006,59 @@
                     (nextDate ? '<div style="margin-top:10px;font-size:11px;color:var(--gray-400);">תזכורת הבאה: ' + formatDate(nextDate) + '</div>' : '') +
                 '</div>';
             }).join('');
+        }
+
+        // ========== חשיפת מספר כרטיס מוצפן ==========
+
+        async function revealCard(docId) {
+            const passphrase = prompt('הזן סיסמת המשרד לצפייה במספר הכרטיס:');
+            if (!passphrase) return;
+
+            try {
+                const doc = await db.collection('recurring_billing').doc(docId).get();
+                if (!doc.exists) {
+                    alert('הרשומה לא נמצאה');
+                    return;
+                }
+
+                const data = doc.data();
+                if (!data.cardEncrypted) {
+                    alert('אין מספר כרטיס מוצפן לרשומה זו');
+                    return;
+                }
+
+                const decrypted = decryptCardData(data.cardEncrypted, passphrase);
+                if (!decrypted) {
+                    alert('סיסמה שגויה');
+                    return;
+                }
+
+                // הצגת המספר בחלון מעוצב שנסגר אוטומטית
+                var formatted = decrypted.replace(/(\d{4})(?=\d)/g, '$1 ');
+                var overlay = document.createElement('div');
+                overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;';
+                overlay.innerHTML =
+                    '<div style="background:white;border-radius:16px;padding:28px;max-width:360px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
+                        '<div style="margin-bottom:16px;">' +
+                            '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>' +
+                        '</div>' +
+                        '<div style="font-size:13px;color:#6b7280;margin-bottom:8px;">' + (data.cardHolder || data.clientName || '') + '</div>' +
+                        '<div style="font-size:22px;font-weight:700;letter-spacing:3px;direction:ltr;font-variant-numeric:tabular-nums;color:#1f2937;margin-bottom:6px;">' + formatted + '</div>' +
+                        (data.cardExpiry ? '<div style="font-size:13px;color:#6b7280;">תוקף: ' + data.cardExpiry + '</div>' : '') +
+                        (data.cardType ? '<div style="font-size:12px;color:#9ca3af;margin-top:2px;">' + data.cardType + '</div>' : '') +
+                        '<div style="font-size:11px;color:#ef4444;margin-top:14px;">החלון ייסגר אוטומטית בעוד 30 שניות</div>' +
+                        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="margin-top:14px;background:#2563eb;color:white;border:none;padding:8px 28px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">סגור</button>' +
+                    '</div>';
+                document.body.appendChild(overlay);
+                overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+                // סגירה אוטומטית אחרי 30 שניות
+                setTimeout(function() { if (overlay.parentNode) overlay.remove(); }, 30000);
+
+            } catch (error) {
+                console.error('Error revealing card:', error);
+                alert('שגיאה בטעינת הנתונים');
+            }
         }
 
         // Initialize
