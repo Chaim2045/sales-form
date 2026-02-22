@@ -2886,28 +2886,52 @@
                 // Search by client name - case insensitive
                 const searchLower = searchTerm.toLowerCase();
 
-                // Get all clients and filter on client side (Firestore has limited text search)
-                const snapshot = await db.collection('sales_records')
-                    .orderBy('timestamp', 'desc')
-                    .limit(100)
-                    .get();
-
                 const clientsMap = new Map();
 
-                snapshot.forEach(doc => {
+                // Query both collections in parallel
+                const [salesSnapshot, billingSnapshot] = await Promise.all([
+                    db.collection('sales_records')
+                        .orderBy('timestamp', 'desc')
+                        .limit(100)
+                        .get(),
+                    db.collection('recurring_billing')
+                        .orderBy('createdAt', 'desc')
+                        .limit(100)
+                        .get()
+                ]);
+
+                // Process sales_records
+                salesSnapshot.forEach(doc => {
                     const data = doc.data();
                     const clientName = data.clientName || '';
                     const clientNameLower = clientName.toLowerCase();
 
-                    // Check if name contains search term
                     if (clientNameLower.includes(searchLower)) {
-                        // Use clientName as key to avoid duplicates
                         if (!clientsMap.has(clientName)) {
                             clientsMap.set(clientName, {
                                 clientName: data.clientName,
                                 phone: data.phone,
                                 email: data.email,
                                 idNumber: data.idNumber,
+                                address: data.address || ''
+                            });
+                        }
+                    }
+                });
+
+                // Process recurring_billing
+                billingSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    const clientName = data.clientName || '';
+                    const clientNameLower = clientName.toLowerCase();
+
+                    if (clientNameLower.includes(searchLower)) {
+                        if (!clientsMap.has(clientName)) {
+                            clientsMap.set(clientName, {
+                                clientName: data.clientName,
+                                phone: data.phone || '',
+                                email: data.email || '',
+                                idNumber: data.idNumber || '',
                                 address: data.address || ''
                             });
                         }
