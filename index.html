@@ -1173,8 +1173,9 @@
         /* ========== Billing Management View ========== */
         #billingManagement {
             display: none;
-            max-width: 960px;
+            max-width: 1200px;
             margin: 0 auto;
+            padding: 0 24px;
         }
         #billingManagement.active { display: block; }
 
@@ -1330,32 +1331,37 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 13px;
+            table-layout: auto;
         }
         .bm-table th {
             background: var(--gray-50);
-            padding: 12px 14px;
+            padding: 10px 10px;
             text-align: right;
             font-weight: 600;
             color: var(--gray-600);
             border-bottom: 1px solid var(--gray-200);
             white-space: nowrap;
-            font-size: 12px;
+            font-size: 11px;
         }
         .bm-table td {
-            padding: 12px 14px;
+            padding: 10px 10px;
             border-bottom: 1px solid var(--gray-100);
             color: var(--gray-700);
             vertical-align: middle;
+            font-size: 12px;
         }
         .bm-table tr:last-child td { border-bottom: none; }
         .bm-table tr:hover td { background: var(--gray-50); }
+        @media (min-width: 1024px) {
+            .bm-table-wrap { overflow-x: visible; }
+        }
 
         .bm-amount {
             font-weight: 600;
             font-variant-numeric: tabular-nums;
         }
         .bm-progress-bar {
-            width: 80px;
+            width: 60px;
             height: 6px;
             background: var(--gray-200);
             border-radius: 3px;
@@ -2346,7 +2352,7 @@
     </div>
 
     <!-- Billing Management View -->
-    <div id="billingManagement" class="container" style="max-width: 960px;">
+    <div id="billingManagement">
         <div class="bm-header">
             <h2>ניהול גבייה חודשית</h2>
             <button class="bm-back-btn" onclick="hideBillingManagement()">
