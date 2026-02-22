@@ -989,10 +989,507 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Modal Styles */
+        .billing-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .billing-modal-overlay.show {
+            display: flex;
+        }
+        .billing-modal {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 520px;
+            margin: 20px auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .billing-modal-header {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            padding: 20px 24px;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .billing-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .billing-modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            opacity: 0.8;
+        }
+        .billing-modal-close:hover { opacity: 1; }
+        .billing-modal-body {
+            padding: 24px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .billing-modal-body .form-group {
+            margin-bottom: 16px;
+        }
+        .billing-modal-body label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            color: #374151;
+        }
+        .billing-modal-body input,
+        .billing-modal-body select,
+        .billing-modal-body textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-family: 'Heebo', sans-serif;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        .billing-modal-body input:focus,
+        .billing-modal-body select:focus,
+        .billing-modal-body textarea:focus {
+            outline: none;
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245,158,11,0.1);
+        }
+        .billing-modal-body .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .billing-modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        .billing-modal-footer button {
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-family: 'Heebo', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s;
+        }
+        .billing-btn-cancel {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        .billing-btn-cancel:hover { background: #e5e7eb; }
+        .billing-btn-submit {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        .billing-btn-submit:hover { background: linear-gradient(135deg, #059669, #047857); }
+        .billing-btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .billing-search-container {
+            position: relative;
+        }
+        .billing-autocomplete {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 10;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .billing-autocomplete.show { display: block; }
+        .billing-autocomplete-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #f3f4f6;
+            transition: background 0.15s;
+        }
+        .billing-autocomplete-item:hover { background: #fef3c7; }
+        .billing-autocomplete-item:last-child { border-bottom: none; }
+        .billing-autocomplete-name { font-weight: 600; font-size: 14px; }
+        .billing-autocomplete-details { font-size: 12px; color: #6b7280; margin-top: 2px; }
+        .billing-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #92400e;
+            background: #fef3c7;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin: 16px 0 12px;
+        }
+        .billing-success-msg {
+            text-align: center;
+            padding: 24px;
+        }
+        .billing-success-msg .check-icon {
+            width: 50px; height: 50px;
+            background: #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            color: white;
+            font-size: 24px;
+        }
+
+        /* ========== Billing Management View ========== */
+        #billingManagement {
+            display: none;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+        #billingManagement.active { display: block; }
+
+        .bm-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .bm-header h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--gray-800);
+            margin: 0;
+        }
+        .bm-back-btn {
+            background: none;
+            border: 1px solid var(--gray-300);
+            color: var(--gray-600);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: 'Heebo', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .bm-back-btn:hover {
+            background: var(--gray-100);
+            border-color: var(--gray-400);
+        }
+
+        /* Summary Cards */
+        .bm-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 768px) {
+            .bm-summary { grid-template-columns: repeat(2, 1fr); }
+        }
+        .bm-stat {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        .bm-stat-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--gray-800);
+            line-height: 1.2;
+        }
+        .bm-stat-label {
+            font-size: 12px;
+            color: var(--gray-500);
+            margin-top: 4px;
+        }
+        .bm-stat.blue .bm-stat-value { color: var(--primary-blue); }
+        .bm-stat.green .bm-stat-value { color: var(--success); }
+        .bm-stat.red .bm-stat-value { color: var(--error); }
+
+        /* Toolbar: Filter + View Toggle + Search */
+        .bm-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .bm-search {
+            flex: 1;
+            min-width: 180px;
+            max-width: 280px;
+            padding: 8px 14px;
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+            font-family: 'Heebo', sans-serif;
+            font-size: 13px;
+            background: var(--white);
+            transition: border-color 0.2s;
+        }
+        .bm-search:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        .bm-filters {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .bm-filter-btn {
+            padding: 6px 14px;
+            border: 1px solid var(--gray-300);
+            border-radius: 20px;
+            background: var(--white);
+            font-family: 'Heebo', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--gray-600);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .bm-filter-btn:hover {
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
+        }
+        .bm-filter-btn.active {
+            background: var(--primary-blue);
+            color: var(--white);
+            border-color: var(--primary-blue);
+        }
+        .bm-view-toggle {
+            display: flex;
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .bm-view-btn {
+            padding: 6px 12px;
+            border: none;
+            background: var(--white);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gray-400);
+            transition: all 0.2s;
+        }
+        .bm-view-btn:not(:last-child) { border-left: 1px solid var(--gray-300); }
+        .bm-view-btn.active {
+            background: var(--primary-blue);
+            color: var(--white);
+        }
+
+        /* Table View */
+        .bm-table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            background: var(--white);
+        }
+        .bm-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .bm-table th {
+            background: var(--gray-50);
+            padding: 12px 14px;
+            text-align: right;
+            font-weight: 600;
+            color: var(--gray-600);
+            border-bottom: 1px solid var(--gray-200);
+            white-space: nowrap;
+            font-size: 12px;
+        }
+        .bm-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--gray-100);
+            color: var(--gray-700);
+            vertical-align: middle;
+        }
+        .bm-table tr:last-child td { border-bottom: none; }
+        .bm-table tr:hover td { background: var(--gray-50); }
+
+        .bm-amount {
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+        .bm-progress-bar {
+            width: 80px;
+            height: 6px;
+            background: var(--gray-200);
+            border-radius: 3px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-inline-start: 8px;
+        }
+        .bm-progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: var(--primary-blue);
+            transition: width 0.3s;
+        }
+        .bm-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.6;
+        }
+        .bm-badge.active { background: #dbeafe; color: #1d4ed8; }
+        .bm-badge.completed { background: #d1fae5; color: #065f46; }
+        .bm-badge.paused { background: #fef3c7; color: #92400e; }
+        .bm-badge.cancelled { background: var(--gray-100); color: var(--gray-500); }
+
+        /* Cards View */
+        .bm-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 14px;
+        }
+        .bm-card {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 18px;
+            transition: box-shadow 0.2s;
+        }
+        .bm-card:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        }
+        .bm-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 14px;
+        }
+        .bm-card-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin: 0 0 2px;
+        }
+        .bm-card-case {
+            font-size: 12px;
+            color: var(--gray-400);
+        }
+        .bm-card-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .bm-card-field {
+            font-size: 12px;
+        }
+        .bm-card-field-label {
+            color: var(--gray-400);
+            margin-bottom: 2px;
+        }
+        .bm-card-field-value {
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+        .bm-card-progress {
+            background: var(--gray-100);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+        .bm-card-progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--gray-500);
+            margin-bottom: 6px;
+        }
+        .bm-card-progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--gray-200);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .bm-card-progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: var(--primary-blue);
+            transition: width 0.3s;
+        }
+        .bm-card-progress-fill.high { background: var(--success); }
+
+        /* Empty State */
+        .bm-empty {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--gray-400);
+        }
+        .bm-empty svg {
+            margin-bottom: 12px;
+            opacity: 0.4;
+        }
+        .bm-empty p {
+            font-size: 14px;
+        }
+
+        /* Loading */
+        .bm-loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray-400);
+            font-size: 14px;
+        }
+        .bm-loading-spinner {
+            width: 28px;
+            height: 28px;
+            border: 3px solid var(--gray-200);
+            border-top-color: var(--primary-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div id="mainContainer" class="container">
         <!-- Header -->
         <div class="header">
             <img src="‏‏logo - עותק.png" alt="לוגו משרד עו"ד גיא הרשקוביץ" style="max-width: 200px; max-height: 80px; width: auto; height: auto; margin-bottom: 10px; object-fit: contain;">
@@ -1024,6 +1521,16 @@
                 <button class="user-btn" onclick="selectUser('חיים')">
                     <div class="user-avatar">ח</div>
                     <div class="user-name">חיים</div>
+                </button>
+            </div>
+            <div style="text-align: center; margin-top: 20px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                <button onclick="openBillingModal()" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; padding: 12px 24px; border-radius: 10px; font-family: 'Heebo', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(245,158,11,0.3); transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(245,158,11,0.4)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 2px 8px rgba(245,158,11,0.3)'">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+                    הוספת לקוח לגבייה חודשית
+                </button>
+                <button onclick="showBillingManagement()" style="background: var(--white); color: var(--primary-blue); border: 1px solid var(--primary-blue); padding: 12px 24px; border-radius: 10px; font-family: 'Heebo', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s;" onmouseover="this.style.background='var(--primary-blue)'; this.style.color='white'" onmouseout="this.style.background='var(--white)'; this.style.color='var(--primary-blue)'">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                    ניהול גבייה חודשית
                 </button>
             </div>
         </div>
@@ -1290,6 +1797,10 @@
                                     <label for="ccCharged">בוצע חיוב מלא</label>
                                 </div>
                                 <div class="radio-option">
+                                    <input type="radio" id="ccMonthly" name="creditCardStatus" value="חיוב חודשי">
+                                    <label for="ccMonthly">חיוב חודשי</label>
+                                </div>
+                                <div class="radio-option">
                                     <input type="radio" id="ccDeposit" name="creditCardStatus" value="פיקדון">
                                     <label for="ccDeposit">פיקדון</label>
                                 </div>
@@ -1305,6 +1816,42 @@
                             <div class="form-group">
                                 <label>מספר תשלומים <span class="required">*</span></label>
                                 <input type="number" id="paymentsCount" placeholder="כמה תשלומים?" min="1" max="36">
+                            </div>
+                        </div>
+
+                        <!-- Monthly Charge Details (conditional) -->
+                        <div id="monthlyChargeDetails" class="conditional-field">
+                            <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                                <div style="font-weight: 600; margin-bottom: 8px; color: #92400e;">
+                                    הגדרת חיוב חודשי קבוע
+                                </div>
+                                <div style="font-size: 13px; color: #78350f;">
+                                    המערכת תשלח תזכורות אוטומטיות יום לפני כל חיוב
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>סכום חיוב חודשי (כולל מע"מ) <span class="required">*</span></label>
+                                    <input type="number" id="recurringMonthlyAmount" placeholder="0" min="0" step="0.01">
+                                </div>
+                                <div class="form-group">
+                                    <label>מספר חודשים <span class="required">*</span></label>
+                                    <input type="number" id="recurringMonthsCount" placeholder="כמה חודשים?" min="1" max="60">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>תאריך חיוב ראשון <span class="required">*</span></label>
+                                    <input type="date" id="recurringStartDate">
+                                </div>
+                                <div class="form-group">
+                                    <label>יום בחודש לחיוב</label>
+                                    <input type="number" id="recurringDayOfMonth" placeholder="לדוגמה: 1, 15" min="1" max="28" value="1">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>הערות לגבייה</label>
+                                <textarea id="recurringNotes" placeholder="הערות נוספות לגבי החיוב החודשי..."></textarea>
                             </div>
                         </div>
 
@@ -1530,6 +2077,217 @@
             <button class="btn btn-primary" onclick="resetForm()" style="max-width: 250px; margin: 0 auto; font-size: 16px;">
                 🚀 מכירה נוספת
             </button>
+        </div>
+    </div>
+
+    <!-- Billing Management View -->
+    <div id="billingManagement" class="container" style="max-width: 960px;">
+        <div class="bm-header">
+            <h2>ניהול גבייה חודשית</h2>
+            <button class="bm-back-btn" onclick="hideBillingManagement()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                חזרה
+            </button>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="bm-summary">
+            <div class="bm-stat blue">
+                <div class="bm-stat-value" id="bmStatTotal">0</div>
+                <div class="bm-stat-label">לקוחות פעילים</div>
+            </div>
+            <div class="bm-stat">
+                <div class="bm-stat-value" id="bmStatMonthly">₪0</div>
+                <div class="bm-stat-label">גבייה חודשית</div>
+            </div>
+            <div class="bm-stat green">
+                <div class="bm-stat-value" id="bmStatPaid">₪0</div>
+                <div class="bm-stat-label">שולם עד כה</div>
+            </div>
+            <div class="bm-stat red">
+                <div class="bm-stat-value" id="bmStatRemaining">₪0</div>
+                <div class="bm-stat-label">יתרה לגבייה</div>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="bm-toolbar">
+            <input type="text" class="bm-search" id="bmSearch" placeholder="חיפוש לקוח..." oninput="filterBillingView()">
+            <div class="bm-filters">
+                <button class="bm-filter-btn active" data-filter="all" onclick="setBillingFilter('all', this)">הכל</button>
+                <button class="bm-filter-btn" data-filter="פעיל" onclick="setBillingFilter('פעיל', this)">פעילים</button>
+                <button class="bm-filter-btn" data-filter="מושהה" onclick="setBillingFilter('מושהה', this)">מושהים</button>
+                <button class="bm-filter-btn" data-filter="בוטל" onclick="setBillingFilter('בוטל', this)">בוטלו</button>
+            </div>
+            <div class="bm-view-toggle">
+                <button class="bm-view-btn active" id="bmViewTable" onclick="setBillingViewMode('table')" title="תצוגת טבלה">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+                </button>
+                <button class="bm-view-btn" id="bmViewCards" onclick="setBillingViewMode('cards')" title="תצוגת כרטיסיות">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Table View -->
+        <div id="bmTableView">
+            <div class="bm-table-wrap">
+                <table class="bm-table">
+                    <thead>
+                        <tr>
+                            <th>לקוח</th>
+                            <th>עו"ד מטפל</th>
+                            <th>סכום חודשי</th>
+                            <th>סה"כ עסקה</th>
+                            <th>שולם</th>
+                            <th>התקדמות</th>
+                            <th>סטטוס</th>
+                            <th>תזכורת הבאה</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bmTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Cards View -->
+        <div id="bmCardsView" style="display: none;">
+            <div class="bm-cards" id="bmCardsContainer">
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="bmLoading" class="bm-loading" style="display: none;">
+            <div class="bm-loading-spinner"></div>
+            טוען נתוני גבייה...
+        </div>
+
+        <!-- Empty State -->
+        <div id="bmEmpty" class="bm-empty" style="display: none;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            <p>אין לקוחות בגבייה חודשית</p>
+        </div>
+    </div>
+
+    <!-- Billing Modal -->
+    <div id="billingModalOverlay" class="billing-modal-overlay" onclick="if(event.target===this) closeBillingModal()">
+        <div class="billing-modal">
+            <div class="billing-modal-header">
+                <h3>הוספת לקוח לגבייה חודשית</h3>
+                <button class="billing-modal-close" onclick="closeBillingModal()">&times;</button>
+            </div>
+            <div class="billing-modal-body" id="billingModalBody">
+                <div class="billing-section-title">פרטי לקוח</div>
+
+                <div class="form-group billing-search-container">
+                    <label>חיפוש לקוח קיים</label>
+                    <input type="text" id="billingClientSearch" placeholder="הקלד שם לקוח לחיפוש..." autocomplete="off">
+                    <div id="billingAutocomplete" class="billing-autocomplete"></div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>שם הלקוח <span class="required">*</span></label>
+                        <input type="text" id="billingClientName" placeholder="שם מלא / שם חברה" required>
+                    </div>
+                    <div class="form-group">
+                        <label>טלפון</label>
+                        <input type="tel" id="billingPhone" placeholder="050-0000000">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>מייל</label>
+                        <input type="email" id="billingEmail" placeholder="email@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>ח.פ / ת.ז</label>
+                        <input type="text" id="billingIdNumber" placeholder="מספר זיהוי">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>כתובת</label>
+                    <input type="text" id="billingAddress" placeholder="כתובת הלקוח">
+                </div>
+
+                <div class="billing-section-title">פרטי גבייה חודשית</div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>סכום חודשי (כולל מע"מ) <span class="required">*</span></label>
+                        <input type="number" id="billingAmount" placeholder="0" min="0" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>מספר חודשים <span class="required">*</span></label>
+                        <input type="number" id="billingMonths" placeholder="כמה חודשים?" min="1" max="60" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>תאריך חיוב ראשון <span class="required">*</span></label>
+                        <input type="date" id="billingStartDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>יום בחודש לחיוב</label>
+                        <input type="number" id="billingDayOfMonth" placeholder="1" min="1" max="28" value="1">
+                    </div>
+                </div>
+
+                <div class="billing-section-title">פרטים נוספים</div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>עו"ד מטפל <span class="required">*</span></label>
+                        <select id="billingAttorney" required>
+                            <option value="">בחר עו"ד</option>
+                            <option value="גיא הרשקוביץ">גיא הרשקוביץ</option>
+                            <option value="מירי טל">מירי טל</option>
+                            <option value="רועי הרשקוביץ">רועי הרשקוביץ</option>
+                            <option value="אורי שטיינברג">אורי שטיינברג</option>
+                            <option value="חיים">חיים</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>מספר תיק</label>
+                        <input type="text" id="billingCaseNumber" placeholder="מספר תיק בעודכנית">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>סניף</label>
+                        <select id="billingBranch">
+                            <option value="תל אביב">תל אביב</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>סוג העסקה</label>
+                        <select id="billingTransactionType">
+                            <option value="ריטיינר">ריטיינר</option>
+                            <option value="תוכנית שעות">תוכנית שעות</option>
+                            <option value="הליך משפטי - פיקס">הליך משפטי - פיקס</option>
+                            <option value="אחר">אחר</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>הערות</label>
+                    <textarea id="billingNotes" placeholder="הערות נוספות..." rows="2"></textarea>
+                </div>
+            </div>
+
+            <div class="billing-modal-footer" id="billingModalFooter">
+                <button class="billing-btn-cancel" onclick="closeBillingModal()">ביטול</button>
+                <button class="billing-btn-submit" id="billingSubmitBtn" onclick="submitBillingForm()">
+                    <span id="billingSubmitText">שמור וצור תזכורות</span>
+                    <div class="spinner hidden" id="billingSpinner" style="width:18px;height:18px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px;"></div>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -2332,23 +3090,36 @@
         document.querySelectorAll('input[name="creditCardStatus"]').forEach(radio => {
             radio.addEventListener('change', function() {
                 const fullChargeDetails = document.getElementById('fullChargeDetails');
+                const monthlyChargeDetails = document.getElementById('monthlyChargeDetails');
                 const depositDetails = document.getElementById('depositDetails');
                 const temporaryCreditDetails = document.getElementById('temporaryCreditDetails');
                 const paymentsCount = document.getElementById('paymentsCount');
                 const monthlyCharge = document.getElementById('monthlyCharge');
                 const temporaryCreditText = document.getElementById('temporaryCreditText');
+                const recurringMonthlyAmount = document.getElementById('recurringMonthlyAmount');
+                const recurringMonthsCount = document.getElementById('recurringMonthsCount');
+                const recurringStartDate = document.getElementById('recurringStartDate');
 
                 // Reset all sections
                 fullChargeDetails.classList.remove('show');
+                monthlyChargeDetails.classList.remove('show');
                 depositDetails.classList.remove('show');
                 temporaryCreditDetails.classList.remove('show');
                 paymentsCount.removeAttribute('required');
                 monthlyCharge.removeAttribute('required');
                 temporaryCreditText.removeAttribute('required');
+                recurringMonthlyAmount.removeAttribute('required');
+                recurringMonthsCount.removeAttribute('required');
+                recurringStartDate.removeAttribute('required');
 
                 if (this.value === 'בוצע חיוב מלא') {
                     fullChargeDetails.classList.add('show');
                     paymentsCount.setAttribute('required', 'required');
+                } else if (this.value === 'חיוב חודשי') {
+                    monthlyChargeDetails.classList.add('show');
+                    recurringMonthlyAmount.setAttribute('required', 'required');
+                    recurringMonthsCount.setAttribute('required', 'required');
+                    recurringStartDate.setAttribute('required', 'required');
                 } else if (this.value === 'פיקדון') {
                     depositDetails.classList.add('show');
                     monthlyCharge.setAttribute('required', 'required');
@@ -2362,6 +3133,9 @@
                     temporaryCreditText.value = '';
                     document.getElementById('monthsCount').value = '';
                     document.getElementById('depositDetailsText').value = '';
+                    recurringMonthlyAmount.value = '';
+                    recurringMonthsCount.value = '';
+                    recurringStartDate.value = '';
                 }
             });
         });
@@ -2531,6 +3305,13 @@
                     monthsCount: document.getElementById('monthsCount').value || '',
                     depositDetails: document.getElementById('depositDetailsText').value || '',
                     temporaryCreditDetails: document.getElementById('temporaryCreditText').value || '',
+                    // Recurring billing fields
+                    recurringBilling: document.querySelector('input[name="creditCardStatus"]:checked')?.value === 'חיוב חודשי',
+                    recurringMonthlyAmount: document.getElementById('recurringMonthlyAmount').value || '',
+                    recurringMonthsCount: document.getElementById('recurringMonthsCount').value || '',
+                    recurringStartDate: document.getElementById('recurringStartDate').value || '',
+                    recurringDayOfMonth: document.getElementById('recurringDayOfMonth').value || '1',
+                    recurringNotes: document.getElementById('recurringNotes').value || '',
                     // Checks fields
                     checksCount: document.getElementById('checksCount').value || '',
                     checksTotalAmount: document.getElementById('checksTotalAmount').value || '',
@@ -2638,8 +3419,16 @@
             document.getElementById('vatDisplay').classList.remove('show');
             document.getElementById('creditCardConfirmation').classList.remove('show');
             document.getElementById('fullChargeDetails').classList.remove('show');
+            document.getElementById('monthlyChargeDetails').classList.remove('show');
             document.getElementById('depositDetails').classList.remove('show');
             document.getElementById('temporaryCreditDetails').classList.remove('show');
+
+            // Reset recurring billing fields
+            document.getElementById('recurringMonthlyAmount').value = '';
+            document.getElementById('recurringMonthsCount').value = '';
+            document.getElementById('recurringStartDate').value = '';
+            document.getElementById('recurringDayOfMonth').value = '1';
+            document.getElementById('recurringNotes').value = '';
             document.getElementById('checksDetails').classList.remove('show');
             document.getElementById('checkReplacementDetails').classList.remove('show');
             document.getElementById('splitPaymentDetails').classList.remove('show');
@@ -2657,6 +3446,430 @@
 
             // Reset to step 1
             showStep(1);
+        }
+
+        // ========== מודאל גבייה חודשית ==========
+
+        let billingSearchTimeout = null;
+
+        function openBillingModal() {
+            document.getElementById('billingModalOverlay').classList.add('show');
+            // Reset form
+            document.getElementById('billingClientSearch').value = '';
+            document.getElementById('billingClientName').value = '';
+            document.getElementById('billingPhone').value = '';
+            document.getElementById('billingEmail').value = '';
+            document.getElementById('billingIdNumber').value = '';
+            document.getElementById('billingAddress').value = '';
+            document.getElementById('billingAmount').value = '';
+            document.getElementById('billingMonths').value = '';
+            document.getElementById('billingStartDate').value = '';
+            document.getElementById('billingDayOfMonth').value = '1';
+            document.getElementById('billingAttorney').value = '';
+            document.getElementById('billingCaseNumber').value = '';
+            document.getElementById('billingTransactionType').value = 'ריטיינר';
+            document.getElementById('billingNotes').value = '';
+            document.getElementById('billingAutocomplete').classList.remove('show');
+
+            // Restore form view (in case success was shown)
+            document.getElementById('billingModalBody').style.display = '';
+            document.getElementById('billingModalFooter').style.display = '';
+        }
+
+        function closeBillingModal() {
+            document.getElementById('billingModalOverlay').classList.remove('show');
+        }
+
+        // Autocomplete for billing modal
+        document.getElementById('billingClientSearch').addEventListener('input', function(e) {
+            const term = e.target.value.trim();
+            clearTimeout(billingSearchTimeout);
+
+            if (term.length < 2) {
+                document.getElementById('billingAutocomplete').classList.remove('show');
+                return;
+            }
+
+            billingSearchTimeout = setTimeout(async () => {
+                const dropdown = document.getElementById('billingAutocomplete');
+                dropdown.innerHTML = '<div class="billing-autocomplete-item" style="color:#6b7280;cursor:default;">מחפש...</div>';
+                dropdown.classList.add('show');
+
+                const clients = await searchClients(term);
+
+                if (clients.length === 0) {
+                    dropdown.innerHTML = '<div class="billing-autocomplete-item" style="color:#6b7280;cursor:default;">לא נמצאו לקוחות</div>';
+                    return;
+                }
+
+                dropdown.innerHTML = clients.map(client =>
+                    `<div class="billing-autocomplete-item" onclick='fillBillingClientData(${JSON.stringify(client).replace(/'/g, "&#39;")})'>
+                        <div class="billing-autocomplete-name">${client.clientName}</div>
+                        <div class="billing-autocomplete-details">${client.phone || ''} ${client.email ? '| ' + client.email : ''}</div>
+                    </div>`
+                ).join('');
+            }, 300);
+        });
+
+        // Close autocomplete when clicking outside
+        document.addEventListener('click', function(e) {
+            const search = document.getElementById('billingClientSearch');
+            const dropdown = document.getElementById('billingAutocomplete');
+            if (search && dropdown && !search.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        window.fillBillingClientData = function(client) {
+            document.getElementById('billingClientName').value = client.clientName || '';
+            document.getElementById('billingPhone').value = client.phone || '';
+            document.getElementById('billingEmail').value = client.email || '';
+            document.getElementById('billingIdNumber').value = client.idNumber || '';
+            document.getElementById('billingAddress').value = client.address || '';
+            document.getElementById('billingClientSearch').value = client.clientName || '';
+            document.getElementById('billingAutocomplete').classList.remove('show');
+        };
+
+        async function submitBillingForm() {
+            // Validation
+            const clientName = document.getElementById('billingClientName').value.trim();
+            const amount = document.getElementById('billingAmount').value;
+            const months = document.getElementById('billingMonths').value;
+            const startDate = document.getElementById('billingStartDate').value;
+            const attorney = document.getElementById('billingAttorney').value;
+
+            if (!clientName || !amount || !months || !startDate || !attorney) {
+                alert('נא למלא את כל השדות המסומנים בכוכבית');
+                return;
+            }
+
+            const submitBtn = document.getElementById('billingSubmitBtn');
+            submitBtn.disabled = true;
+            document.getElementById('billingSubmitText').textContent = 'שומר...';
+
+            try {
+                const billingData = {
+                    clientName: clientName,
+                    phone: document.getElementById('billingPhone').value || '',
+                    email: document.getElementById('billingEmail').value || '',
+                    idNumber: document.getElementById('billingIdNumber').value || '',
+                    address: document.getElementById('billingAddress').value || '',
+                    recurringMonthlyAmount: amount,
+                    recurringMonthsCount: months,
+                    recurringStartDate: startDate,
+                    recurringDayOfMonth: document.getElementById('billingDayOfMonth').value || '1',
+                    attorney: attorney,
+                    caseNumber: document.getElementById('billingCaseNumber').value || '',
+                    branch: document.getElementById('billingBranch').value || 'תל אביב',
+                    transactionType: document.getElementById('billingTransactionType').value || 'ריטיינר',
+                    transactionDescription: 'חיוב חודשי - ' + clientName,
+                    recurringNotes: document.getElementById('billingNotes').value || '',
+                    recurringBilling: true,
+                    creditCardStatus: 'חיוב חודשי',
+                    paymentMethod: 'כרטיס אשראי',
+                    status: 'פעיל',
+                    createdBy: currentUser || 'לא ידוע',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                // שמירה ב-Firestore
+                await db.collection('recurring_billing').add(billingData);
+
+                // שליחה ל-webhook (ליצירת שורות בגיליון גבייה חודשית)
+                const webhookData = {
+                    ...billingData,
+                    action: 'addRecurringBilling',
+                    timestamp: new Date().toISOString()
+                };
+
+                const WEBHOOK_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
+                await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(webhookData)
+                });
+
+                // הצגת הודעת הצלחה
+                document.getElementById('billingModalBody').innerHTML =
+                    '<div class="billing-success-msg">' +
+                        '<div class="check-icon">&#10004;</div>' +
+                        '<h3 style="margin:0 0 8px;color:#1f2937;">הלקוח נוסף לגבייה בהצלחה!</h3>' +
+                        '<p style="color:#6b7280;margin:0 0 4px;">' + clientName + '</p>' +
+                        '<p style="color:#6b7280;margin:0;">₪' + parseFloat(amount).toLocaleString('he-IL') + ' × ' + months + ' חודשים</p>' +
+                        '<p style="color:#9ca3af;font-size:12px;margin-top:12px;">תזכורות יישלחו אוטומטית יום לפני כל חיוב</p>' +
+                    '</div>';
+                document.getElementById('billingModalFooter').innerHTML =
+                    '<button class="billing-btn-submit" onclick="closeBillingModal()" style="width:100%;">סגור</button>';
+
+            } catch (error) {
+                console.error('Error saving billing data:', error);
+                alert('שגיאה בשמירה: ' + error.message);
+                submitBtn.disabled = false;
+                document.getElementById('billingSubmitText').textContent = 'שמור וצור תזכורות';
+            }
+        }
+
+        // ========== ניהול גבייה חודשית - Management View ==========
+
+        let billingClients = [];
+        let billingFilter = 'all';
+        let billingViewMode = 'table';
+
+        function showBillingManagement() {
+            document.getElementById('mainContainer').style.display = 'none';
+            document.getElementById('billingManagement').classList.add('active');
+            loadBillingData();
+        }
+
+        function hideBillingManagement() {
+            document.getElementById('billingManagement').classList.remove('active');
+            document.getElementById('mainContainer').style.display = '';
+        }
+
+        async function loadBillingData() {
+            const loading = document.getElementById('bmLoading');
+            const empty = document.getElementById('bmEmpty');
+            const tableView = document.getElementById('bmTableView');
+            const cardsView = document.getElementById('bmCardsView');
+
+            loading.style.display = '';
+            tableView.style.display = 'none';
+            cardsView.style.display = 'none';
+            empty.style.display = 'none';
+
+            try {
+                const snapshot = await db.collection('recurring_billing')
+                    .orderBy('createdAt', 'desc')
+                    .get();
+
+                billingClients = [];
+                snapshot.forEach(doc => {
+                    billingClients.push({ id: doc.id, ...doc.data() });
+                });
+
+                loading.style.display = 'none';
+
+                if (billingClients.length === 0) {
+                    empty.style.display = '';
+                    return;
+                }
+
+                updateBillingSummary();
+                renderBillingView();
+            } catch (error) {
+                console.error('Error loading billing data:', error);
+                loading.innerHTML = '<p style="color:var(--error);">שגיאה בטעינת הנתונים</p>';
+            }
+        }
+
+        function updateBillingSummary() {
+            const active = billingClients.filter(c => c.status === 'פעיל' || !c.status);
+            const totalMonthly = active.reduce((sum, c) => sum + (parseFloat(c.recurringMonthlyAmount) || 0), 0);
+
+            let totalPaid = 0;
+            let totalRemaining = 0;
+
+            billingClients.forEach(c => {
+                const amount = parseFloat(c.recurringMonthlyAmount) || 0;
+                const totalMonths = parseInt(c.recurringMonthsCount) || 0;
+                const totalDeal = amount * totalMonths;
+
+                // Calculate paid months based on start date
+                const paidMonths = calculatePaidMonths(c);
+                totalPaid += amount * paidMonths;
+                totalRemaining += totalDeal - (amount * paidMonths);
+            });
+
+            document.getElementById('bmStatTotal').textContent = active.length;
+            document.getElementById('bmStatMonthly').textContent = '₪' + totalMonthly.toLocaleString('he-IL');
+            document.getElementById('bmStatPaid').textContent = '₪' + totalPaid.toLocaleString('he-IL');
+            document.getElementById('bmStatRemaining').textContent = '₪' + Math.max(0, totalRemaining).toLocaleString('he-IL');
+        }
+
+        function calculatePaidMonths(client) {
+            if (!client.recurringStartDate) return 0;
+            const start = new Date(client.recurringStartDate);
+            const now = new Date();
+            const totalMonths = parseInt(client.recurringMonthsCount) || 0;
+
+            if (client.status === 'בוטל') return 0;
+
+            let diffMonths = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+            if (now.getDate() >= (parseInt(client.recurringDayOfMonth) || 1)) {
+                diffMonths += 1;
+            }
+
+            return Math.max(0, Math.min(diffMonths, totalMonths));
+        }
+
+        function getNextReminderDate(client) {
+            if (client.status === 'בוטל' || client.status === 'מושהה') return null;
+            const start = new Date(client.recurringStartDate);
+            const totalMonths = parseInt(client.recurringMonthsCount) || 0;
+            const dayOfMonth = parseInt(client.recurringDayOfMonth) || 1;
+            const now = new Date();
+
+            for (let i = 0; i < totalMonths; i++) {
+                const chargeDate = new Date(start.getFullYear(), start.getMonth() + i, dayOfMonth);
+                if (chargeDate > now) {
+                    return chargeDate;
+                }
+            }
+            return null;
+        }
+
+        function formatDate(date) {
+            if (!date) return '—';
+            const d = date instanceof Date ? date : new Date(date);
+            if (isNaN(d.getTime())) return '—';
+            return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+
+        function getStatusBadge(status) {
+            const s = status || 'פעיל';
+            const map = { 'פעיל': 'active', 'מושהה': 'paused', 'בוטל': 'cancelled' };
+            const cls = map[s] || 'active';
+            return '<span class="bm-badge ' + cls + '">' + s + '</span>';
+        }
+
+        function setBillingFilter(filter, btn) {
+            billingFilter = filter;
+            document.querySelectorAll('.bm-filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderBillingView();
+        }
+
+        function setBillingViewMode(mode) {
+            billingViewMode = mode;
+            document.getElementById('bmViewTable').classList.toggle('active', mode === 'table');
+            document.getElementById('bmViewCards').classList.toggle('active', mode === 'cards');
+            document.getElementById('bmTableView').style.display = mode === 'table' ? '' : 'none';
+            document.getElementById('bmCardsView').style.display = mode === 'cards' ? '' : 'none';
+        }
+
+        function filterBillingView() {
+            renderBillingView();
+        }
+
+        function getFilteredClients() {
+            let filtered = billingClients;
+
+            if (billingFilter !== 'all') {
+                filtered = filtered.filter(c => (c.status || 'פעיל') === billingFilter);
+            }
+
+            const search = (document.getElementById('bmSearch').value || '').trim().toLowerCase();
+            if (search) {
+                filtered = filtered.filter(c =>
+                    (c.clientName || '').toLowerCase().includes(search) ||
+                    (c.attorney || '').toLowerCase().includes(search) ||
+                    (c.caseNumber || '').toLowerCase().includes(search) ||
+                    (c.phone || '').includes(search)
+                );
+            }
+
+            return filtered;
+        }
+
+        function renderBillingView() {
+            const filtered = getFilteredClients();
+            const tableView = document.getElementById('bmTableView');
+            const cardsView = document.getElementById('bmCardsView');
+            const empty = document.getElementById('bmEmpty');
+
+            if (filtered.length === 0) {
+                tableView.style.display = 'none';
+                cardsView.style.display = 'none';
+                empty.style.display = '';
+                return;
+            }
+
+            empty.style.display = 'none';
+            tableView.style.display = billingViewMode === 'table' ? '' : 'none';
+            cardsView.style.display = billingViewMode === 'cards' ? '' : 'none';
+
+            renderTableView(filtered);
+            renderCardsView(filtered);
+        }
+
+        function renderTableView(clients) {
+            const tbody = document.getElementById('bmTableBody');
+            tbody.innerHTML = clients.map(c => {
+                const amount = parseFloat(c.recurringMonthlyAmount) || 0;
+                const totalMonths = parseInt(c.recurringMonthsCount) || 0;
+                const totalDeal = amount * totalMonths;
+                const paidMonths = calculatePaidMonths(c);
+                const paidAmount = amount * paidMonths;
+                const progressPct = totalMonths > 0 ? Math.round((paidMonths / totalMonths) * 100) : 0;
+                const nextDate = getNextReminderDate(c);
+
+                return '<tr>' +
+                    '<td><strong>' + (c.clientName || '') + '</strong>' +
+                        (c.caseNumber ? '<br><span style="font-size:11px;color:var(--gray-400);">תיק ' + c.caseNumber + '</span>' : '') +
+                    '</td>' +
+                    '<td>' + (c.attorney || '—') + '</td>' +
+                    '<td class="bm-amount">₪' + amount.toLocaleString('he-IL') + '</td>' +
+                    '<td class="bm-amount">₪' + totalDeal.toLocaleString('he-IL') + '</td>' +
+                    '<td class="bm-amount" style="color:var(--success);">₪' + paidAmount.toLocaleString('he-IL') + '</td>' +
+                    '<td>' + paidMonths + '/' + totalMonths +
+                        '<div class="bm-progress-bar"><div class="bm-progress-fill" style="width:' + progressPct + '%"></div></div>' +
+                    '</td>' +
+                    '<td>' + getStatusBadge(c.status) + '</td>' +
+                    '<td style="font-size:12px;">' + formatDate(nextDate) + '</td>' +
+                '</tr>';
+            }).join('');
+        }
+
+        function renderCardsView(clients) {
+            const container = document.getElementById('bmCardsContainer');
+            container.innerHTML = clients.map(c => {
+                const amount = parseFloat(c.recurringMonthlyAmount) || 0;
+                const totalMonths = parseInt(c.recurringMonthsCount) || 0;
+                const totalDeal = amount * totalMonths;
+                const paidMonths = calculatePaidMonths(c);
+                const paidAmount = amount * paidMonths;
+                const remainingAmount = Math.max(0, totalDeal - paidAmount);
+                const progressPct = totalMonths > 0 ? Math.round((paidMonths / totalMonths) * 100) : 0;
+                const nextDate = getNextReminderDate(c);
+                const progressClass = progressPct >= 80 ? ' high' : '';
+
+                return '<div class="bm-card">' +
+                    '<div class="bm-card-top">' +
+                        '<div>' +
+                            '<div class="bm-card-name">' + (c.clientName || '') + '</div>' +
+                            '<div class="bm-card-case">' + (c.caseNumber ? 'תיק ' + c.caseNumber : '') + (c.attorney ? ' | ' + c.attorney : '') + '</div>' +
+                        '</div>' +
+                        getStatusBadge(c.status) +
+                    '</div>' +
+                    '<div class="bm-card-body">' +
+                        '<div class="bm-card-field">' +
+                            '<div class="bm-card-field-label">סכום חודשי</div>' +
+                            '<div class="bm-card-field-value">₪' + amount.toLocaleString('he-IL') + '</div>' +
+                        '</div>' +
+                        '<div class="bm-card-field">' +
+                            '<div class="bm-card-field-label">סה"כ עסקה</div>' +
+                            '<div class="bm-card-field-value">₪' + totalDeal.toLocaleString('he-IL') + '</div>' +
+                        '</div>' +
+                        '<div class="bm-card-field">' +
+                            '<div class="bm-card-field-label">שולם</div>' +
+                            '<div class="bm-card-field-value" style="color:var(--success);">₪' + paidAmount.toLocaleString('he-IL') + '</div>' +
+                        '</div>' +
+                        '<div class="bm-card-field">' +
+                            '<div class="bm-card-field-label">נותר</div>' +
+                            '<div class="bm-card-field-value" style="color:var(--error);">₪' + remainingAmount.toLocaleString('he-IL') + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="bm-card-progress">' +
+                        '<div class="bm-card-progress-text">' +
+                            '<span>' + paidMonths + ' מתוך ' + totalMonths + ' תשלומים</span>' +
+                            '<span>' + progressPct + '%</span>' +
+                        '</div>' +
+                        '<div class="bm-card-progress-bar"><div class="bm-card-progress-fill' + progressClass + '" style="width:' + progressPct + '%"></div></div>' +
+                    '</div>' +
+                    (nextDate ? '<div style="margin-top:10px;font-size:11px;color:var(--gray-400);">תזכורת הבאה: ' + formatDate(nextDate) + '</div>' : '') +
+                '</div>';
+            }).join('');
         }
 
         // Initialize
