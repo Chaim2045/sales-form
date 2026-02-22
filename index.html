@@ -1641,6 +1641,94 @@
         .edit-btn-save { background: var(--primary-blue); color: white; }
         .edit-btn-save:hover { background: var(--primary-blue-hover); }
         .edit-btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Password Popup */
+        .pw-popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .pw-popup-overlay.show { display: flex; }
+        .pw-popup {
+            background: var(--white);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 380px;
+            padding: 32px 28px 24px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+        .pw-popup-icon {
+            width: 56px; height: 56px;
+            background: linear-gradient(135deg, #dbeafe, #eff6ff);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px;
+        }
+        .pw-popup h3 {
+            font-size: 18px; font-weight: 700;
+            color: var(--gray-800); margin: 0 0 6px;
+        }
+        .pw-popup .pw-desc {
+            font-size: 13px; color: var(--gray-500);
+            margin-bottom: 18px; line-height: 1.6;
+        }
+        .pw-popup .pw-warning {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #991b1b;
+            margin-bottom: 18px;
+            text-align: right;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .pw-popup input[type="password"] {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+            font-family: 'Heebo', sans-serif;
+            font-size: 15px;
+            text-align: center;
+            letter-spacing: 3px;
+            margin-bottom: 14px;
+            transition: border-color 0.2s;
+        }
+        .pw-popup input[type="password"]:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+        .pw-popup-buttons {
+            display: flex; gap: 10px;
+        }
+        .pw-popup-buttons button {
+            flex: 1; padding: 10px;
+            border-radius: 8px; font-family: 'Heebo', sans-serif;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer; border: none; transition: background 0.2s;
+        }
+        .pw-popup-cancel {
+            background: var(--gray-100); color: var(--gray-600);
+        }
+        .pw-popup-cancel:hover { background: var(--gray-200); }
+        .pw-popup-confirm {
+            background: var(--primary-blue); color: white;
+        }
+        .pw-popup-confirm:hover { background: var(--primary-blue-hover); }
+        .pw-popup-error {
+            color: var(--error); font-size: 12px;
+            margin-top: 8px; min-height: 16px;
+        }
     </style>
 </head>
 <body>
@@ -2439,14 +2527,19 @@
                         <input type="text" id="billingCardExpiry" placeholder="MM/YY" maxlength="5" dir="ltr" style="text-align: left;" autocomplete="off">
                     </div>
                     <div class="form-group">
-                        <label>שם בעל הכרטיס</label>
-                        <input type="text" id="billingCardHolder" placeholder="שם כפי שמופיע על הכרטיס">
+                        <label>CVV (3 ספרות)</label>
+                        <input type="password" id="billingCardCvv" placeholder="•••" maxlength="4" dir="ltr" style="text-align: center; letter-spacing: 4px;" autocomplete="off">
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>סוג כרטיס</label>
-                    <select id="billingCardType">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>שם בעל הכרטיס</label>
+                        <input type="text" id="billingCardHolder" placeholder="שם כפי שמופיע על הכרטיס">
+                    </div>
+                    <div class="form-group">
+                        <label>סוג כרטיס</label>
+                        <select id="billingCardType">
                         <option value="">בחר סוג</option>
                         <option value="ויזה">ויזה (Visa)</option>
                         <option value="מאסטרקארד">מאסטרקארד (Mastercard)</option>
@@ -2455,6 +2548,7 @@
                         <option value="דיינרס">דיינרס</option>
                         <option value="אחר">אחר</option>
                     </select>
+                    </div>
                 </div>
 
                 <div class="billing-section-title">פרטים נוספים</div>
@@ -2598,9 +2692,13 @@
                         <input type="text" id="editCardExpiry" placeholder="MM/YY" maxlength="5" dir="ltr" style="text-align:left;" autocomplete="off">
                     </div>
                     <div class="form-group">
-                        <label>שם בעל הכרטיס</label>
-                        <input type="text" id="editCardHolder">
+                        <label>CVV (3 ספרות)</label>
+                        <input type="password" id="editCardCvv" placeholder="•••" maxlength="4" dir="ltr" style="text-align:center;letter-spacing:4px;" autocomplete="off">
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>שם בעל הכרטיס</label>
+                    <input type="text" id="editCardHolder">
                 </div>
                 <div class="form-group">
                     <label>סוג כרטיס</label>
@@ -2643,6 +2741,30 @@
                 <button class="edit-btn-cancel" onclick="closeEditModal()">ביטול</button>
                 <button class="edit-btn-save" id="editSaveBtn" onclick="saveEditBilling()">שמור שינויים</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Password Popup -->
+    <div id="pwPopupOverlay" class="pw-popup-overlay">
+        <div class="pw-popup">
+            <div class="pw-popup-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
+            </div>
+            <h3 id="pwPopupTitle">סיסמת הצפנה</h3>
+            <div class="pw-desc" id="pwPopupDesc">
+                סיסמה זו משמשת להצפנת פרטי כרטיס האשראי של הלקוח.<br>
+                רק מי שיודע את הסיסמה יוכל לצפות במספר הכרטיס המלא.
+            </div>
+            <div class="pw-warning">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>שמור את הסיסמה במקום בטוח. <strong>אם הסיסמה תישכח - לא ניתן לשחזר את פרטי הכרטיסים.</strong> אל תשתף אותה בהודעות או במייל.</span>
+            </div>
+            <input type="password" id="pwPopupInput" placeholder="הזן סיסמה">
+            <div class="pw-popup-buttons">
+                <button class="pw-popup-cancel" id="pwPopupCancel">ביטול</button>
+                <button class="pw-popup-confirm" id="pwPopupConfirm">אישור</button>
+            </div>
+            <div class="pw-popup-error" id="pwPopupError"></div>
         </div>
     </div>
 
@@ -3898,6 +4020,61 @@
             }
         }
 
+        // פופאפ סיסמת הצפנה מעוצב
+        function requestPassword(mode) {
+            return new Promise(function(resolve) {
+                var overlay = document.getElementById('pwPopupOverlay');
+                var input = document.getElementById('pwPopupInput');
+                var errorEl = document.getElementById('pwPopupError');
+                var title = document.getElementById('pwPopupTitle');
+                var desc = document.getElementById('pwPopupDesc');
+
+                if (mode === 'decrypt') {
+                    title.textContent = 'צפייה בפרטי כרטיס';
+                    desc.innerHTML = 'הזן את סיסמת המשרד כדי לצפות במספר הכרטיס המלא.<br>פעולה זו נרשמת ביומן הביקורת.';
+                } else {
+                    title.textContent = 'הצפנת פרטי כרטיס';
+                    desc.innerHTML = 'סיסמה זו משמשת להצפנת פרטי כרטיס האשראי של הלקוח.<br>רק מי שיודע את הסיסמה יוכל לצפות במספר הכרטיס המלא.';
+                }
+
+                input.value = '';
+                errorEl.textContent = '';
+                overlay.classList.add('show');
+                setTimeout(function() { input.focus(); }, 100);
+
+                function cleanup() {
+                    overlay.classList.remove('show');
+                    document.getElementById('pwPopupConfirm').removeEventListener('click', onConfirm);
+                    document.getElementById('pwPopupCancel').removeEventListener('click', onCancel);
+                    input.removeEventListener('keydown', onKeydown);
+                }
+
+                function onConfirm() {
+                    var val = input.value;
+                    if (!val) {
+                        errorEl.textContent = 'נא להזין סיסמה';
+                        return;
+                    }
+                    cleanup();
+                    resolve(val);
+                }
+
+                function onCancel() {
+                    cleanup();
+                    resolve(null);
+                }
+
+                function onKeydown(e) {
+                    if (e.key === 'Enter') onConfirm();
+                    if (e.key === 'Escape') onCancel();
+                }
+
+                document.getElementById('pwPopupConfirm').addEventListener('click', onConfirm);
+                document.getElementById('pwPopupCancel').addEventListener('click', onCancel);
+                input.addEventListener('keydown', onKeydown);
+            });
+        }
+
         // פורמט מספר כרטיס - רווח כל 4 ספרות
         document.addEventListener('DOMContentLoaded', function() {
             var cardInput = document.getElementById('billingCardNumber');
@@ -3945,6 +4122,7 @@
             document.getElementById('billingNotes').value = '';
             document.getElementById('billingCardNumber').value = '';
             document.getElementById('billingCardExpiry').value = '';
+            document.getElementById('billingCardCvv').value = '';
             document.getElementById('billingCardHolder').value = '';
             document.getElementById('billingCardType').value = '';
             document.getElementById('billingAutocomplete').classList.remove('show');
@@ -4029,21 +4207,25 @@
                 // הצפנת פרטי כרטיס אשראי
                 const cardNumber = (document.getElementById('billingCardNumber').value || '').replace(/\s/g, '');
                 const cardExpiry = document.getElementById('billingCardExpiry').value || '';
+                const cardCvv = document.getElementById('billingCardCvv').value || '';
                 const cardHolder = document.getElementById('billingCardHolder').value || '';
                 const cardType = document.getElementById('billingCardType').value || '';
                 let cardEncrypted = '';
+                let cvvEncrypted = '';
                 let cardLast4 = '';
 
                 if (cardNumber) {
-                    const passphrase = prompt('הזן סיסמת הצפנה למשרד (סיסמה זו נדרשת לצפייה במספר הכרטיס):');
+                    const passphrase = await requestPassword('encrypt');
                     if (!passphrase) {
-                        alert('לא ניתן לשמור פרטי כרטיס ללא סיסמת הצפנה');
                         submitBtn.disabled = false;
                         document.getElementById('billingSubmitText').textContent = 'שמור וצור תזכורות';
                         return;
                     }
                     cardEncrypted = encryptCardData(cardNumber, passphrase);
                     cardLast4 = cardNumber.slice(-4);
+                    if (cardCvv) {
+                        cvvEncrypted = encryptCardData(cardCvv, passphrase);
+                    }
                 }
 
                 const billingData = {
@@ -4068,6 +4250,7 @@
                     paymentMethod: 'כרטיס אשראי',
                     status: 'פעיל',
                     cardEncrypted: cardEncrypted,
+                    cvvEncrypted: cvvEncrypted,
                     cardLast4: cardLast4,
                     cardExpiry: cardExpiry,
                     cardHolder: cardHolder,
@@ -4403,7 +4586,7 @@
         // ========== חשיפת מספר כרטיס מוצפן ==========
 
         async function revealCard(docId) {
-            const passphrase = prompt('הזן סיסמת המשרד לצפייה במספר הכרטיס:');
+            const passphrase = await requestPassword('decrypt');
             if (!passphrase) return;
 
             try {
@@ -4428,6 +4611,12 @@
                 // רישום לוג צפייה
                 logCardView(docId, data.clientName);
 
+                // פענוח CVV אם קיים
+                var cvvDecrypted = '';
+                if (data.cvvEncrypted) {
+                    cvvDecrypted = decryptCardData(data.cvvEncrypted, passphrase) || '';
+                }
+
                 // הצגת המספר בחלון מעוצב שנסגר אוטומטית
                 var formatted = decrypted.replace(/(\d{4})(?=\d)/g, '$1 ');
                 var overlay = document.createElement('div');
@@ -4439,8 +4628,11 @@
                         '</div>' +
                         '<div style="font-size:13px;color:#6b7280;margin-bottom:8px;">' + (data.cardHolder || data.clientName || '') + '</div>' +
                         '<div style="font-size:22px;font-weight:700;letter-spacing:3px;direction:ltr;font-variant-numeric:tabular-nums;color:#1f2937;margin-bottom:6px;">' + formatted + '</div>' +
-                        (data.cardExpiry ? '<div style="font-size:13px;color:#6b7280;">תוקף: ' + data.cardExpiry + '</div>' : '') +
-                        (data.cardType ? '<div style="font-size:12px;color:#9ca3af;margin-top:2px;">' + data.cardType + '</div>' : '') +
+                        '<div style="display:flex;justify-content:center;gap:20px;margin-top:10px;">' +
+                            (data.cardExpiry ? '<div><div style="font-size:11px;color:#9ca3af;">תוקף</div><div style="font-size:15px;font-weight:600;color:#374151;direction:ltr;">' + data.cardExpiry + '</div></div>' : '') +
+                            (cvvDecrypted ? '<div><div style="font-size:11px;color:#9ca3af;">CVV</div><div style="font-size:15px;font-weight:600;color:#374151;direction:ltr;">' + cvvDecrypted + '</div></div>' : '') +
+                        '</div>' +
+                        (data.cardType ? '<div style="font-size:12px;color:#9ca3af;margin-top:8px;">' + data.cardType + '</div>' : '') +
                         '<div style="font-size:11px;color:#ef4444;margin-top:14px;">החלון ייסגר אוטומטית בעוד 30 שניות</div>' +
                         '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="margin-top:14px;background:#2563eb;color:white;border:none;padding:8px 28px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">סגור</button>' +
                     '</div>';
@@ -4488,6 +4680,7 @@
 
                 // Card fields
                 document.getElementById('editCardNumber').value = '';
+                document.getElementById('editCardCvv').value = '';
                 document.getElementById('editCardExpiry').value = d.cardExpiry || '';
                 document.getElementById('editCardHolder').value = d.cardHolder || '';
                 document.getElementById('editCardType').value = d.cardType || '';
@@ -4548,7 +4741,7 @@
                 // הצפנת כרטיס חדש אם הוזן
                 const newCardNumber = (document.getElementById('editCardNumber').value || '').replace(/\s/g, '');
                 if (newCardNumber && newCardNumber.length >= 13) {
-                    const passphrase = prompt('הזן סיסמת הצפנה למשרד:');
+                    const passphrase = await requestPassword('encrypt');
                     if (!passphrase) {
                         saveBtn.disabled = false;
                         saveBtn.textContent = 'שמור שינויים';
@@ -4556,6 +4749,10 @@
                     }
                     updateData.cardEncrypted = encryptCardData(newCardNumber, passphrase);
                     updateData.cardLast4 = newCardNumber.slice(-4);
+                    const newCvv = document.getElementById('editCardCvv').value || '';
+                    if (newCvv) {
+                        updateData.cvvEncrypted = encryptCardData(newCvv, passphrase);
+                    }
                 }
 
                 await db.collection('recurring_billing').doc(docId).update(updateData);
