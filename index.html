@@ -1212,6 +1212,32 @@
             background: var(--gray-100);
             border-color: var(--gray-400);
         }
+        .bm-sync-btn {
+            background: none;
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: 'Heebo', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .bm-sync-btn:hover {
+            background: var(--primary-blue);
+            color: white;
+        }
+        .bm-sync-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .bm-sync-btn.syncing svg {
+            animation: spin 1s linear infinite;
+        }
 
         /* Summary Cards */
         .bm-summary {
@@ -2369,10 +2395,16 @@
     <div id="billingManagement">
         <div class="bm-header">
             <h2>ניהול גבייה חודשית</h2>
-            <button class="bm-back-btn" onclick="hideBillingManagement()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                חזרה
-            </button>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="bm-sync-btn" id="bmSyncBtn" onclick="syncBillingToSheets()" title="סנכרון לקוחות קיימים לגיליון Google Sheets">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                    סנכרון לגיליון
+                </button>
+                <button class="bm-back-btn" onclick="hideBillingManagement()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    חזרה
+                </button>
+            </div>
         </div>
 
         <!-- Summary Stats -->
@@ -4361,6 +4393,94 @@
         function hideBillingManagement() {
             document.getElementById('billingManagement').classList.remove('active');
             document.getElementById('mainContainer').style.display = '';
+        }
+
+        // סנכרון לקוחות קיימים מ-Firestore לגיליון Google Sheets
+        async function syncBillingToSheets() {
+            const btn = document.getElementById('bmSyncBtn');
+            const originalText = btn.innerHTML;
+
+            if (!confirm('פעולה זו תשלח את כל הלקוחות הקיימים מ-Firestore לגיליון Google Sheets.\nלקוחות שכבר קיימים בגיליון לא ייכפלו.\n\nלהמשיך?')) {
+                return;
+            }
+
+            btn.disabled = true;
+            btn.classList.add('syncing');
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> מסנכרן...';
+
+            try {
+                const snapshot = await db.collection('recurring_billing').get();
+                const total = snapshot.size;
+                let sent = 0;
+                let errors = 0;
+
+                const WEBHOOK_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
+
+                for (const doc of snapshot.docs) {
+                    const data = doc.data();
+
+                    // דלג על לקוחות מבוטלים
+                    if (data.status === 'בוטל') {
+                        sent++;
+                        continue;
+                    }
+
+                    const webhookData = {
+                        action: 'addRecurringBilling',
+                        clientName: data.clientName || '',
+                        phone: data.phone || '',
+                        email: data.email || '',
+                        idNumber: data.idNumber || '',
+                        address: data.address || '',
+                        recurringMonthlyAmount: data.recurringMonthlyAmount || '',
+                        recurringMonthsCount: data.recurringMonthsCount || '',
+                        recurringStartDate: data.recurringStartDate || '',
+                        recurringDayOfMonth: data.recurringDayOfMonth || '1',
+                        paidMonthsAlready: data.paidMonthsAlready || 0,
+                        attorney: data.attorney || '',
+                        caseNumber: data.caseNumber || '',
+                        branch: data.branch || 'תל אביב',
+                        transactionType: data.transactionType || 'ריטיינר',
+                        transactionDescription: data.transactionDescription || 'חיוב חודשי - ' + (data.clientName || ''),
+                        recurringNotes: data.recurringNotes || '',
+                        recurringBilling: true,
+                        creditCardStatus: 'חיוב חודשי',
+                        paymentMethod: 'כרטיס אשראי',
+                        timestamp: new Date().toISOString()
+                    };
+
+                    try {
+                        await fetch(WEBHOOK_URL, {
+                            method: 'POST',
+                            mode: 'no-cors',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(webhookData)
+                        });
+                        sent++;
+                    } catch (err) {
+                        console.error('Sync error for ' + data.clientName + ':', err);
+                        errors++;
+                    }
+
+                    // עדכון כפתור עם התקדמות
+                    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> ' + sent + '/' + total;
+
+                    // המתנה קצרה בין בקשות כדי לא להעמיס
+                    await new Promise(r => setTimeout(r, 500));
+                }
+
+                const msg = 'סנכרון הושלם!\n' + sent + ' לקוחות נשלחו לגיליון.' +
+                    (errors > 0 ? '\n' + errors + ' שגיאות.' : '');
+                alert(msg);
+
+            } catch (error) {
+                console.error('Sync error:', error);
+                alert('שגיאה בסנכרון: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('syncing');
+                btn.innerHTML = originalText;
+            }
         }
 
         async function loadBillingData() {
