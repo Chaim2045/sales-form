@@ -2237,6 +2237,12 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label>חודשים ששולמו כבר</label>
+                    <input type="number" id="billingPaidMonths" placeholder="0 (אם הלקוח חדש)" min="0" max="60" value="0">
+                    <div style="font-size: 11px; color: var(--gray-400); margin-top: 4px;">למקרה שהלקוח כבר שילם חלק מהתשלומים לפני ההכנסה למערכת</div>
+                </div>
+
                 <div class="billing-section-title">פרטים נוספים</div>
 
                 <div class="form-row">
@@ -3465,6 +3471,7 @@
             document.getElementById('billingMonths').value = '';
             document.getElementById('billingStartDate').value = '';
             document.getElementById('billingDayOfMonth').value = '1';
+            document.getElementById('billingPaidMonths').value = '0';
             document.getElementById('billingAttorney').value = '';
             document.getElementById('billingCaseNumber').value = '';
             document.getElementById('billingTransactionType').value = 'ריטיינר';
@@ -3558,6 +3565,7 @@
                     recurringMonthsCount: months,
                     recurringStartDate: startDate,
                     recurringDayOfMonth: document.getElementById('billingDayOfMonth').value || '1',
+                    paidMonthsAlready: parseInt(document.getElementById('billingPaidMonths').value) || 0,
                     attorney: attorney,
                     caseNumber: document.getElementById('billingCaseNumber').value || '',
                     branch: document.getElementById('billingBranch').value || 'תל אביב',
@@ -3688,19 +3696,20 @@
         }
 
         function calculatePaidMonths(client) {
-            if (!client.recurringStartDate) return 0;
+            const alreadyPaid = parseInt(client.paidMonthsAlready) || 0;
+            if (!client.recurringStartDate) return alreadyPaid;
             const start = new Date(client.recurringStartDate);
             const now = new Date();
             const totalMonths = parseInt(client.recurringMonthsCount) || 0;
 
-            if (client.status === 'בוטל') return 0;
+            if (client.status === 'בוטל') return alreadyPaid;
 
             let diffMonths = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
             if (now.getDate() >= (parseInt(client.recurringDayOfMonth) || 1)) {
                 diffMonths += 1;
             }
 
-            return Math.max(0, Math.min(diffMonths, totalMonths));
+            return Math.max(0, Math.min(diffMonths + alreadyPaid, totalMonths));
         }
 
         function getNextReminderDate(client) {

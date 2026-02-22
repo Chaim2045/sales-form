@@ -670,6 +670,7 @@ function createRecurringCharges(data, originalRowNumber) {
     var totalMonths = parseInt(data.recurringMonthsCount) || 1;
     var startDate = new Date(data.recurringStartDate);
     var dayOfMonth = parseInt(data.recurringDayOfMonth) || 1;
+    var paidAlready = parseInt(data.paidMonthsAlready) || 0;
     var billingId = 'BIL-' + Date.now();
 
     var rows = [];
@@ -681,6 +682,12 @@ function createRecurringCharges(data, originalRowNumber) {
       if (chargeDate.getDate() !== dayOfMonth) {
         chargeDate.setDate(0);
       }
+
+      // חודשים ששולמו כבר לפני ההכנסה למערכת
+      var isAlreadyPaid = i < paidAlready;
+      var status = isAlreadyPaid ? 'בוצע' : 'ממתין';
+      var completionDate = isAlreadyPaid ? formatDate(new Date()) : '';
+      var completedBy = isAlreadyPaid ? 'הוזן ידנית' : '';
 
       var row = [
         billingId + '-' + (i + 1),
@@ -696,9 +703,9 @@ function createRecurringCharges(data, originalRowNumber) {
         totalMonths,
         i + 1,
         formatDate(chargeDate),
-        'ממתין',
-        '',
-        '',
+        status,
+        completionDate,
+        completedBy,
         originalRowNumber,
         formatDate(new Date()),
         data.recurringNotes || data.notes || '',
