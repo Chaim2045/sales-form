@@ -5468,6 +5468,9 @@
                     });
                 }
 
+                // סנכרון subcollection payments אם שונה סכום / חודשים / תאריך התחלה
+                await syncPaymentsAfterEdit(docId, clientData, updateData);
+
                 closeEditModal();
                 loadBillingData(); // רענון התצוגה
             } catch (error) {
@@ -5477,6 +5480,130 @@
 
             saveBtn.disabled = false;
             saveBtn.textContent = 'שמור שינויים';
+        }
+
+        // סנכרון subcollection payments אחרי עריכה
+        async function syncPaymentsAfterEdit(docId, oldData, newData) {
+            try {
+                var paymentsSnap = await db.collection('recurring_billing').doc(docId)
+                    .collection('payments').orderBy('monthNumber').get();
+
+                // אם אין subcollection - אין מה לסנכרן, יווצר בפתיחת מודאל
+                if (paymentsSnap.empty) return;
+
+                var oldAmount = parseFloat(oldData.recurringMonthlyAmount) || 0;
+                var newAmount = parseFloat(newData.recurringMonthlyAmount) || 0;
+                var oldMonths = parseInt(oldData.recurringMonthsCount) || 0;
+                var newMonths = parseInt(newData.recurringMonthsCount) || 0;
+                var newStartDate = newData.recurringStartDate || oldData.recurringStartDate;
+                var newDayOfMonth = parseInt(newData.recurringDayOfMonth) || parseInt(oldData.recurringDayOfMonth) || 1;
+                var newPaidAlready = parseInt(newData.paidMonthsAlready) || 0;
+                var billingPrefix = oldData.billingIdPrefix || '';
+
+                var existingPayments = [];
+                paymentsSnap.forEach(function(doc) {
+                    existingPayments.push({ id: doc.id, data: doc.data() });
+                });
+
+                var batch = db.batch();
+                var hasChanges = false;
+
+                // עדכון סכום מתוכנן לתשלומים שלא בוצעו
+                if (oldAmount !== newAmount) {
+                    existingPayments.forEach(function(p) {
+                        if (p.data.status !== 'בוצע' && p.data.status !== 'בוטל') {
+                            // עדכון רק אם הסכום הישן תואם (לא שונה ידנית)
+                            var pAmount = parseFloat(p.data.plannedAmount) || 0;
+                            if (pAmount === oldAmount) {
+                                var ref = db.collection('recurring_billing').doc(docId)
+                                    .collection('payments').doc(p.id);
+                                batch.update(ref, { plannedAmount: newAmount });
+                                hasChanges = true;
+                            }
+                        }
+                    });
+                }
+
+                // עדכון סטטוס paidMonthsAlready
+                var oldPaid = parseInt(oldData.paidMonthsAlready) || 0;
+                if (newPaidAlready !== oldPaid) {
+                    existingPayments.forEach(function(p) {
+                        var monthNum = p.data.monthNumber;
+                        var ref = db.collection('recurring_billing').doc(docId)
+                            .collection('payments').doc(p.id);
+                        if (monthNum <= newPaidAlready && p.data.status !== 'בוצע') {
+                            // סמן כבוצע
+                            batch.update(ref, {
+                                status: 'בוצע',
+                                actualAmountPaid: parseFloat(p.data.plannedAmount) || newAmount,
+                                actualPaymentDate: p.data.plannedDate,
+                                completedBy: 'עריכה ידנית',
+                                completedAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                            hasChanges = true;
+                        } else if (monthNum > newPaidAlready && p.data.status === 'בוצע' && p.data.completedBy === 'מיגרציה') {
+                            // בטל סימון (רק אם סומן ע"י מיגרציה)
+                            batch.update(ref, {
+                                status: 'ממתין',
+                                actualAmountPaid: null,
+                                actualPaymentDate: null,
+                                completedBy: null,
+                                completedAt: null
+                            });
+                            hasChanges = true;
+                        }
+                    });
+                }
+
+                // הוספת חודשים חדשים אם מספר החודשים גדל
+                if (newMonths > existingPayments.length) {
+                    var start = newStartDate ? new Date(newStartDate) : new Date();
+                    for (var i = existingPayments.length; i < newMonths; i++) {
+                        var chargeDate = new Date(start.getFullYear(), start.getMonth() + i, newDayOfMonth);
+                        if (chargeDate.getDate() !== newDayOfMonth) {
+                            chargeDate.setDate(0);
+                        }
+                        var payRef = db.collection('recurring_billing').doc(docId)
+                            .collection('payments').doc();
+                        batch.set(payRef, {
+                            monthNumber: i + 1,
+                            plannedAmount: newAmount,
+                            plannedDate: chargeDate.toISOString().split('T')[0],
+                            billingIdSuffix: billingPrefix ? billingPrefix + '-' + (i + 1) : '',
+                            status: i < newPaidAlready ? 'בוצע' : 'ממתין',
+                            actualAmountPaid: i < newPaidAlready ? newAmount : null,
+                            actualPaymentDate: i < newPaidAlready ? chargeDate.toISOString().split('T')[0] : null,
+                            completedBy: i < newPaidAlready ? 'עריכה ידנית' : null,
+                            completedAt: i < newPaidAlready ? firebase.firestore.FieldValue.serverTimestamp() : null,
+                            notes: ''
+                        });
+                        hasChanges = true;
+                    }
+                }
+
+                if (hasChanges) {
+                    await batch.commit();
+
+                    // עדכון שדות סיכום בלקוח
+                    var updatedSnap = await db.collection('recurring_billing').doc(docId)
+                        .collection('payments').get();
+                    var totalPaid = 0;
+                    var paidCount = 0;
+                    updatedSnap.forEach(function(doc) {
+                        var pd = doc.data();
+                        if (pd.status === 'בוצע') {
+                            totalPaid += parseFloat(pd.actualAmountPaid) || parseFloat(pd.plannedAmount) || 0;
+                            paidCount++;
+                        }
+                    });
+                    await db.collection('recurring_billing').doc(docId).update({
+                        totalActualPaid: totalPaid,
+                        completedPaymentsCount: paidCount
+                    });
+                }
+            } catch (error) {
+                console.error('Error syncing payments after edit:', error);
+            }
         }
 
         // ========== מודאל פירוט תשלומים ==========
