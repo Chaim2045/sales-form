@@ -2872,7 +2872,7 @@
                         <tr>
                             <th>לקוח</th>
                             <th>עו"ד מטפל</th>
-                            <th>סכום חודשי <span style="font-weight:400;font-size:10px;color:#94a3b8;">(כולל מע"מ)</span></th>
+                            <th>חיוב הבא <span style="font-weight:400;font-size:10px;color:#94a3b8;">(כולל מע"מ)</span></th>
                             <th>סה"כ עסקה</th>
                             <th>שולם</th>
                             <th>התקדמות</th>
@@ -5012,6 +5012,25 @@
                     billingClients.push({ id: doc.id, ...doc.data() });
                 });
 
+                // טעינת תשלום הבא לכל לקוח (במקביל)
+                var nextPayPromises = billingClients.map(function(c) {
+                    return db.collection('recurring_billing').doc(c.id)
+                        .collection('payments')
+                        .where('status', 'in', ['ממתין', 'באיחור'])
+                        .orderBy('monthNumber', 'asc')
+                        .limit(1)
+                        .get()
+                        .then(function(snap) {
+                            if (!snap.empty) {
+                                var p = snap.docs[0].data();
+                                c.nextPaymentAmount = parseFloat(p.plannedAmount) || 0;
+                                c.nextPaymentDate = p.plannedDate || '';
+                            }
+                        })
+                        .catch(function() {});
+                });
+                await Promise.all(nextPayPromises);
+
                 loading.style.display = 'none';
 
                 if (billingClients.length === 0) {
@@ -5190,7 +5209,7 @@
                         (c.caseNumber ? '<br><span style="font-size:11px;color:#94a3b8;">תיק ' + c.caseNumber + '</span>' : '') +
                     '</td>' +
                     '<td style="color:#64748b;">' + (c.attorney || '—') + '</td>' +
-                    '<td class="bm-amount">₪' + amount.toLocaleString('he-IL') + '</td>' +
+                    '<td class="bm-amount">₪' + (c.nextPaymentAmount || amount).toLocaleString('he-IL') + '</td>' +
                     '<td class="bm-amount" style="color:#0f172a;">₪' + totalDeal.toLocaleString('he-IL') + '</td>' +
                     '<td class="bm-amount" style="color:' + paidColor + ';">₪' + paidAmount.toLocaleString('he-IL') + '</td>' +
                     '<td style="min-width:100px;">' +
@@ -5268,8 +5287,8 @@
                     '</div>' +
                     '<div class="bm-card-body">' +
                         '<div class="bm-card-field">' +
-                            '<div class="bm-card-field-label">סכום חודשי <span style="font-size:9px;color:#94a3b8;">(כולל מע"מ)</span></div>' +
-                            '<div class="bm-card-field-value">₪' + amount.toLocaleString('he-IL') + '</div>' +
+                            '<div class="bm-card-field-label">חיוב הבא <span style="font-size:9px;color:#94a3b8;">(כולל מע"מ)</span></div>' +
+                            '<div class="bm-card-field-value">₪' + (c.nextPaymentAmount || amount).toLocaleString('he-IL') + '</div>' +
                         '</div>' +
                         '<div class="bm-card-field">' +
                             '<div class="bm-card-field-label">סה"כ עסקה</div>' +
