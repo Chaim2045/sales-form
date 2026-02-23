@@ -20,8 +20,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 
     <!-- PDF Generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
 
     <!-- Environment Configuration -->
     <script src="env-config.js"></script>
@@ -8097,7 +8097,10 @@
                 });
 
                 var imgData = canvas.toDataURL('image/png');
-                var pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+                var jsPDFLib = window.jspdf || window.jsPDF;
+                if (!jsPDFLib) { throw new Error('jsPDF library not loaded'); }
+                var jsPDFClass = jsPDFLib.jsPDF || jsPDFLib;
+                var pdf = new jsPDFClass('p', 'mm', 'a4');
                 var pdfWidth = pdf.internal.pageSize.getWidth();
                 var pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
