@@ -5548,12 +5548,14 @@
                     }
                 }
 
+                // קריאת נתוני הלקוח הישנים לפני העדכון (לצורך השוואה בסנכרון)
+                const oldClientDoc = await db.collection('recurring_billing').doc(docId).get();
+                const oldClientData = oldClientDoc.data();
+
                 await db.collection('recurring_billing').doc(docId).update(updateData);
 
                 // סנכרון שינויים ל-Google Sheets
-                const clientDoc = await db.collection('recurring_billing').doc(docId).get();
-                const clientData = clientDoc.data();
-                if (clientData.billingIdPrefix) {
+                if (oldClientData.billingIdPrefix) {
                     const WEBHOOK_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
                     fetch(WEBHOOK_URL, {
                         method: 'POST',
@@ -5561,7 +5563,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             action: 'updateClientInBilling',
-                            billingIdPrefix: clientData.billingIdPrefix,
+                            billingIdPrefix: oldClientData.billingIdPrefix,
                             clientName: clientName,
                             phone: updateData.phone,
                             email: updateData.email,
@@ -5572,8 +5574,8 @@
                     });
                 }
 
-                // סנכרון subcollection payments אם שונה סכום / חודשים / תאריך התחלה
-                await syncPaymentsAfterEdit(docId, clientData, updateData);
+                // סנכרון subcollection payments - משווה ישן מול חדש
+                await syncPaymentsAfterEdit(docId, oldClientData, updateData);
 
                 closeEditModal();
                 loadBillingData(); // רענון התצוגה
@@ -5586,7 +5588,7 @@
             saveBtn.textContent = 'שמור שינויים';
         }
 
-        // סנכרון subcollection payments אחרי עריכה
+        // סנכרון subcollection payments אחרי עריכה - מטפל בכל השדות
         async function syncPaymentsAfterEdit(docId, oldData, newData) {
             try {
                 var paymentsSnap = await db.collection('recurring_billing').doc(docId)
@@ -5599,10 +5601,16 @@
                 var newAmount = parseFloat(newData.recurringMonthlyAmount) || 0;
                 var oldMonths = parseInt(oldData.recurringMonthsCount) || 0;
                 var newMonths = parseInt(newData.recurringMonthsCount) || 0;
-                var newStartDate = newData.recurringStartDate || oldData.recurringStartDate;
-                var newDayOfMonth = parseInt(newData.recurringDayOfMonth) || parseInt(oldData.recurringDayOfMonth) || 1;
+                var oldStartDate = oldData.recurringStartDate || '';
+                var newStartDate = newData.recurringStartDate || oldStartDate;
+                var oldDayOfMonth = parseInt(oldData.recurringDayOfMonth) || 1;
+                var newDayOfMonth = parseInt(newData.recurringDayOfMonth) || oldDayOfMonth;
                 var newPaidAlready = parseInt(newData.paidMonthsAlready) || 0;
+                var oldPaid = parseInt(oldData.paidMonthsAlready) || 0;
                 var billingPrefix = oldData.billingIdPrefix || '';
+
+                // בדיקה אם תאריכים השתנו (תאריך התחלה או יום בחודש)
+                var datesChanged = (newStartDate !== oldStartDate) || (newDayOfMonth !== oldDayOfMonth);
 
                 var existingPayments = [];
                 paymentsSnap.forEach(function(doc) {
@@ -5611,12 +5619,32 @@
 
                 var batch = db.batch();
                 var hasChanges = false;
+                var start = newStartDate ? new Date(newStartDate) : new Date();
 
-                // עדכון סכום מתוכנן לתשלומים שלא בוצעו
+                // 1. עדכון תאריכים לתשלומים שלא בוצעו (אם שונה תאריך התחלה או יום בחודש)
+                if (datesChanged) {
+                    existingPayments.forEach(function(p) {
+                        if (p.data.status !== 'בוצע' && p.data.status !== 'בוטל') {
+                            var monthIdx = p.data.monthNumber - 1;
+                            var newChargeDate = new Date(start.getFullYear(), start.getMonth() + monthIdx, newDayOfMonth);
+                            if (newChargeDate.getDate() !== newDayOfMonth) {
+                                newChargeDate.setDate(0); // סוף חודש קודם אם היום לא קיים
+                            }
+                            var newDateStr = newChargeDate.toISOString().split('T')[0];
+                            if (newDateStr !== p.data.plannedDate) {
+                                var ref = db.collection('recurring_billing').doc(docId)
+                                    .collection('payments').doc(p.id);
+                                batch.update(ref, { plannedDate: newDateStr });
+                                hasChanges = true;
+                            }
+                        }
+                    });
+                }
+
+                // 2. עדכון סכום מתוכנן לתשלומים שלא בוצעו
                 if (oldAmount !== newAmount) {
                     existingPayments.forEach(function(p) {
                         if (p.data.status !== 'בוצע' && p.data.status !== 'בוטל') {
-                            // עדכון רק אם הסכום הישן תואם (לא שונה ידנית)
                             var pAmount = parseFloat(p.data.plannedAmount) || 0;
                             if (pAmount === oldAmount) {
                                 var ref = db.collection('recurring_billing').doc(docId)
@@ -5628,15 +5656,13 @@
                     });
                 }
 
-                // עדכון סטטוס paidMonthsAlready
-                var oldPaid = parseInt(oldData.paidMonthsAlready) || 0;
+                // 3. עדכון סטטוס paidMonthsAlready
                 if (newPaidAlready !== oldPaid) {
                     existingPayments.forEach(function(p) {
                         var monthNum = p.data.monthNumber;
                         var ref = db.collection('recurring_billing').doc(docId)
                             .collection('payments').doc(p.id);
                         if (monthNum <= newPaidAlready && p.data.status !== 'בוצע') {
-                            // סמן כבוצע
                             batch.update(ref, {
                                 status: 'בוצע',
                                 actualAmountPaid: parseFloat(p.data.plannedAmount) || newAmount,
@@ -5645,8 +5671,7 @@
                                 completedAt: firebase.firestore.FieldValue.serverTimestamp()
                             });
                             hasChanges = true;
-                        } else if (monthNum > newPaidAlready && p.data.status === 'בוצע' && p.data.completedBy === 'מיגרציה') {
-                            // בטל סימון (רק אם סומן ע"י מיגרציה)
+                        } else if (monthNum > newPaidAlready && p.data.status === 'בוצע' && (p.data.completedBy === 'מיגרציה' || p.data.completedBy === 'עריכה ידנית')) {
                             batch.update(ref, {
                                 status: 'ממתין',
                                 actualAmountPaid: null,
@@ -5659,9 +5684,23 @@
                     });
                 }
 
-                // הוספת חודשים חדשים אם מספר החודשים גדל
+                // 4. הפחתת חודשים - ביטול תשלומים עודפים
+                if (newMonths < existingPayments.length) {
+                    existingPayments.forEach(function(p) {
+                        if (p.data.monthNumber > newMonths && p.data.status !== 'בוצע') {
+                            var ref = db.collection('recurring_billing').doc(docId)
+                                .collection('payments').doc(p.id);
+                            batch.update(ref, {
+                                status: 'בוטל',
+                                notes: 'בוטל - הופחת מספר תשלומים'
+                            });
+                            hasChanges = true;
+                        }
+                    });
+                }
+
+                // 5. הוספת חודשים חדשים אם מספר החודשים גדל
                 if (newMonths > existingPayments.length) {
-                    var start = newStartDate ? new Date(newStartDate) : new Date();
                     for (var i = existingPayments.length; i < newMonths; i++) {
                         var chargeDate = new Date(start.getFullYear(), start.getMonth() + i, newDayOfMonth);
                         if (chargeDate.getDate() !== newDayOfMonth) {
@@ -5685,6 +5724,21 @@
                     }
                 }
 
+                // 6. שחזור תשלומים שבוטלו אם מספר החודשים חזר לגדול
+                if (newMonths >= existingPayments.length) {
+                    existingPayments.forEach(function(p) {
+                        if (p.data.status === 'בוטל' && p.data.monthNumber <= newMonths && (p.data.notes || '').indexOf('הופחת מספר תשלומים') > -1) {
+                            var ref = db.collection('recurring_billing').doc(docId)
+                                .collection('payments').doc(p.id);
+                            batch.update(ref, {
+                                status: p.data.monthNumber <= newPaidAlready ? 'בוצע' : 'ממתין',
+                                notes: ''
+                            });
+                            hasChanges = true;
+                        }
+                    });
+                }
+
                 if (hasChanges) {
                     await batch.commit();
 
@@ -5693,16 +5747,21 @@
                         .collection('payments').get();
                     var totalPaid = 0;
                     var paidCount = 0;
+                    var lastDate = null;
                     updatedSnap.forEach(function(doc) {
                         var pd = doc.data();
                         if (pd.status === 'בוצע') {
                             totalPaid += parseFloat(pd.actualAmountPaid) || parseFloat(pd.plannedAmount) || 0;
                             paidCount++;
+                            if (pd.actualPaymentDate && (!lastDate || pd.actualPaymentDate > lastDate)) {
+                                lastDate = pd.actualPaymentDate;
+                            }
                         }
                     });
                     await db.collection('recurring_billing').doc(docId).update({
                         totalActualPaid: totalPaid,
-                        completedPaymentsCount: paidCount
+                        completedPaymentsCount: paidCount,
+                        lastPaymentDate: lastDate || ''
                     });
                 }
             } catch (error) {
