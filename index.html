@@ -19,6 +19,10 @@
     <!-- Encryption -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 
+    <!-- PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <!-- Environment Configuration -->
     <script src="env-config.js"></script>
 
@@ -1624,6 +1628,342 @@
             letter-spacing: 0.3px;
         }
 
+        /* ========== Invoices Management View ========== */
+        #invoicesManagement {
+            display: none;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 0;
+        }
+        #invoicesManagement.active { display: block; }
+
+        .inv-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .inv-header h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0;
+        }
+        .inv-header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .inv-new-btn {
+            background: linear-gradient(135deg, #16a34a, #15803d);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Heebo', sans-serif;
+            transition: transform 0.15s;
+        }
+        .inv-new-btn:hover { transform: scale(1.03); }
+        .inv-back-btn {
+            background: var(--gray-100);
+            color: var(--gray-600);
+            border: 1px solid var(--gray-200);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: 'Heebo', sans-serif;
+        }
+
+        .inv-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .inv-stat {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        .inv-stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .inv-stat-label {
+            font-size: 12px;
+            color: var(--gray-400);
+            margin-top: 2px;
+        }
+
+        .inv-toolbar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .inv-search {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 14px;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Heebo', sans-serif;
+        }
+        .inv-month-filter {
+            padding: 10px 14px;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: 'Heebo', sans-serif;
+            background: var(--white);
+        }
+
+        .inv-table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            background: var(--white);
+            margin-bottom: 24px;
+        }
+        .inv-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .inv-table th {
+            background: var(--gray-50);
+            padding: 10px 12px;
+            text-align: right;
+            font-weight: 600;
+            color: var(--gray-700);
+            border-bottom: 1px solid var(--gray-200);
+            white-space: nowrap;
+        }
+        .inv-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f1f5f9;
+            color: var(--gray-700);
+        }
+        .inv-table tr:hover td { background: #f8fafc; }
+
+        .inv-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .inv-badge.draft { background: #fef3c7; color: #92400e; }
+        .inv-badge.sent { background: #dbeafe; color: #1d4ed8; }
+        .inv-badge.paid { background: #d1fae5; color: #065f46; }
+
+        .inv-action-btn {
+            padding: 4px 8px;
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            font-family: 'Heebo', sans-serif;
+            background: var(--white);
+            color: var(--gray-600);
+            transition: background 0.15s;
+        }
+        .inv-action-btn:hover { background: var(--gray-50); }
+        .inv-action-btn.primary { background: #0f172a; color: #fff; border-color: #0f172a; }
+        .inv-action-btn.primary:hover { background: #1e293b; }
+        .inv-action-btn.whatsapp { background: #25d366; color: #fff; border-color: #25d366; }
+        .inv-action-btn.whatsapp:hover { background: #20bd5a; }
+        .inv-action-btn.danger { color: #ef4444; border-color: #fecaca; }
+        .inv-action-btn.danger:hover { background: #fef2f2; }
+
+        .inv-footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--gray-400);
+            font-size: 12px;
+        }
+
+        /* Invoice Create Modal */
+        .inv-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .inv-modal-overlay.show { display: flex; }
+        .inv-modal {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 700px;
+            margin: 20px auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+        .inv-modal-header {
+            background: linear-gradient(135deg, #0f172a, #334155);
+            color: white;
+            padding: 20px 24px;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .inv-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .inv-modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .inv-modal-body {
+            padding: 24px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .inv-modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--gray-200);
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .inv-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1d4ed8;
+            background: #dbeafe;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin: 16px 0 12px;
+        }
+
+        .inv-line-items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 8px 0;
+            font-size: 13px;
+        }
+        .inv-line-items-table th {
+            background: #f8fafc;
+            padding: 8px 10px;
+            text-align: right;
+            font-weight: 600;
+            color: var(--gray-700);
+            border-bottom: 1px solid var(--gray-200);
+        }
+        .inv-line-items-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .inv-line-items-table input,
+        .inv-line-items-table textarea {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: 'Heebo', sans-serif;
+            box-sizing: border-box;
+        }
+        .inv-line-items-table .inv-line-total {
+            font-weight: 700;
+            color: #0f172a;
+            text-align: center;
+            min-width: 80px;
+        }
+        .inv-remove-line {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 2px 6px;
+        }
+        .inv-add-line-btn {
+            background: var(--gray-50);
+            border: 1px dashed var(--gray-300);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: 'Heebo', sans-serif;
+            color: var(--gray-500);
+            width: 100%;
+            margin-top: 8px;
+        }
+        .inv-add-line-btn:hover { background: var(--gray-100); }
+
+        .inv-totals {
+            margin-top: 16px;
+            border-top: 2px solid var(--gray-200);
+            padding-top: 12px;
+        }
+        .inv-totals-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 14px;
+        }
+        .inv-totals-row.grand {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+            border-top: 2px solid #0f172a;
+            padding-top: 8px;
+            margin-top: 4px;
+        }
+
+        /* Invoice PDF Preview (hidden, used for html2canvas) */
+        .inv-pdf-preview {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 794px;
+            background: white;
+            font-family: 'Heebo', sans-serif;
+            direction: rtl;
+            padding: 40px;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            .inv-toolbar { flex-direction: column; }
+            .inv-search { min-width: 100%; }
+            .inv-table { font-size: 11px; }
+            .inv-table td, .inv-table th { padding: 8px 6px; }
+            .inv-modal { margin: 10px; }
+            .inv-modal-body { padding: 16px; }
+        }
+
         /* Bottom Navigation Bar */
         .bottom-nav {
             position: fixed;
@@ -2910,6 +3250,190 @@
             <p>נבנה על ידי חיים פרץ | כל הזכויות שמורות למשרד עו"ד גיא הרשקוביץ &copy; 2026</p>
         </div>
     </div>
+
+    <!-- ========== Invoices Management ========== -->
+    <div id="invoicesManagement">
+        <div class="inv-header">
+            <h2>חשבונות עסקה</h2>
+            <div class="inv-header-actions">
+                <button class="inv-new-btn" onclick="openInvoiceModal()">+ חשבון חדש</button>
+                <button class="inv-back-btn" onclick="hideInvoicesManagement()">← חזרה</button>
+            </div>
+        </div>
+
+        <div class="inv-summary">
+            <div class="inv-stat">
+                <div class="inv-stat-value" id="invStatTotal">0</div>
+                <div class="inv-stat-label">סה"כ חשבונות</div>
+            </div>
+            <div class="inv-stat">
+                <div class="inv-stat-value" id="invStatAmount">₪0</div>
+                <div class="inv-stat-label">סכום כולל (כולל מע"מ)</div>
+            </div>
+            <div class="inv-stat">
+                <div class="inv-stat-value" id="invStatMonth">0</div>
+                <div class="inv-stat-label">חשבונות החודש</div>
+            </div>
+        </div>
+
+        <div class="inv-toolbar">
+            <input type="text" class="inv-search" id="invSearch" placeholder="חיפוש לפי שם לקוח או מספר חשבון..." oninput="filterInvoices()">
+            <input type="month" class="inv-month-filter" id="invMonthFilter" onchange="filterInvoices()">
+        </div>
+
+        <div id="invLoading" style="display:none;text-align:center;padding:40px;">
+            <div style="width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#0f172a;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto;"></div>
+            <p style="color:#64748b;margin-top:12px;">טוען חשבונות...</p>
+        </div>
+
+        <div id="invEmpty" style="display:none;text-align:center;padding:40px;color:#94a3b8;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 12px;display:block;opacity:0.5;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <p>אין חשבונות עסקה עדיין</p>
+            <p style="font-size:13px;">לחץ על "+ חשבון חדש" כדי ליצור חשבון ראשון</p>
+        </div>
+
+        <div id="invTableView">
+            <div class="inv-table-wrap">
+                <table class="inv-table">
+                    <thead>
+                        <tr>
+                            <th>מספר</th>
+                            <th>תאריך</th>
+                            <th>לקוח</th>
+                            <th>נושא</th>
+                            <th>סכום לפני מע"מ</th>
+                            <th>מע"מ</th>
+                            <th>סה"כ לתשלום</th>
+                            <th>סטטוס</th>
+                            <th>פעולות</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="inv-footer">
+            <p>נבנה על ידי חיים פרץ | כל הזכויות שמורות למשרד עו"ד גיא הרשקוביץ &copy; 2026</p>
+        </div>
+    </div>
+
+    <!-- Invoice Create Modal -->
+    <div class="inv-modal-overlay" id="invModalOverlay" onclick="if(event.target===this) closeInvoiceModal()">
+        <div class="inv-modal">
+            <div class="inv-modal-header">
+                <h3 id="invModalTitle">חשבון עסקה חדש</h3>
+                <button class="inv-modal-close" onclick="closeInvoiceModal()">✕</button>
+            </div>
+            <div class="inv-modal-body" id="invModalBody">
+                <div class="inv-section-title">פרטי לקוח</div>
+
+                <div class="form-group" style="position:relative;">
+                    <label>חיפוש לקוח מגבייה</label>
+                    <input type="text" id="invClientSearch" placeholder="הקלד שם לקוח לחיפוש..." autocomplete="off">
+                    <div id="invAutocomplete" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #e2e8f0;border-radius:8px;max-height:150px;overflow-y:auto;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>שם לקוח / חברה <span class="required">*</span></label>
+                        <input type="text" id="invClientName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>ח.פ / ת.ז</label>
+                        <input type="text" id="invClientIdNumber">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>טלפון</label>
+                        <input type="text" id="invClientPhone">
+                    </div>
+                    <div class="form-group">
+                        <label>מייל</label>
+                        <input type="email" id="invClientEmail">
+                    </div>
+                </div>
+
+                <input type="hidden" id="invBillingClientId" value="">
+
+                <div class="inv-section-title">פרטי חשבון</div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>מספר חשבון</label>
+                        <input type="number" id="invNumber" readonly style="background:#f8fafc;color:#64748b;font-weight:700;">
+                    </div>
+                    <div class="form-group">
+                        <label>תאריך חשבון <span class="required">*</span></label>
+                        <input type="date" id="invDate">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>לתשלום עד</label>
+                        <input type="date" id="invDueDate">
+                    </div>
+                    <div class="form-group">
+                        <label>עורך דין אחראי</label>
+                        <input type="text" id="invAttorney">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>כותרת / נושא <span class="required">*</span></label>
+                    <input type="text" id="invSubject" placeholder="למשל: חריגה מתקרת שעות – שלב ג' בהתאם להסכם שכר טרחה">
+                </div>
+
+                <div class="inv-section-title">שורות פירוט</div>
+
+                <table class="inv-line-items-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40%;">פירוט</th>
+                            <th style="width:12%;">כמות</th>
+                            <th style="width:18%;">מחיר ליחידה ₪</th>
+                            <th style="width:18%;">סה"כ ₪</th>
+                            <th style="width:12%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="invLineItems">
+                        <tr class="inv-line-row">
+                            <td><input type="text" class="inv-line-desc" placeholder="תיאור השירות"></td>
+                            <td><input type="number" class="inv-line-qty" value="1" min="0" step="0.01" onchange="calcInvoiceTotals()" oninput="calcInvoiceTotals()"></td>
+                            <td><input type="number" class="inv-line-price" value="0" min="0" step="0.01" onchange="calcInvoiceTotals()" oninput="calcInvoiceTotals()"></td>
+                            <td class="inv-line-total">₪0</td>
+                            <td><button class="inv-remove-line" onclick="removeInvoiceLine(this)" title="הסר שורה">✕</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button class="inv-add-line-btn" onclick="addInvoiceLine()">+ הוסף שורה</button>
+
+                <div class="inv-totals">
+                    <div class="inv-totals-row">
+                        <span>סה"כ לפני מע"מ</span>
+                        <span id="invSubtotal">₪0</span>
+                    </div>
+                    <div class="inv-totals-row">
+                        <span>מע"מ 18%</span>
+                        <span id="invVatAmount">₪0</span>
+                    </div>
+                    <div class="inv-totals-row grand">
+                        <span>סה"כ לתשלום</span>
+                        <span id="invGrandTotal">₪0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="inv-modal-footer" id="invModalFooter">
+                <button class="inv-back-btn" onclick="closeInvoiceModal()">ביטול</button>
+                <button class="inv-new-btn" id="invSubmitBtn" onclick="submitInvoice()">
+                    <span id="invSubmitText">שמור ויצור PDF</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice PDF Preview (hidden, for html2canvas) -->
+    <div id="invPdfPreview" class="inv-pdf-preview"></div>
 
     <!-- Billing Modal -->
     <div id="billingModalOverlay" class="billing-modal-overlay" onclick="if(event.target===this) closeBillingModal()">
@@ -7013,8 +7537,595 @@
             setActiveNav('navBillingMgmtBtn');
         }
 
+        function navInvoices() {
+            showInvoicesManagement();
+            setActiveNav('navInvoicesBtn');
+        }
+
         function navLogout() {
             handleLogout();
+        }
+
+        // ========== Invoices Management ==========
+        var invoicesList = [];
+        var invSearchTimeout = null;
+
+        function showInvoicesManagement() {
+            document.getElementById('mainContainer').style.display = 'none';
+            document.getElementById('billingManagement').classList.remove('active');
+            document.getElementById('invoicesManagement').classList.add('active');
+            loadInvoicesData();
+        }
+
+        function hideInvoicesManagement() {
+            document.getElementById('invoicesManagement').classList.remove('active');
+            document.getElementById('mainContainer').style.display = '';
+        }
+
+        async function loadInvoicesData() {
+            var loading = document.getElementById('invLoading');
+            var empty = document.getElementById('invEmpty');
+            var tableView = document.getElementById('invTableView');
+
+            loading.style.display = '';
+            empty.style.display = 'none';
+            tableView.style.display = 'none';
+
+            try {
+                var snapshot = await db.collection('invoices').orderBy('createdAt', 'desc').get();
+                invoicesList = [];
+                snapshot.forEach(function(doc) {
+                    invoicesList.push({ id: doc.id, ...doc.data() });
+                });
+
+                loading.style.display = 'none';
+
+                if (invoicesList.length === 0) {
+                    empty.style.display = '';
+                    tableView.style.display = 'none';
+                } else {
+                    empty.style.display = 'none';
+                    tableView.style.display = '';
+                }
+
+                updateInvoicesSummary();
+                renderInvoicesTable(invoicesList);
+            } catch (error) {
+                console.error('Error loading invoices:', error);
+                loading.style.display = 'none';
+                empty.style.display = '';
+            }
+        }
+
+        function updateInvoicesSummary() {
+            var totalCount = invoicesList.length;
+            var totalAmount = 0;
+            var thisMonth = new Date().toISOString().slice(0, 7);
+            var monthCount = 0;
+
+            invoicesList.forEach(function(inv) {
+                totalAmount += parseFloat(inv.total) || 0;
+                if (inv.date && inv.date.slice(0, 7) === thisMonth) monthCount++;
+            });
+
+            document.getElementById('invStatTotal').textContent = totalCount;
+            document.getElementById('invStatAmount').textContent = '₪' + totalAmount.toLocaleString('he-IL');
+            document.getElementById('invStatMonth').textContent = monthCount;
+        }
+
+        function filterInvoices() {
+            clearTimeout(invSearchTimeout);
+            invSearchTimeout = setTimeout(function() {
+                var term = (document.getElementById('invSearch').value || '').trim().toLowerCase();
+                var monthFilter = document.getElementById('invMonthFilter').value || '';
+
+                var filtered = invoicesList.filter(function(inv) {
+                    var matchSearch = !term ||
+                        (inv.clientName || '').toLowerCase().indexOf(term) > -1 ||
+                        String(inv.invoiceNumber || '').indexOf(term) > -1;
+                    var matchMonth = !monthFilter || (inv.date || '').slice(0, 7) === monthFilter;
+                    return matchSearch && matchMonth;
+                });
+
+                renderInvoicesTable(filtered);
+            }, 200);
+        }
+
+        function renderInvoicesTable(list) {
+            var tbody = document.getElementById('invTableBody');
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:24px;">לא נמצאו חשבונות</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = list.map(function(inv) {
+                var subtotal = parseFloat(inv.subtotal) || 0;
+                var vat = parseFloat(inv.vatAmount) || 0;
+                var total = parseFloat(inv.total) || 0;
+                var statusClass = inv.status === 'שולם' ? 'paid' : (inv.status === 'נשלח' ? 'sent' : 'draft');
+                var statusText = inv.status || 'טיוטה';
+                var dateStr = inv.date ? new Date(inv.date).toLocaleDateString('he-IL') : '';
+
+                return '<tr>' +
+                    '<td><strong>' + (inv.invoiceNumber || '') + '</strong></td>' +
+                    '<td>' + dateStr + '</td>' +
+                    '<td>' + (inv.clientName || '') + '</td>' +
+                    '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (inv.subject || '') + '</td>' +
+                    '<td style="font-weight:600;">₪' + subtotal.toLocaleString('he-IL') + '</td>' +
+                    '<td>₪' + vat.toLocaleString('he-IL') + '</td>' +
+                    '<td style="font-weight:700;color:#0f172a;">₪' + total.toLocaleString('he-IL') + '</td>' +
+                    '<td><span class="inv-badge ' + statusClass + '">' + statusText + '</span></td>' +
+                    '<td style="white-space:nowrap;">' +
+                        '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
+                            '<button class="inv-action-btn primary" onclick="downloadInvoicePDF(\'' + inv.id + '\')">PDF</button>' +
+                            '<button class="inv-action-btn whatsapp" onclick="sendInvoiceWhatsApp(\'' + inv.id + '\')">WhatsApp</button>' +
+                            '<button class="inv-action-btn" onclick="sendInvoiceEmail(\'' + inv.id + '\')">מייל</button>' +
+                            '<button class="inv-action-btn" onclick="toggleInvoiceStatus(\'' + inv.id + '\')">' +
+                                (inv.status === 'שולם' ? 'בטל שולם' : 'סמן שולם') +
+                            '</button>' +
+                            '<button class="inv-action-btn danger" onclick="deleteInvoice(\'' + inv.id + '\')">מחק</button>' +
+                        '</div>' +
+                    '</td>' +
+                '</tr>';
+            }).join('');
+        }
+
+        // ========== Invoice Modal ==========
+        var invClientSearchTimeout = null;
+
+        function openInvoiceModal() {
+            document.getElementById('invModalOverlay').classList.add('show');
+            // Reset form
+            document.getElementById('invClientSearch').value = '';
+            document.getElementById('invClientName').value = '';
+            document.getElementById('invClientIdNumber').value = '';
+            document.getElementById('invClientPhone').value = '';
+            document.getElementById('invClientEmail').value = '';
+            document.getElementById('invBillingClientId').value = '';
+            document.getElementById('invDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('invDueDate').value = '';
+            document.getElementById('invAttorney').value = '';
+            document.getElementById('invSubject').value = '';
+            document.getElementById('invAutocomplete').style.display = 'none';
+
+            // Reset line items to one empty row
+            document.getElementById('invLineItems').innerHTML =
+                '<tr class="inv-line-row">' +
+                    '<td><input type="text" class="inv-line-desc" placeholder="תיאור השירות"></td>' +
+                    '<td><input type="number" class="inv-line-qty" value="1" min="0" step="0.01" onchange="calcInvoiceTotals()" oninput="calcInvoiceTotals()"></td>' +
+                    '<td><input type="number" class="inv-line-price" value="0" min="0" step="0.01" onchange="calcInvoiceTotals()" oninput="calcInvoiceTotals()"></td>' +
+                    '<td class="inv-line-total">₪0</td>' +
+                    '<td><button class="inv-remove-line" onclick="removeInvoiceLine(this)" title="הסר שורה">✕</button></td>' +
+                '</tr>';
+            calcInvoiceTotals();
+
+            // Get next invoice number
+            getNextInvoiceNumber();
+
+            // Restore form view
+            document.getElementById('invModalBody').style.display = '';
+            document.getElementById('invModalFooter').style.display = '';
+            document.getElementById('invModalTitle').textContent = 'חשבון עסקה חדש';
+        }
+
+        function closeInvoiceModal() {
+            document.getElementById('invModalOverlay').classList.remove('show');
+        }
+
+        async function getNextInvoiceNumber() {
+            try {
+                var snap = await db.collection('invoices')
+                    .orderBy('invoiceNumber', 'desc')
+                    .limit(1)
+                    .get();
+
+                var nextNum = 40490; // default
+                if (!snap.empty) {
+                    var lastNum = parseInt(snap.docs[0].data().invoiceNumber) || 40489;
+                    nextNum = lastNum + 1;
+                }
+                document.getElementById('invNumber').value = nextNum;
+            } catch (e) {
+                document.getElementById('invNumber').value = 40490;
+            }
+        }
+
+        // Autocomplete from billing clients
+        document.getElementById('invClientSearch').addEventListener('input', function(e) {
+            var term = e.target.value.trim();
+            clearTimeout(invClientSearchTimeout);
+            var autocomplete = document.getElementById('invAutocomplete');
+
+            if (term.length < 2) {
+                autocomplete.style.display = 'none';
+                return;
+            }
+
+            invClientSearchTimeout = setTimeout(async function() {
+                try {
+                    var snap = await db.collection('recurring_billing').get();
+                    var results = [];
+                    snap.forEach(function(doc) {
+                        var d = doc.data();
+                        if ((d.clientName || '').indexOf(term) > -1 ||
+                            (d.idNumber || '').indexOf(term) > -1 ||
+                            (d.phone || '').indexOf(term) > -1) {
+                            results.push({ id: doc.id, ...d });
+                        }
+                    });
+
+                    if (results.length === 0) {
+                        autocomplete.style.display = 'none';
+                        return;
+                    }
+
+                    autocomplete.innerHTML = results.slice(0, 8).map(function(r) {
+                        return '<div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:13px;" ' +
+                            'onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'white\'" ' +
+                            'onclick="selectInvClient(\'' + r.id + '\',\'' + (r.clientName || '').replace(/'/g, "\\'") + '\',\'' + (r.idNumber || '') + '\',\'' + (r.phone || '') + '\',\'' + (r.email || '') + '\')">' +
+                            '<strong>' + (r.clientName || '') + '</strong>' +
+                            (r.idNumber ? ' <span style="color:#94a3b8;">(' + r.idNumber + ')</span>' : '') +
+                        '</div>';
+                    }).join('');
+                    autocomplete.style.display = 'block';
+                } catch (err) {
+                    autocomplete.style.display = 'none';
+                }
+            }, 300);
+        });
+
+        function selectInvClient(id, name, idNumber, phone, email) {
+            document.getElementById('invClientName').value = name;
+            document.getElementById('invClientIdNumber').value = idNumber;
+            document.getElementById('invClientPhone').value = phone;
+            document.getElementById('invClientEmail').value = email;
+            document.getElementById('invBillingClientId').value = id;
+            document.getElementById('invClientSearch').value = name;
+            document.getElementById('invAutocomplete').style.display = 'none';
+        }
+
+        function addInvoiceLine() {
+            var tbody = document.getElementById('invLineItems');
+            var row = document.createElement('tr');
+            row.className = 'inv-line-row';
+            row.innerHTML =
+                '<td><input type="text" class="inv-line-desc" placeholder="תיאור השירות"></td>' +
+                '<td><input type="number" class="inv-line-qty" value="1" min="0" step="0.01" onchange="calcInvoiceTotals()" oninput="calcInvoiceTotals()"></td>' +
+                '<td><input type="number" class="inv-line-price" value="0" min="0" step="0.01" onchange="calcInvoiceTotals()" oninput="calcInvoiceTotals()"></td>' +
+                '<td class="inv-line-total">₪0</td>' +
+                '<td><button class="inv-remove-line" onclick="removeInvoiceLine(this)" title="הסר שורה">✕</button></td>';
+            tbody.appendChild(row);
+        }
+
+        function removeInvoiceLine(btn) {
+            var rows = document.querySelectorAll('.inv-line-row');
+            if (rows.length <= 1) return; // keep at least one row
+            btn.closest('tr').remove();
+            calcInvoiceTotals();
+        }
+
+        function calcInvoiceTotals() {
+            var rows = document.querySelectorAll('.inv-line-row');
+            var subtotal = 0;
+
+            rows.forEach(function(row) {
+                var qty = parseFloat(row.querySelector('.inv-line-qty').value) || 0;
+                var price = parseFloat(row.querySelector('.inv-line-price').value) || 0;
+                var lineTotal = qty * price;
+                row.querySelector('.inv-line-total').textContent = '₪' + lineTotal.toLocaleString('he-IL');
+                subtotal += lineTotal;
+            });
+
+            var vatRate = 18;
+            var vatAmount = Math.round(subtotal * vatRate / 100);
+            var grandTotal = subtotal + vatAmount;
+
+            document.getElementById('invSubtotal').textContent = '₪' + subtotal.toLocaleString('he-IL');
+            document.getElementById('invVatAmount').textContent = '₪' + vatAmount.toLocaleString('he-IL');
+            document.getElementById('invGrandTotal').textContent = '₪' + grandTotal.toLocaleString('he-IL');
+        }
+
+        async function submitInvoice() {
+            var clientName = document.getElementById('invClientName').value.trim();
+            var invDate = document.getElementById('invDate').value;
+            var subject = document.getElementById('invSubject').value.trim();
+
+            if (!clientName || !invDate || !subject) {
+                alert('נא למלא שם לקוח, תאריך ונושא');
+                return;
+            }
+
+            var btn = document.getElementById('invSubmitBtn');
+            btn.disabled = true;
+            document.getElementById('invSubmitText').textContent = 'שומר...';
+
+            try {
+                // Collect line items
+                var rows = document.querySelectorAll('.inv-line-row');
+                var lineItems = [];
+                var subtotal = 0;
+
+                rows.forEach(function(row) {
+                    var desc = row.querySelector('.inv-line-desc').value.trim();
+                    var qty = parseFloat(row.querySelector('.inv-line-qty').value) || 0;
+                    var price = parseFloat(row.querySelector('.inv-line-price').value) || 0;
+                    var total = qty * price;
+                    if (desc || total > 0) {
+                        lineItems.push({ description: desc, quantity: qty, unitPrice: price, total: total });
+                        subtotal += total;
+                    }
+                });
+
+                if (lineItems.length === 0) {
+                    alert('נא להוסיף לפחות שורת פירוט אחת');
+                    btn.disabled = false;
+                    document.getElementById('invSubmitText').textContent = 'שמור ויצור PDF';
+                    return;
+                }
+
+                var vatRate = 18;
+                var vatAmount = Math.round(subtotal * vatRate / 100);
+                var grandTotal = subtotal + vatAmount;
+                var invoiceNumber = parseInt(document.getElementById('invNumber').value) || 40490;
+
+                var invoiceData = {
+                    invoiceNumber: invoiceNumber,
+                    date: invDate,
+                    dueDate: document.getElementById('invDueDate').value || '',
+                    clientName: clientName,
+                    clientIdNumber: document.getElementById('invClientIdNumber').value || '',
+                    clientPhone: document.getElementById('invClientPhone').value || '',
+                    clientEmail: document.getElementById('invClientEmail').value || '',
+                    billingClientId: document.getElementById('invBillingClientId').value || null,
+                    attorney: document.getElementById('invAttorney').value || '',
+                    subject: subject,
+                    lineItems: lineItems,
+                    subtotal: subtotal,
+                    vatRate: vatRate,
+                    vatAmount: vatAmount,
+                    total: grandTotal,
+                    status: 'טיוטה',
+                    createdBy: authUser ? authUser.email : (currentUser || 'לא ידוע'),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                var docRef = await db.collection('invoices').add(invoiceData);
+
+                // Show success + generate PDF
+                document.getElementById('invModalBody').innerHTML =
+                    '<div style="text-align:center;padding:30px 0;">' +
+                        '<div style="width:60px;height:60px;background:#d1fae5;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px;color:#16a34a;">✓</div>' +
+                        '<h3 style="margin:0 0 8px;color:#1f2937;">חשבון עסקה ' + invoiceNumber + ' נוצר בהצלחה!</h3>' +
+                        '<p style="color:#6b7280;margin:0 0 4px;">' + clientName + '</p>' +
+                        '<p style="color:#0f172a;font-weight:700;font-size:18px;margin:0;">סה"כ לתשלום: ₪' + grandTotal.toLocaleString('he-IL') + '</p>' +
+                        '<div style="margin-top:20px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' +
+                            '<button class="inv-new-btn" onclick="downloadInvoicePDF(\'' + docRef.id + '\')" style="font-size:13px;padding:8px 16px;">הורד PDF</button>' +
+                            '<button class="inv-action-btn whatsapp" onclick="sendInvoiceWhatsApp(\'' + docRef.id + '\')" style="padding:8px 16px;">שלח WhatsApp</button>' +
+                            '<button class="inv-action-btn" onclick="sendInvoiceEmail(\'' + docRef.id + '\')" style="padding:8px 16px;">שלח מייל</button>' +
+                        '</div>' +
+                    '</div>';
+                document.getElementById('invModalFooter').innerHTML =
+                    '<button class="inv-new-btn" onclick="closeInvoiceModal();loadInvoicesData();" style="width:100%;">סגור</button>';
+
+            } catch (error) {
+                console.error('Error saving invoice:', error);
+                alert('שגיאה בשמירה: ' + error.message);
+                btn.disabled = false;
+                document.getElementById('invSubmitText').textContent = 'שמור ויצור PDF';
+            }
+        }
+
+        // ========== Invoice Actions ==========
+        async function toggleInvoiceStatus(docId) {
+            var inv = invoicesList.find(function(i) { return i.id === docId; });
+            if (!inv) return;
+            var newStatus = inv.status === 'שולם' ? 'נשלח' : 'שולם';
+            try {
+                await db.collection('invoices').doc(docId).update({ status: newStatus });
+                loadInvoicesData();
+            } catch (e) {
+                alert('שגיאה: ' + e.message);
+            }
+        }
+
+        async function deleteInvoice(docId) {
+            if (!confirm('האם למחוק חשבון עסקה זה? פעולה זו לא ניתנת לביטול.')) return;
+            try {
+                await db.collection('invoices').doc(docId).delete();
+                loadInvoicesData();
+            } catch (e) {
+                alert('שגיאה: ' + e.message);
+            }
+        }
+
+        function sendInvoiceWhatsApp(docId) {
+            var inv = invoicesList.find(function(i) { return i.id === docId; });
+            if (!inv) return;
+            var phone = (inv.clientPhone || '').replace(/\D/g, '');
+            if (phone.startsWith('0')) phone = '972' + phone.slice(1);
+            var text = 'שלום ' + (inv.clientName || '') + ',\n' +
+                'מצורף חשבון עסקה מספר ' + inv.invoiceNumber + '\n' +
+                'סה"כ לתשלום: ₪' + (inv.total || 0).toLocaleString('he-IL') + '\n' +
+                'בברכה, משרד עו"ד גיא הרשקוביץ';
+            window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(text), '_blank');
+
+            // Update status to sent
+            if (inv.status === 'טיוטה') {
+                db.collection('invoices').doc(docId).update({ status: 'נשלח' });
+                inv.status = 'נשלח';
+                renderInvoicesTable(invoicesList);
+            }
+        }
+
+        function sendInvoiceEmail(docId) {
+            var inv = invoicesList.find(function(i) { return i.id === docId; });
+            if (!inv) return;
+            var email = inv.clientEmail || '';
+            var subject = 'חשבון עסקה ' + inv.invoiceNumber + ' - משרד עו"ד גיא הרשקוביץ';
+            var body = 'שלום ' + (inv.clientName || '') + ',\n\n' +
+                'מצורף חשבון עסקה מספר ' + inv.invoiceNumber + '\n' +
+                'נושא: ' + (inv.subject || '') + '\n' +
+                'סה"כ לתשלום: ₪' + (inv.total || 0).toLocaleString('he-IL') + '\n\n' +
+                'בברכה,\nמשרד עו"ד גיא הרשקוביץ\n' +
+                'טלפון: 03-685-55-58\n' +
+                'מייל: ACC@ghlawoffice.co.il';
+            window.open('mailto:' + email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body), '_blank');
+
+            if (inv.status === 'טיוטה') {
+                db.collection('invoices').doc(docId).update({ status: 'נשלח' });
+                inv.status = 'נשלח';
+                renderInvoicesTable(invoicesList);
+            }
+        }
+
+        // ========== Invoice PDF Generation ==========
+        async function downloadInvoicePDF(docId) {
+            var inv = invoicesList.find(function(i) { return i.id === docId; });
+            if (!inv) {
+                // Load from Firebase if not in list
+                var doc = await db.collection('invoices').doc(docId).get();
+                if (!doc.exists) { alert('חשבון לא נמצא'); return; }
+                inv = { id: doc.id, ...doc.data() };
+            }
+
+            // Build HTML for PDF
+            var dateStr = inv.date ? new Date(inv.date).toLocaleDateString('he-IL') : '';
+            var dueDateStr = inv.dueDate ? new Date(inv.dueDate).toLocaleDateString('he-IL') : '';
+            var nowStr = new Date().toLocaleString('he-IL');
+
+            var linesHtml = '';
+            (inv.lineItems || []).forEach(function(item) {
+                linesHtml += '<tr>' +
+                    '<td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">' + (item.description || '') + '</td>' +
+                    '<td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:center;">' + (item.quantity || 0) + '</td>' +
+                    '<td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:center;">₪' + (item.unitPrice || 0).toLocaleString('he-IL') + '</td>' +
+                    '<td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:600;">₪' + (item.total || 0).toLocaleString('he-IL') + '</td>' +
+                '</tr>';
+            });
+
+            var html = '' +
+            '<div style="font-family:Heebo,Arial,sans-serif;direction:rtl;padding:40px;width:714px;box-sizing:border-box;background:white;">' +
+                // Header
+                '<div style="display:flex;justify-content:space-between;margin-bottom:30px;">' +
+                    // Logo
+                    '<div style="width:140px;">' +
+                        '<img src="' + encodeURI('‏‏logo - עותק.png') + '" style="width:130px;height:auto;" crossorigin="anonymous">' +
+                    '</div>' +
+                    // Invoice title
+                    '<div style="text-align:center;flex:1;">' +
+                        '<div style="font-size:11px;color:#6b7280;">' + dateStr + '</div>' +
+                    '</div>' +
+                    // Client info
+                    '<div style="text-align:left;">' +
+                        '<div style="font-size:12px;color:#6b7280;">לכבוד:</div>' +
+                        '<div style="font-size:16px;font-weight:700;color:#1f2937;">' + (inv.clientName || '') + '</div>' +
+                        (inv.clientIdNumber ? '<div style="font-size:12px;color:#6b7280;">ח.פ/ת.ז ' + inv.clientIdNumber + '</div>' : '') +
+                        (inv.clientPhone ? '<div style="font-size:12px;color:#6b7280;">טלפון ' + inv.clientPhone + '</div>' : '') +
+                    '</div>' +
+                '</div>' +
+
+                // Firm info
+                '<div style="display:flex;justify-content:space-between;margin-bottom:24px;">' +
+                    '<div style="font-size:11px;color:#6b7280;line-height:1.8;">' +
+                        '<div style="font-weight:700;font-size:13px;color:#1f2937;">גיא הרשקוביץ חברת עורכי דין</div>' +
+                        'עוסק מורשה (ח.פ): 515577161<br>' +
+                        'מנחם בגין 144, מגדל מידטאון, תל אביב - יפו<br>' +
+                        'טלפון 03-685-55-58<br>' +
+                        'פקס 03-620-77-71<br>' +
+                        'https://ghlawoffice.co.il/<br>' +
+                        'ACC@ghlawoffice.co.il' +
+                    '</div>' +
+                    '<div style="text-align:left;">' +
+                        '<div style="font-size:28px;font-weight:700;color:#16a34a;">חשבון עסקה ' + inv.invoiceNumber + '</div>' +
+                        '<div style="font-size:13px;color:#6b7280;text-align:left;">מקור</div>' +
+                        (dueDateStr ? '<div style="font-size:13px;color:#6b7280;margin-top:8px;text-align:left;">לתשלום עד ' + dueDateStr + '</div>' : '') +
+                    '</div>' +
+                '</div>' +
+
+                // Subject
+                '<div style="font-weight:700;font-size:14px;color:#1f2937;margin-bottom:16px;text-align:center;">' + (inv.subject || '') + '</div>' +
+
+                // Line items table
+                '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
+                    '<thead><tr style="background:#f8fafc;">' +
+                        '<th style="padding:10px 12px;text-align:right;font-weight:600;border-bottom:2px solid #e5e7eb;">פירוט</th>' +
+                        '<th style="padding:10px 12px;text-align:center;font-weight:600;border-bottom:2px solid #e5e7eb;">כמות</th>' +
+                        '<th style="padding:10px 12px;text-align:center;font-weight:600;border-bottom:2px solid #e5e7eb;">מחיר</th>' +
+                        '<th style="padding:10px 12px;text-align:center;font-weight:600;border-bottom:2px solid #e5e7eb;">סה"כ</th>' +
+                    '</tr></thead>' +
+                    '<tbody>' + linesHtml + '</tbody>' +
+                '</table>' +
+
+                // Totals
+                '<div style="margin-bottom:24px;">' +
+                    '<div style="display:flex;justify-content:space-between;padding:6px 12px;font-size:14px;"><span style="font-weight:600;">סה"כ</span><span>₪' + (inv.subtotal || 0).toLocaleString('he-IL') + '</span></div>' +
+                    '<div style="display:flex;justify-content:space-between;padding:6px 12px;font-size:14px;"><span>מע"מ 18%</span><span>₪' + (inv.vatAmount || 0).toLocaleString('he-IL') + '</span></div>' +
+                    '<div style="display:flex;justify-content:space-between;padding:10px 12px;font-size:18px;font-weight:700;background:#f0fdf4;border-radius:8px;color:#16a34a;"><span>סה"כ לתשלום</span><span>₪' + (inv.total || 0).toLocaleString('he-IL') + '</span></div>' +
+                '</div>' +
+
+                // Footer text
+                '<div style="border-top:1px solid #e5e7eb;padding-top:20px;font-size:12px;color:#4b5563;line-height:1.8;">' +
+                    '<p>שלום, ' + (inv.clientName || '').split(' ')[0] + '</p>' +
+                    '<p>מצורף חשבון עסקה בגין ' + (inv.subject || '') + '.</p>' +
+                    '<p>ניתן להסדיר את התשלום באחת מהדרכים הבאות:</p>' +
+                    '<p><strong>כרטיס אשראי</strong> - עד 4 תשלומים</p>' +
+                    '<p><strong>העברה בנקאית:</strong></p>' +
+                    '<p>בנק מזרחי טפחות<br>סניף 421 - גן העיר<br>מספר חשבון: 333177<br>שם המוטב: גיא הרשקוביץ חברת עורכי דין</p>' +
+                    '<p>לאחר ביצוע העברה בנקאית, יש להעביר אסמכתא למשרד לצורך שיוך התשלום.</p>' +
+                    '<p>במידת הצורך ניתן לתאם הסדרה טכנית של אופן התשלום.</p>' +
+                '</div>' +
+
+                // Digital signature footer
+                '<div style="border-top:1px solid #e5e7eb;margin-top:20px;padding-top:12px;display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;">' +
+                    '<span>הופק ב ' + nowStr + ' | חשבון עסקה ' + inv.invoiceNumber + '</span>' +
+                    '<span style="font-weight:600;">חתימה דיגיטלית מאובטחת</span>' +
+                '</div>' +
+            '</div>';
+
+            // Render to PDF using html2canvas
+            var preview = document.getElementById('invPdfPreview');
+            preview.innerHTML = html;
+            preview.style.display = 'block';
+
+            try {
+                var canvas = await html2canvas(preview, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    width: 794,
+                    windowWidth: 794
+                });
+
+                var imgData = canvas.toDataURL('image/png');
+                var pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+                var pdfWidth = pdf.internal.pageSize.getWidth();
+                var pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+                // If content is taller than one page, handle pagination
+                var pageHeight = pdf.internal.pageSize.getHeight();
+                if (pdfHeight <= pageHeight) {
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                } else {
+                    var position = 0;
+                    var remaining = pdfHeight;
+                    while (remaining > 0) {
+                        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                        remaining -= pageHeight;
+                        if (remaining > 0) {
+                            position -= pageHeight;
+                            pdf.addPage();
+                        }
+                    }
+                }
+
+                pdf.save('חשבון_עסקה_' + inv.invoiceNumber + '.pdf');
+            } catch (err) {
+                console.error('Error generating PDF:', err);
+                alert('שגיאה ביצירת PDF: ' + err.message);
+            }
+
+            preview.style.display = 'none';
+            preview.innerHTML = '';
         }
 
         // Show/hide bottom nav based on auth state
@@ -7049,6 +8160,10 @@
         <button class="bottom-nav-item" id="navBillingMgmtBtn" onclick="navBillingMgmt()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
             <span class="bottom-nav-label">ניהול גבייה</span>
+        </button>
+        <button class="bottom-nav-item" id="navInvoicesBtn" onclick="navInvoices()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span class="bottom-nav-label">חשבונות</span>
         </button>
         <button class="bottom-nav-item" onclick="navLogout()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
