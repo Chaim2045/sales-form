@@ -1371,14 +1371,14 @@
             font-size: 11px;
         }
         .bm-table td {
-            padding: 10px 10px;
-            border-bottom: 1px solid var(--gray-100);
+            padding: 14px 12px;
+            border-bottom: 1px solid #f1f5f9;
             color: var(--gray-700);
             vertical-align: middle;
-            font-size: 12px;
+            font-size: 13px;
         }
         .bm-table tr:last-child td { border-bottom: none; }
-        .bm-table tr:hover td { background: var(--gray-50); }
+        .bm-table tr:hover td { background: #f8fafc; }
         @media (min-width: 1024px) {
             .bm-table-wrap { overflow-x: visible; }
         }
@@ -1388,25 +1388,29 @@
             font-variant-numeric: tabular-nums;
         }
         .bm-progress-bar {
-            width: 60px;
-            height: 6px;
-            background: var(--gray-200);
-            border-radius: 3px;
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
             overflow: hidden;
-            display: inline-block;
-            vertical-align: middle;
-            margin-inline-start: 8px;
+            margin-top: 6px;
         }
         .bm-progress-fill {
             height: 100%;
-            border-radius: 3px;
-            background: var(--primary-blue);
+            border-radius: 4px;
+            background: #0f172a;
             transition: width 0.3s;
+        }
+        .bm-progress-fill.high { background: #16a34a; }
+        .bm-progress-text {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f172a;
         }
         .bm-badge {
             display: inline-block;
-            padding: 2px 10px;
-            border-radius: 12px;
+            padding: 3px 10px;
+            border-radius: 6px;
             font-size: 11px;
             font-weight: 600;
             line-height: 1.6;
@@ -1414,7 +1418,87 @@
         .bm-badge.active { background: #dbeafe; color: #1d4ed8; }
         .bm-badge.completed { background: #d1fae5; color: #065f46; }
         .bm-badge.paused { background: #fef3c7; color: #92400e; }
-        .bm-badge.cancelled { background: var(--gray-100); color: var(--gray-500); }
+        .bm-badge.cancelled { background: #f1f5f9; color: #64748b; }
+        /* כפתורי פעולה בטבלה */
+        .bm-action-primary {
+            background: #0f172a;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-family: 'Heebo', sans-serif;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .bm-action-primary:hover { background: #1e293b; }
+        .bm-action-secondary {
+            background: none;
+            border: 1px solid #e2e8f0;
+            color: #475569;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-family: 'Heebo', sans-serif;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .bm-action-secondary:hover { background: #f1f5f9; border-color: #cbd5e1; }
+        .bm-actions-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .bm-actions-toggle {
+            background: none;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+            border-radius: 6px;
+            padding: 5px 8px;
+            font-size: 16px;
+            cursor: pointer;
+            line-height: 1;
+            transition: all 0.2s;
+        }
+        .bm-actions-toggle:hover { background: #f1f5f9; }
+        .bm-actions-menu {
+            display: none;
+            position: absolute;
+            left: 0;
+            top: 100%;
+            margin-top: 4px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(15,23,42,0.12);
+            z-index: 100;
+            min-width: 150px;
+            padding: 4px;
+        }
+        .bm-actions-menu.show { display: block; }
+        .bm-actions-menu a,
+        .bm-actions-menu button {
+            display: block;
+            width: 100%;
+            text-align: right;
+            padding: 8px 12px;
+            border: none;
+            background: none;
+            color: #334155;
+            font-size: 12px;
+            font-family: 'Heebo', sans-serif;
+            cursor: pointer;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: background 0.15s;
+        }
+        .bm-actions-menu a:hover,
+        .bm-actions-menu button:hover { background: #f1f5f9; }
 
         /* Cards View */
         .bm-cards {
@@ -1466,31 +1550,33 @@
             color: var(--gray-700);
         }
         .bm-card-progress {
-            background: var(--gray-100);
-            border-radius: 8px;
-            padding: 10px 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px 14px;
         }
         .bm-card-progress-text {
             display: flex;
             justify-content: space-between;
-            font-size: 11px;
-            color: var(--gray-500);
-            margin-bottom: 6px;
+            font-size: 12px;
+            color: #0f172a;
+            font-weight: 600;
+            margin-bottom: 8px;
         }
         .bm-card-progress-bar {
             width: 100%;
-            height: 6px;
-            background: var(--gray-200);
-            border-radius: 3px;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
             overflow: hidden;
         }
         .bm-card-progress-fill {
             height: 100%;
-            border-radius: 3px;
-            background: var(--primary-blue);
+            border-radius: 4px;
+            background: #0f172a;
             transition: width 0.3s;
         }
-        .bm-card-progress-fill.high { background: var(--success); }
+        .bm-card-progress-fill.high { background: #16a34a; }
 
         /* Empty State */
         .bm-empty {
@@ -2791,8 +2877,7 @@
                             <th>שולם</th>
                             <th>התקדמות</th>
                             <th>סטטוס</th>
-                            <th>כרטיס</th>
-                            <th>תזכורת הבאה</th>
+                            <th>חיוב הבא</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -5070,42 +5155,59 @@
                     ? parseFloat(c.totalActualPaid)
                     : amount * paidMonths;
                 const progressPct = totalMonths > 0 ? Math.round((paidMonths / totalMonths) * 100) : 0;
+                const progressClass = progressPct >= 80 ? ' high' : '';
                 const nextDate = getNextReminderDate(c);
+                const paidColor = paidAmount > 0 ? '#16a34a' : '#94a3b8';
+                const uid = 'menu-' + c.id.replace(/[^a-zA-Z0-9]/g, '');
 
                 return '<tr>' +
-                    '<td><strong>' + (c.clientName || '') + '</strong>' +
-                        (c.caseNumber ? '<br><span style="font-size:11px;color:var(--gray-400);">תיק ' + c.caseNumber + '</span>' : '') +
+                    '<td><strong style="color:#0f172a;">' + (c.clientName || '') + '</strong>' +
+                        (c.caseNumber ? '<br><span style="font-size:11px;color:#94a3b8;">תיק ' + c.caseNumber + '</span>' : '') +
                     '</td>' +
-                    '<td>' + (c.attorney || '—') + '</td>' +
+                    '<td style="color:#64748b;">' + (c.attorney || '—') + '</td>' +
                     '<td class="bm-amount">₪' + amount.toLocaleString('he-IL') + '</td>' +
-                    '<td class="bm-amount">₪' + totalDeal.toLocaleString('he-IL') + '</td>' +
-                    '<td class="bm-amount" style="color:var(--success);">₪' + paidAmount.toLocaleString('he-IL') + '</td>' +
-                    '<td>' + paidMonths + '/' + totalMonths +
-                        '<div class="bm-progress-bar"><div class="bm-progress-fill" style="width:' + progressPct + '%"></div></div>' +
+                    '<td class="bm-amount" style="color:#0f172a;">₪' + totalDeal.toLocaleString('he-IL') + '</td>' +
+                    '<td class="bm-amount" style="color:' + paidColor + ';">₪' + paidAmount.toLocaleString('he-IL') + '</td>' +
+                    '<td style="min-width:100px;">' +
+                        '<span class="bm-progress-text">' + paidMonths + '/' + totalMonths + '</span>' +
+                        '<div class="bm-progress-bar"><div class="bm-progress-fill' + progressClass + '" style="width:' + progressPct + '%"></div></div>' +
                     '</td>' +
                     '<td>' + getStatusBadge(c.status) + '</td>' +
-                    '<td style="font-size:12px;white-space:nowrap;">' +
-                        (c.cardLast4
-                            ? '<span style="font-variant-numeric:tabular-nums;">•••• ' + c.cardLast4 + '</span>' +
-                              (c.cardType ? '<br><span style="color:var(--gray-400);font-size:11px;">' + c.cardType + '</span>' : '') +
-                              ' <button onclick="revealCard(\'' + c.id + '\')" style="background:none;border:none;color:var(--primary-blue);cursor:pointer;font-size:11px;font-family:Heebo,sans-serif;padding:0;">הצג</button>'
-                            : '<span style="color:var(--gray-300);">—</span>') +
-                    '</td>' +
                     '<td style="font-size:12px;">' + formatDate(nextDate) + '</td>' +
                     '<td style="white-space:nowrap;">' +
-                        '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
-                            '<button class="bm-payments-btn" onclick="openPaymentModal(\'' + c.id + '\')">תשלומים</button>' +
+                        '<div style="display:flex;gap:6px;align-items:center;">' +
+                            '<button class="bm-action-primary" onclick="openPaymentModal(\'' + c.id + '\')">תשלומים</button>' +
                             ((c.status || 'פעיל') === 'פעיל'
-                                ? '<button class="bm-quick-mark" onclick="quickMarkPayment(\'' + c.id + '\')">סמן תשלום</button>'
+                                ? '<button class="bm-action-primary" onclick="quickMarkPayment(\'' + c.id + '\')" style="background:#16a34a;">סמן תשלום</button>'
                                 : '') +
-                            '<button onclick="openEditModal(\'' + c.id + '\')" style="background:none;border:1px solid var(--gray-300);color:var(--gray-500);border-radius:6px;padding:4px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;">עריכה</button>' +
-                            '<a href="https://merchant.sensepass.com/apps/transactions/list" target="_blank" style="background:none;border:1px solid #10b981;color:#10b981;border-radius:6px;padding:4px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;">סליקה</a>' +
-                            (c.cardEncrypted ? '<button onclick="revealAndCopy(\'' + c.id + '\')" style="background:none;border:1px solid #f59e0b;color:#f59e0b;border-radius:6px;padding:4px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;">העתק כרטיס</button>' : '') +
+                            '<div class="bm-actions-dropdown">' +
+                                '<button class="bm-actions-toggle" onclick="toggleActionsMenu(\'' + uid + '\', event)">⋮</button>' +
+                                '<div class="bm-actions-menu" id="' + uid + '">' +
+                                    '<button onclick="openEditModal(\'' + c.id + '\');closeAllMenus()">עריכה</button>' +
+                                    '<a href="https://merchant.sensepass.com/apps/transactions/list" target="_blank" onclick="closeAllMenus()">סליקת אשראי</a>' +
+                                    (c.cardLast4 ? '<button onclick="revealCard(\'' + c.id + '\');closeAllMenus()">הצג כרטיס</button>' : '') +
+                                    (c.cardEncrypted ? '<button onclick="revealAndCopy(\'' + c.id + '\');closeAllMenus()">העתק כרטיס</button>' : '') +
+                                '</div>' +
+                            '</div>' +
                         '</div>' +
                     '</td>' +
                 '</tr>';
             }).join('');
         }
+
+        function toggleActionsMenu(menuId, event) {
+            event.stopPropagation();
+            var menu = document.getElementById(menuId);
+            var isOpen = menu.classList.contains('show');
+            closeAllMenus();
+            if (!isOpen) menu.classList.add('show');
+        }
+        function closeAllMenus() {
+            document.querySelectorAll('.bm-actions-menu.show').forEach(function(m) {
+                m.classList.remove('show');
+            });
+        }
+        document.addEventListener('click', function() { closeAllMenus(); });
 
         function renderCardsView(clients) {
             const container = document.getElementById('bmCardsContainer');
@@ -5123,6 +5225,8 @@
                 const progressPct = totalMonths > 0 ? Math.round((paidMonths / totalMonths) * 100) : 0;
                 const nextDate = getNextReminderDate(c);
                 const progressClass = progressPct >= 80 ? ' high' : '';
+                const paidColor = paidAmount > 0 ? '#16a34a' : '#94a3b8';
+                const remainColor = remainingAmount > 0 ? '#dc2626' : '#16a34a';
 
                 return '<div class="bm-card">' +
                     '<div class="bm-card-top">' +
@@ -5130,9 +5234,9 @@
                             '<div class="bm-card-name">' + (c.clientName || '') + '</div>' +
                             '<div class="bm-card-case">' + (c.caseNumber ? 'תיק ' + c.caseNumber : '') + (c.attorney ? ' | ' + c.attorney : '') + '</div>' +
                         '</div>' +
-                        '<div style="display:flex;align-items:center;gap:8px;">' +
+                        '<div style="display:flex;align-items:center;gap:6px;">' +
                             getStatusBadge(c.status) +
-                            '<button onclick="openEditModal(\'' + c.id + '\')" style="background:none;border:1px solid var(--gray-300);color:var(--gray-500);border-radius:6px;padding:3px 8px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;">עריכה</button>' +
+                            '<button class="bm-action-secondary" onclick="openEditModal(\'' + c.id + '\')" style="padding:3px 8px;">עריכה</button>' +
                         '</div>' +
                     '</div>' +
                     '<div class="bm-card-body">' +
@@ -5146,20 +5250,20 @@
                         '</div>' +
                         '<div class="bm-card-field">' +
                             '<div class="bm-card-field-label">שולם</div>' +
-                            '<div class="bm-card-field-value" style="color:var(--success);">₪' + paidAmount.toLocaleString('he-IL') + '</div>' +
+                            '<div class="bm-card-field-value" style="color:' + paidColor + ';">₪' + paidAmount.toLocaleString('he-IL') + '</div>' +
                         '</div>' +
                         '<div class="bm-card-field">' +
                             '<div class="bm-card-field-label">נותר</div>' +
-                            '<div class="bm-card-field-value" style="color:var(--error);">₪' + remainingAmount.toLocaleString('he-IL') + '</div>' +
+                            '<div class="bm-card-field-value" style="color:' + remainColor + ';">₪' + remainingAmount.toLocaleString('he-IL') + '</div>' +
                         '</div>' +
                     '</div>' +
                     (c.cardLast4 ?
-                        '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--gray-100);margin-bottom:6px;">' +
-                            '<span style="font-size:12px;color:var(--gray-500);font-variant-numeric:tabular-nums;">•••• ' + c.cardLast4 +
-                                (c.cardType ? ' <span style="color:var(--gray-400);">(' + c.cardType + ')</span>' : '') +
-                                (c.cardExpiry ? ' <span style="color:var(--gray-400);">' + c.cardExpiry + '</span>' : '') +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #f1f5f9;margin-bottom:6px;">' +
+                            '<span style="font-size:12px;color:#64748b;font-variant-numeric:tabular-nums;">•••• ' + c.cardLast4 +
+                                (c.cardType ? ' <span style="color:#94a3b8;">(' + c.cardType + ')</span>' : '') +
+                                (c.cardExpiry ? ' <span style="color:#94a3b8;">' + c.cardExpiry + '</span>' : '') +
                             '</span>' +
-                            '<button onclick="revealCard(\'' + c.id + '\')" style="background:none;border:1px solid var(--primary-blue);color:var(--primary-blue);border-radius:6px;padding:3px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;">הצג מספר</button>' +
+                            '<button class="bm-action-secondary" onclick="revealCard(\'' + c.id + '\')" style="padding:3px 10px;">הצג מספר</button>' +
                         '</div>' : '') +
                     '<div class="bm-card-progress">' +
                         '<div class="bm-card-progress-text">' +
@@ -5168,16 +5272,16 @@
                         '</div>' +
                         '<div class="bm-card-progress-bar"><div class="bm-card-progress-fill' + progressClass + '" style="width:' + progressPct + '%"></div></div>' +
                     '</div>' +
-                    (nextDate ? '<div style="margin-top:10px;font-size:11px;color:var(--gray-400);">תזכורת הבאה: ' + formatDate(nextDate) + '</div>' : '') +
-                    '<div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--gray-100);flex-wrap:wrap;">' +
-                        '<button onclick="openPaymentModal(\'' + c.id + '\')" style="flex:1;text-align:center;background:var(--primary-blue);color:white;border:none;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">פירוט תשלומים</button>' +
+                    (nextDate ? '<div style="margin-top:10px;font-size:11px;color:#94a3b8;">חיוב הבא: ' + formatDate(nextDate) + '</div>' : '') +
+                    '<div style="display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid #f1f5f9;">' +
+                        '<button class="bm-action-primary" onclick="openPaymentModal(\'' + c.id + '\')" style="flex:1;text-align:center;padding:10px;">תשלומים</button>' +
                         ((c.status || 'פעיל') === 'פעיל'
-                            ? '<button onclick="quickMarkPayment(\'' + c.id + '\')" style="flex:1;text-align:center;background:#10b981;color:white;border:none;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">סמן תשלום</button>'
+                            ? '<button class="bm-action-primary" onclick="quickMarkPayment(\'' + c.id + '\')" style="flex:1;text-align:center;padding:10px;background:#16a34a;">סמן תשלום</button>'
                             : '') +
                     '</div>' +
                     '<div style="display:flex;gap:8px;margin-top:8px;">' +
-                        '<a href="https://merchant.sensepass.com/apps/transactions/list" target="_blank" style="flex:1;text-align:center;background:none;border:1px solid #10b981;color:#10b981;border-radius:8px;padding:6px;font-size:11px;font-family:Heebo,sans-serif;font-weight:600;text-decoration:none;display:inline-block;">סליקת אשראי</a>' +
-                        (c.cardEncrypted ? '<button onclick="revealAndCopy(\'' + c.id + '\')" style="flex:1;background:none;border:1px solid #f59e0b;color:#f59e0b;border-radius:8px;padding:6px;font-size:11px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">העתק כרטיס</button>' : '') +
+                        '<a class="bm-action-secondary" href="https://merchant.sensepass.com/apps/transactions/list" target="_blank" style="flex:1;justify-content:center;padding:7px;">סליקת אשראי</a>' +
+                        (c.cardEncrypted ? '<button class="bm-action-secondary" onclick="revealAndCopy(\'' + c.id + '\')" style="flex:1;justify-content:center;padding:7px;">העתק כרטיס</button>' : '') +
                     '</div>' +
                 '</div>';
             }).join('');
