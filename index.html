@@ -2814,9 +2814,9 @@
         <div class="bm-header">
             <h2>ניהול גבייה חודשית</h2>
             <div style="display:flex;gap:8px;align-items:center;">
-                <button class="bm-sync-btn" id="bmSyncBtn" onclick="syncBillingToSheets()" title="סנכרון לקוחות קיימים לגיליון Google Sheets">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-                    סנכרון לגיליון
+                <button class="bm-sync-btn" id="bmExportBtn" onclick="exportBillingReport()" title="ייצוא דוח גבייה לקובץ CSV">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    ייצוא דוח
                 </button>
                 <button class="bm-back-btn" onclick="hideBillingManagement()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -4821,25 +4821,8 @@
                     monthlyAmounts: monthlyAmounts || null
                 };
 
-                // שמירה ב-Firestore
+                // שמירה ב-Firestore (מקור אמת יחיד לגבייה)
                 await db.collection('recurring_billing').add(billingData);
-
-                // שליחה ל-webhook (ליצירת שורות בגיליון גבייה חודשית)
-                const webhookData = {
-                    ...billingData,
-                    action: 'addRecurringBilling',
-                    billingIdPrefix: billingIdPrefix,
-                    monthlyAmounts: monthlyAmounts ? JSON.stringify(monthlyAmounts) : null,
-                    timestamp: new Date().toISOString()
-                };
-
-                const WEBHOOK_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
-                await fetch(WEBHOOK_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(webhookData)
-                });
 
                 // הצגת הודעת הצלחה
                 document.getElementById('billingModalBody').innerHTML =
@@ -4878,91 +4861,132 @@
             document.getElementById('mainContainer').style.display = '';
         }
 
-        // סנכרון לקוחות קיימים מ-Firestore לגיליון Google Sheets
-        async function syncBillingToSheets() {
-            const btn = document.getElementById('bmSyncBtn');
-            const originalText = btn.innerHTML;
-
-            if (!confirm('פעולה זו תשלח את כל הלקוחות הקיימים מ-Firestore לגיליון Google Sheets.\nלקוחות שכבר קיימים בגיליון לא ייכפלו.\n\nלהמשיך?')) {
-                return;
-            }
-
+        // ייצוא דוח גבייה ל-CSV
+        async function exportBillingReport() {
+            var btn = document.getElementById('bmExportBtn');
             btn.disabled = true;
-            btn.classList.add('syncing');
-            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> מסנכרן...';
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> מייצא...';
 
             try {
-                const snapshot = await db.collection('recurring_billing').get();
-                const total = snapshot.size;
-                let sent = 0;
-                let errors = 0;
+                var snapshot = await db.collection('recurring_billing').get();
+                var rows = [];
 
-                const WEBHOOK_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
+                for (var doc of snapshot.docs) {
+                    var c = doc.data();
+                    var amount = parseFloat(c.recurringMonthlyAmount) || 0;
+                    var totalMonths = parseInt(c.recurringMonthsCount) || 0;
+                    var paidMonths = parseInt(c.completedPaymentsCount) || parseInt(c.paidMonthsAlready) || 0;
+                    var totalDeal = amount * totalMonths;
+                    var totalPaid = c.totalActualPaid !== undefined ? parseFloat(c.totalActualPaid) : amount * paidMonths;
+                    var remaining = totalDeal - totalPaid;
 
-                for (const doc of snapshot.docs) {
-                    const data = doc.data();
+                    // טעינת פירוט תשלומים
+                    var paymentsSnap = await db.collection('recurring_billing').doc(doc.id)
+                        .collection('payments').orderBy('monthNumber').get();
 
-                    // דלג על לקוחות מבוטלים
-                    if (data.status === 'בוטל') {
-                        sent++;
-                        continue;
-                    }
-
-                    const webhookData = {
-                        action: 'addRecurringBilling',
-                        clientName: data.clientName || '',
-                        phone: data.phone || '',
-                        email: data.email || '',
-                        idNumber: data.idNumber || '',
-                        address: data.address || '',
-                        recurringMonthlyAmount: data.recurringMonthlyAmount || '',
-                        recurringMonthsCount: data.recurringMonthsCount || '',
-                        recurringStartDate: data.recurringStartDate || '',
-                        recurringDayOfMonth: data.recurringDayOfMonth || '1',
-                        paidMonthsAlready: data.paidMonthsAlready || 0,
-                        attorney: data.attorney || '',
-                        caseNumber: data.caseNumber || '',
-                        branch: data.branch || 'תל אביב',
-                        transactionType: data.transactionType || 'ריטיינר',
-                        transactionDescription: data.transactionDescription || 'חיוב חודשי - ' + (data.clientName || ''),
-                        recurringNotes: data.recurringNotes || '',
-                        recurringBilling: true,
-                        creditCardStatus: 'חיוב חודשי',
-                        paymentMethod: 'כרטיס אשראי',
-                        timestamp: new Date().toISOString()
-                    };
-
-                    try {
-                        await fetch(WEBHOOK_URL, {
-                            method: 'POST',
-                            mode: 'no-cors',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(webhookData)
+                    if (paymentsSnap.empty) {
+                        // לקוח ללא subcollection - שורה אחת
+                        rows.push({
+                            clientName: c.clientName || '',
+                            attorney: c.attorney || '',
+                            caseNumber: c.caseNumber || '',
+                            phone: c.phone || '',
+                            email: c.email || '',
+                            monthlyAmount: amount,
+                            totalMonths: totalMonths,
+                            totalDeal: totalDeal,
+                            paidMonths: paidMonths,
+                            totalPaid: totalPaid,
+                            remaining: remaining,
+                            status: c.status || 'פעיל',
+                            startDate: c.recurringStartDate || '',
+                            monthNumber: '',
+                            plannedDate: '',
+                            plannedAmount: '',
+                            actualPaid: '',
+                            actualDate: '',
+                            paymentStatus: ''
                         });
-                        sent++;
-                    } catch (err) {
-                        console.error('Sync error for ' + data.clientName + ':', err);
-                        errors++;
+                    } else {
+                        // לקוח עם subcollection - שורה לכל תשלום
+                        paymentsSnap.forEach(function(pDoc) {
+                            var p = pDoc.data();
+                            rows.push({
+                                clientName: c.clientName || '',
+                                attorney: c.attorney || '',
+                                caseNumber: c.caseNumber || '',
+                                phone: c.phone || '',
+                                email: c.email || '',
+                                monthlyAmount: amount,
+                                totalMonths: totalMonths,
+                                totalDeal: totalDeal,
+                                paidMonths: paidMonths,
+                                totalPaid: totalPaid,
+                                remaining: remaining,
+                                status: c.status || 'פעיל',
+                                startDate: c.recurringStartDate || '',
+                                monthNumber: p.monthNumber || '',
+                                plannedDate: p.plannedDate || '',
+                                plannedAmount: p.plannedAmount || '',
+                                actualPaid: p.actualAmountPaid || '',
+                                actualDate: p.actualPaymentDate || '',
+                                paymentStatus: p.status || ''
+                            });
+                        });
                     }
-
-                    // עדכון כפתור עם התקדמות
-                    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> ' + sent + '/' + total;
-
-                    // המתנה קצרה בין בקשות כדי לא להעמיס
-                    await new Promise(r => setTimeout(r, 500));
                 }
 
-                const msg = 'סנכרון הושלם!\n' + sent + ' לקוחות נשלחו לגיליון.' +
-                    (errors > 0 ? '\n' + errors + ' שגיאות.' : '');
-                alert(msg);
+                // יצירת CSV עם BOM לתמיכה בעברית באקסל
+                var headers = [
+                    'שם לקוח', 'עו"ד מטפל', 'מספר תיק', 'טלפון', 'מייל',
+                    'סכום חודשי', 'סה"כ חודשים', 'סה"כ עסקה',
+                    'חודשים ששולמו', 'סה"כ שולם', 'יתרה',
+                    'סטטוס לקוח', 'תאריך התחלה',
+                    'מספר תשלום', 'תאריך מתוכנן', 'סכום מתוכנן',
+                    'סכום ששולם', 'תאריך תשלום', 'סטטוס תשלום'
+                ];
+
+                var csvContent = '\uFEFF' + headers.join(',') + '\n';
+                rows.forEach(function(r) {
+                    var line = [
+                        '"' + (r.clientName || '').replace(/"/g, '""') + '"',
+                        '"' + (r.attorney || '').replace(/"/g, '""') + '"',
+                        '"' + (r.caseNumber || '').replace(/"/g, '""') + '"',
+                        '"' + (r.phone || '').replace(/"/g, '""') + '"',
+                        '"' + (r.email || '').replace(/"/g, '""') + '"',
+                        r.monthlyAmount,
+                        r.totalMonths,
+                        r.totalDeal,
+                        r.paidMonths,
+                        r.totalPaid,
+                        r.remaining,
+                        '"' + (r.status || '').replace(/"/g, '""') + '"',
+                        '"' + (r.startDate || '').replace(/"/g, '""') + '"',
+                        r.monthNumber,
+                        '"' + (r.plannedDate || '').replace(/"/g, '""') + '"',
+                        r.plannedAmount,
+                        r.actualPaid,
+                        '"' + (r.actualDate || '').replace(/"/g, '""') + '"',
+                        '"' + (r.paymentStatus || '').replace(/"/g, '""') + '"'
+                    ].join(',');
+                    csvContent += line + '\n';
+                });
+
+                // הורדת הקובץ
+                var today = new Date().toISOString().split('T')[0];
+                var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                var link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'דוח_גבייה_' + today + '.csv';
+                link.click();
+                URL.revokeObjectURL(link.href);
 
             } catch (error) {
-                console.error('Sync error:', error);
-                alert('שגיאה בסנכרון: ' + error.message);
+                console.error('Export error:', error);
+                alert('שגיאה בייצוא: ' + error.message);
             } finally {
                 btn.disabled = false;
-                btn.classList.remove('syncing');
-                btn.innerHTML = originalText;
+                btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ייצוא דוח';
             }
         }
 
@@ -5554,26 +5578,6 @@
 
                 await db.collection('recurring_billing').doc(docId).update(updateData);
 
-                // סנכרון שינויים ל-Google Sheets
-                if (oldClientData.billingIdPrefix) {
-                    const WEBHOOK_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
-                    fetch(WEBHOOK_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'updateClientInBilling',
-                            billingIdPrefix: oldClientData.billingIdPrefix,
-                            clientName: clientName,
-                            phone: updateData.phone,
-                            email: updateData.email,
-                            idNumber: updateData.idNumber,
-                            attorney: updateData.attorney,
-                            caseNumber: updateData.caseNumber
-                        })
-                    });
-                }
-
                 // סנכרון subcollection payments - משווה ישן מול חדש
                 await syncPaymentsAfterEdit(docId, oldClientData, updateData);
 
@@ -5803,16 +5807,6 @@
                     paymentsSnap.forEach(function(d) { currentPayments.push({ id: d.id, ...d.data() }); });
                 }
 
-                // סנכרון מ-Google Sheets (לזיהוי תשלומים שסומנו מהמייל או מהגיליון)
-                if (client.billingIdPrefix) {
-                    await reconcilePaymentsFromSheets(client.billingIdPrefix, docId, currentPayments);
-                    // טעינה מחדש אחרי סנכרון
-                    const refreshSnap = await db.collection('recurring_billing').doc(docId)
-                        .collection('payments').orderBy('monthNumber', 'asc').get();
-                    currentPayments = [];
-                    refreshSnap.forEach(function(d) { currentPayments.push({ id: d.id, ...d.data() }); });
-                }
-
                 renderPaymentModal(client, currentPayments);
                 overlay.classList.add('show');
 
@@ -5822,65 +5816,7 @@
             }
         }
 
-        async function reconcilePaymentsFromSheets(billingIdPrefix, docId, firebasePayments) {
-            try {
-                const WEBAPP_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
-                const url = WEBAPP_URL + '?action=getPayments&prefix=' + encodeURIComponent(billingIdPrefix);
-                const response = await fetch(url);
-                if (!response.ok) return;
-                const data = await response.json();
-                if (!data.success || !data.payments) return;
 
-                var sheetsPayments = data.payments;
-                var updatedCount = 0;
-
-                for (var i = 0; i < sheetsPayments.length; i++) {
-                    var sp = sheetsPayments[i];
-                    if (sp.status !== 'בוצע') continue;
-
-                    // מציאת התשלום המתאים ב-Firebase לפי billingIdSuffix
-                    var fbPayment = firebasePayments.find(function(fp) {
-                        return fp.billingIdSuffix === sp.billingId && fp.status !== 'בוצע';
-                    });
-
-                    if (fbPayment) {
-                        // עדכון Firebase - תשלום סומן כבוצע בגיליון/מייל אבל לא ב-Firebase
-                        var payRef = db.collection('recurring_billing').doc(docId)
-                            .collection('payments').doc(fbPayment.id);
-                        await payRef.update({
-                            status: 'בוצע',
-                            actualAmountPaid: sp.actualAmountPaid || sp.plannedAmount,
-                            actualPaymentDate: sp.actualPaymentDate || sp.completionDate,
-                            completedBy: sp.completedBy || 'sheets-sync',
-                            completedAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        updatedCount++;
-                    }
-                }
-
-                if (updatedCount > 0) {
-                    // עדכון סיכום הלקוח
-                    var allPaySnap = await db.collection('recurring_billing').doc(docId)
-                        .collection('payments').get();
-                    var totalPaid = 0;
-                    var completedCount = 0;
-                    allPaySnap.forEach(function(d) {
-                        var p = d.data();
-                        if (p.status === 'בוצע') {
-                            totalPaid += parseFloat(p.actualAmountPaid) || parseFloat(p.plannedAmount) || 0;
-                            completedCount++;
-                        }
-                    });
-                    await db.collection('recurring_billing').doc(docId).update({
-                        totalActualPaid: totalPaid,
-                        completedPaymentsCount: completedCount
-                    });
-                    console.log('סנכרון: עודכנו ' + updatedCount + ' תשלומים מהגיליון');
-                }
-            } catch (error) {
-                console.log('שגיאה בסנכרון מגיליון (לא קריטי):', error.message);
-            }
-        }
 
         async function generatePaymentDocs(docId, client) {
             const amount = parseFloat(client.recurringMonthlyAmount) || 0;
@@ -6132,25 +6068,7 @@
                     lastPaymentDate: actualDate
                 });
 
-                // 3. סנכרון ל-Google Sheets
-                var billingIdSuffix = payData ? payData.billingIdSuffix : '';
-                if (billingIdSuffix) {
-                    var WEBHOOK_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
-                    fetch(WEBHOOK_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'markPaymentCompleted',
-                            billingId: billingIdSuffix,
-                            rowIndex: 0,
-                            actualAmount: actualAmount,
-                            actualDate: actualDate
-                        })
-                    });
-                }
-
-                // 4. רענון המודאל
+                // 3. רענון המודאל
                 await openPaymentModal(clientDocId);
 
             } catch (error) {
@@ -6170,21 +6088,6 @@
                 var payData = payDoc.data();
 
                 await payRef.update({ plannedAmount: newAmount });
-
-                // סנכרון ל-Google Sheets
-                if (payData.billingIdSuffix) {
-                    var WEBHOOK_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
-                    fetch(WEBHOOK_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'updatePaymentAmount',
-                            billingId: payData.billingIdSuffix,
-                            newAmount: newAmount
-                        })
-                    });
-                }
             } catch (error) {
                 console.error('Error updating amount:', error);
             }
@@ -6267,21 +6170,6 @@
                     status: 'בוטל'
                 });
 
-                // סנכרון ל-Sheets
-                var clientDoc = await db.collection('recurring_billing').doc(currentPaymentDocId).get();
-                var billingPrefix = clientDoc.data().billingIdPrefix;
-                if (billingPrefix) {
-                    fetch(window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'cancelBillingSeries',
-                            billingIdPrefix: billingPrefix
-                        })
-                    });
-                }
-
                 alert('הסדרה בוטלה בהצלחה');
                 await openPaymentModal(currentPaymentDocId);
             } catch (error) {
@@ -6345,31 +6233,6 @@
                     });
                 }
                 await batch.commit();
-
-                // סנכרון ל-Sheets
-                if (billingPrefix) {
-                    fetch(window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'extendBillingSeries',
-                            billingIdPrefix: billingPrefix,
-                            additionalMonths: additionalMonths,
-                            monthlyAmount: monthlyAmount,
-                            dayOfMonth: dayOfMonth,
-                            clientName: client.clientName || '',
-                            phone: client.phone || '',
-                            email: client.email || '',
-                            idNumber: client.idNumber || '',
-                            attorney: client.attorney || '',
-                            caseNumber: client.caseNumber || '',
-                            transactionType: client.transactionType || '',
-                            transactionDescription: client.transactionDescription || '',
-                            branch: client.branch || 'תל אביב'
-                        })
-                    });
-                }
 
                 alert('נוספו ' + additionalMonths + ' חודשים בהצלחה');
                 await openPaymentModal(currentPaymentDocId);
