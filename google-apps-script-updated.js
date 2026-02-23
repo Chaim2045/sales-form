@@ -229,6 +229,52 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    // סימון תשלום בודד כבוצע (מהממשק)
+    if (data.action === 'markPaymentCompleted') {
+      const result = markChargeCompleted(
+        data.billingId,
+        parseInt(data.rowIndex) || 0,
+        'webapp',
+        data.actualAmount !== undefined ? parseFloat(data.actualAmount) : null,
+        data.actualDate || null
+      );
+      return ContentService
+        .createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // עדכון סכום מתוכנן של תשלום בודד
+    if (data.action === 'updatePaymentAmount') {
+      const result = updateSinglePaymentAmount(data.billingId, parseFloat(data.newAmount));
+      return ContentService
+        .createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // עדכון פרטי לקוח בכל שורות הגבייה שלו
+    if (data.action === 'updateClientInBilling') {
+      const result = updateClientInBillingSheet(data);
+      return ContentService
+        .createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ביטול סדרת גבייה
+    if (data.action === 'cancelBillingSeries') {
+      const result = cancelBillingSeries(data.billingIdPrefix);
+      return ContentService
+        .createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // הוספת חודשי תשלום נוספים לסדרה קיימת
+    if (data.action === 'extendBillingSeries') {
+      const result = extendBillingSeries(data);
+      return ContentService
+        .createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // זרימה רגילה - הוספת שורה לגיליון הראשי
     const result = addRowToSheet(data);
 
@@ -269,6 +315,14 @@ function doGet(e) {
 
   if (action === 'markCharged') {
     return handleMarkCharged(e);
+  }
+
+  // שליפת תשלומים לפי prefix (לסנכרון עם Firebase)
+  if (action === 'getPayments' && e.parameter.prefix) {
+    var result = getPaymentsByPrefix(e.parameter.prefix);
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   return ContentService
@@ -606,7 +660,8 @@ function createBillingSheet_(ss) {
     'עו"ד מטפל', 'מספר תיק', 'סוג העסקה', 'תיאור',
     'סכום חיוב חודשי', 'סה"כ חודשים', 'חודש נוכחי',
     'תאריך חיוב', 'סטטוס', 'תאריך ביצוע', 'בוצע ע"י',
-    'מזהה עסקה מקורית', 'תאריך יצירה', 'הערות', 'סניף'
+    'מזהה עסקה מקורית', 'תאריך יצירה', 'הערות', 'סניף',
+    'סכום ששולם בפועל', 'תאריך תשלום בפועל'
   ];
 
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -664,6 +719,8 @@ function createRecurringCharges(data, originalRowNumber) {
 
     if (!billingSheet) {
       billingSheet = createBillingSheet_(ss);
+    } else {
+      ensureBillingColumns_(billingSheet);
     }
 
     var monthlyAmount = parseFloat(data.recurringMonthlyAmount) || 0;
@@ -671,7 +728,17 @@ function createRecurringCharges(data, originalRowNumber) {
     var startDate = new Date(data.recurringStartDate);
     var dayOfMonth = parseInt(data.recurringDayOfMonth) || 1;
     var paidAlready = parseInt(data.paidMonthsAlready) || 0;
-    var billingId = 'BIL-' + Date.now();
+    var billingId = data.billingIdPrefix || ('BIL-' + Date.now());
+
+    // תמיכה בסכומים שונים לכל חודש
+    var monthlyAmounts = null;
+    if (data.monthlyAmounts) {
+      try {
+        monthlyAmounts = typeof data.monthlyAmounts === 'string' ? JSON.parse(data.monthlyAmounts) : data.monthlyAmounts;
+      } catch(e) {
+        monthlyAmounts = null;
+      }
+    }
 
     var rows = [];
 
@@ -689,6 +756,11 @@ function createRecurringCharges(data, originalRowNumber) {
       var completionDate = isAlreadyPaid ? formatDate(new Date()) : '';
       var completedBy = isAlreadyPaid ? 'הוזן ידנית' : '';
 
+      // סכום ספציפי לחודש זה (אם הוגדר) או סכום ברירת מחדל
+      var thisMonthAmount = (monthlyAmounts && monthlyAmounts[i] !== undefined)
+        ? parseFloat(monthlyAmounts[i])
+        : monthlyAmount;
+
       var row = [
         billingId + '-' + (i + 1),
         data.clientName || '',
@@ -699,7 +771,7 @@ function createRecurringCharges(data, originalRowNumber) {
         data.caseNumber || '',
         data.transactionType || '',
         data.transactionDescription || '',
-        monthlyAmount,
+        thisMonthAmount,
         totalMonths,
         i + 1,
         formatDate(chargeDate),
@@ -709,7 +781,9 @@ function createRecurringCharges(data, originalRowNumber) {
         originalRowNumber,
         formatDate(new Date()),
         data.recurringNotes || data.notes || '',
-        data.branch || 'תל אביב'
+        data.branch || 'תל אביב',
+        isAlreadyPaid ? thisMonthAmount : '',
+        isAlreadyPaid ? formatDate(new Date()) : ''
       ];
 
       rows.push(row);
@@ -793,12 +867,14 @@ function checkAndSendReminders() {
     var monthlyAmount = row[9];
     var totalMonths = row[10];
     var currentMonth = row[11];
-    var chargeDateStr = row[12];
+    var chargeDateRaw = row[12];
     var status = row[13];
 
     if (status === 'בוצע' || status === 'בוטל') continue;
 
-    var chargeDate = parseDateString_(chargeDateStr);
+    var chargeDate = parseDateString_(chargeDateRaw);
+    // פירמוט התאריך למחרוזת DD/MM/YYYY - Google Sheets מחזיר אובייקט Date, לא מחרוזת
+    var chargeDateStr = chargeDate ? formatDate(chargeDate) : (chargeDateRaw ? chargeDateRaw.toString() : '');
     if (!chargeDate) continue;
     chargeDate.setHours(0, 0, 0, 0);
 
@@ -992,7 +1068,7 @@ function createResponsePage_(type, title, message) {
 
 // ---------- סימון חיוב כבוצע (פונקציה משותפת) ----------
 
-function markChargeCompleted(billingId, rowIndex, source) {
+function markChargeCompleted(billingId, rowIndex, source, actualAmount, actualDate) {
   try {
     var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     var billingSheet = ss.getSheetByName(BILLING_SHEET_NAME);
@@ -1031,18 +1107,216 @@ function markChargeCompleted(billingId, rowIndex, source) {
     billingSheet.getRange(rowIndex, 15).setValue(formatDate(new Date()));
     billingSheet.getRange(rowIndex, 16).setValue(source || 'manual');
 
+    // עדכון סכום ששולם בפועל ותאריך תשלום
+    var plannedAmount = billingSheet.getRange(rowIndex, 10).getValue();
+    billingSheet.getRange(rowIndex, 21).setValue(
+      (actualAmount !== undefined && actualAmount !== null && actualAmount !== '') ? actualAmount : plannedAmount
+    );
+    billingSheet.getRange(rowIndex, 22).setValue(
+      actualDate ? actualDate : formatDate(new Date())
+    );
+
     var clientName = billingSheet.getRange(rowIndex, 2).getValue();
-    var amount = billingSheet.getRange(rowIndex, 10).getValue();
     var chargeDate = billingSheet.getRange(rowIndex, 13).getValue();
 
     return {
       success: true,
       clientName: clientName,
-      amount: amount,
+      amount: plannedAmount,
+      actualAmount: (actualAmount !== undefined && actualAmount !== null && actualAmount !== '') ? actualAmount : plannedAmount,
       chargeDate: chargeDate,
       message: 'החיוב סומן כבוצע'
     };
 
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+
+// ---------- עדכון סכום תשלום בודד ----------
+
+function updateSinglePaymentAmount(billingId, newAmount) {
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var billingSheet = ss.getSheetByName(BILLING_SHEET_NAME);
+    if (!billingSheet) return { success: false, error: 'גיליון לא נמצא' };
+
+    var lastRow = billingSheet.getLastRow();
+    if (lastRow <= 1) return { success: false, error: 'אין נתונים בגיליון' };
+
+    var data = billingSheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (var i = 0; i < data.length; i++) {
+      if (data[i][0] === billingId) {
+        billingSheet.getRange(i + 2, 10).setValue(newAmount);
+        return { success: true, billingId: billingId, newAmount: newAmount };
+      }
+    }
+    return { success: false, error: 'מזהה גבייה לא נמצא' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+
+// ---------- שליפת תשלומים לפי prefix ----------
+
+function getPaymentsByPrefix(prefix) {
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var billingSheet = ss.getSheetByName(BILLING_SHEET_NAME);
+    if (!billingSheet) return { success: false, error: 'גיליון לא נמצא' };
+
+    var lastRow = billingSheet.getLastRow();
+    if (lastRow <= 1) return { success: true, payments: [] };
+
+    var data = billingSheet.getRange(2, 1, lastRow - 1, 22).getValues();
+    var payments = [];
+
+    for (var i = 0; i < data.length; i++) {
+      if (data[i][0].toString().indexOf(prefix) === 0) {
+        var chargeDate = data[i][12];
+        payments.push({
+          billingId: data[i][0],
+          monthNumber: data[i][11],
+          plannedAmount: data[i][9],
+          chargeDate: chargeDate instanceof Date ? formatDate(chargeDate) : chargeDate,
+          status: data[i][13],
+          completionDate: data[i][14] instanceof Date ? formatDate(data[i][14]) : data[i][14],
+          completedBy: data[i][15],
+          actualAmountPaid: data[i][20],
+          actualPaymentDate: data[i][21] instanceof Date ? formatDate(data[i][21]) : data[i][21],
+          rowIndex: i + 2
+        });
+      }
+    }
+    return { success: true, payments: payments };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+
+// ---------- עדכון פרטי לקוח בגיליון גבייה ----------
+
+function updateClientInBillingSheet(data) {
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var billingSheet = ss.getSheetByName(BILLING_SHEET_NAME);
+    if (!billingSheet) return { success: false, error: 'גיליון לא נמצא' };
+
+    var prefix = data.billingIdPrefix;
+    if (!prefix) return { success: false, error: 'חסר billingIdPrefix' };
+
+    var lastRow = billingSheet.getLastRow();
+    if (lastRow <= 1) return { success: true, updatedCount: 0 };
+
+    var ids = billingSheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    var updatedCount = 0;
+
+    for (var i = 0; i < ids.length; i++) {
+      if (ids[i][0].toString().indexOf(prefix) === 0) {
+        var rowIndex = i + 2;
+        // עדכון שדות שיכולים להשתנות (B-I)
+        if (data.clientName) billingSheet.getRange(rowIndex, 2).setValue(data.clientName);
+        if (data.phone) billingSheet.getRange(rowIndex, 3).setValue(data.phone);
+        if (data.email) billingSheet.getRange(rowIndex, 4).setValue(data.email);
+        if (data.idNumber) billingSheet.getRange(rowIndex, 5).setValue(data.idNumber);
+        if (data.attorney) billingSheet.getRange(rowIndex, 6).setValue(data.attorney);
+        if (data.caseNumber !== undefined) billingSheet.getRange(rowIndex, 7).setValue(data.caseNumber);
+        updatedCount++;
+      }
+    }
+
+    return { success: true, updatedCount: updatedCount };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+
+// ---------- הוספת חודשי תשלום נוספים ----------
+
+function extendBillingSeries(data) {
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var billingSheet = ss.getSheetByName(BILLING_SHEET_NAME);
+    if (!billingSheet) return { success: false, error: 'גיליון לא נמצא' };
+
+    var prefix = data.billingIdPrefix;
+    if (!prefix) return { success: false, error: 'חסר billingIdPrefix' };
+
+    // מציאת החודש האחרון בסדרה
+    var lastRow = billingSheet.getLastRow();
+    var sheetData = billingSheet.getRange(2, 1, lastRow - 1, 13).getValues();
+    var maxMonth = 0;
+    var lastChargeDate = null;
+
+    for (var i = 0; i < sheetData.length; i++) {
+      if (sheetData[i][0].toString().indexOf(prefix) === 0) {
+        var monthNum = parseInt(sheetData[i][11]) || 0;
+        if (monthNum > maxMonth) {
+          maxMonth = monthNum;
+          lastChargeDate = parseDateString_(sheetData[i][12]);
+        }
+      }
+    }
+
+    if (maxMonth === 0) return { success: false, error: 'סדרת גבייה לא נמצאה' };
+
+    var additionalMonths = parseInt(data.additionalMonths) || 0;
+    var monthlyAmount = parseFloat(data.monthlyAmount) || 0;
+    var dayOfMonth = parseInt(data.dayOfMonth) || (lastChargeDate ? lastChargeDate.getDate() : 1);
+    var newTotalMonths = maxMonth + additionalMonths;
+
+    var rows = [];
+    for (var j = 0; j < additionalMonths; j++) {
+      var monthIndex = maxMonth + j;
+      var chargeDate = new Date(lastChargeDate.getFullYear(), lastChargeDate.getMonth() + j + 1, dayOfMonth);
+      if (chargeDate.getDate() !== dayOfMonth) {
+        chargeDate.setDate(0);
+      }
+
+      var row = [
+        prefix + '-' + (monthIndex + 1),
+        data.clientName || '',
+        data.phone || '',
+        data.email || '',
+        data.idNumber || '',
+        data.attorney || '',
+        data.caseNumber || '',
+        data.transactionType || '',
+        data.transactionDescription || '',
+        monthlyAmount,
+        newTotalMonths,
+        monthIndex + 1,
+        formatDate(chargeDate),
+        'ממתין',
+        '',
+        '',
+        '',
+        formatDate(new Date()),
+        data.notes || '',
+        data.branch || 'תל אביב',
+        '',
+        ''
+      ];
+      rows.push(row);
+    }
+
+    // עדכון סה"כ חודשים בכל השורות הקיימות
+    for (var k = 0; k < sheetData.length; k++) {
+      if (sheetData[k][0].toString().indexOf(prefix) === 0) {
+        billingSheet.getRange(k + 2, 11).setValue(newTotalMonths);
+      }
+    }
+
+    if (rows.length > 0) {
+      var startRow = billingSheet.getLastRow() + 1;
+      billingSheet.getRange(startRow, 1, rows.length, rows[0].length).setValues(rows);
+    }
+
+    return { success: true, addedCount: rows.length, newTotalMonths: newTotalMonths };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -1301,6 +1575,9 @@ function initBillingSystem() {
   if (!billingSheet) {
     billingSheet = createBillingSheet_(ss);
     Logger.log('גיליון גבייה נוצר: ' + BILLING_SHEET_NAME);
+  } else {
+    // עדכון כותרות אם חסרות עמודות חדשות
+    ensureBillingColumns_(billingSheet);
   }
 
   setupDailyTrigger();
@@ -1314,6 +1591,36 @@ function initBillingSystem() {
   Logger.log('דשבורד: ' + DASHBOARD_SHEET_NAME);
   Logger.log('טריגר יומי: 8:00 בבוקר');
   Logger.log('========================================');
+}
+
+
+// ---------- עדכון עמודות חסרות בגיליון גבייה קיים ----------
+
+function ensureBillingColumns_(billingSheet) {
+  var lastCol = billingSheet.getLastColumn();
+  var headers = billingSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+
+  var hasActualAmount = false;
+  var hasActualDate = false;
+
+  for (var i = 0; i < headers.length; i++) {
+    var h = headers[i].toString().trim();
+    if (h === 'סכום ששולם בפועל') hasActualAmount = true;
+    if (h === 'תאריך תשלום בפועל') hasActualDate = true;
+  }
+
+  if (!hasActualAmount) {
+    billingSheet.getRange(1, lastCol + 1).setValue('סכום ששולם בפועל');
+    billingSheet.getRange(1, lastCol + 1).setFontWeight('bold').setBackground('#4285f4').setFontColor('#ffffff');
+    lastCol++;
+    Logger.log('נוספה עמודה: סכום ששולם בפועל');
+  }
+
+  if (!hasActualDate) {
+    billingSheet.getRange(1, lastCol + 1).setValue('תאריך תשלום בפועל');
+    billingSheet.getRange(1, lastCol + 1).setFontWeight('bold').setBackground('#4285f4').setFontColor('#ffffff');
+    Logger.log('נוספה עמודה: תאריך תשלום בפועל');
+  }
 }
 
 

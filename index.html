@@ -1759,6 +1759,199 @@
         .edit-btn-save:hover { background: var(--primary-blue-hover); }
         .edit-btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
 
+        /* Payment Details Modal */
+        .pm-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1600;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .pm-overlay.show { display: flex; }
+        .pm-modal {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 720px;
+            margin: 20px auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+        .pm-header {
+            background: var(--primary-blue);
+            color: white;
+            padding: 20px 24px;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .pm-header h3 { margin: 0; font-size: 18px; }
+        .pm-close {
+            background: none; border: none; color: white;
+            font-size: 24px; cursor: pointer; padding: 0; line-height: 1; opacity: 0.8;
+        }
+        .pm-close:hover { opacity: 1; }
+        .pm-body {
+            padding: 24px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .pm-client-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: var(--gray-50);
+            border-radius: 12px;
+        }
+        .pm-summary-item { text-align: center; }
+        .pm-summary-label {
+            font-size: 11px;
+            color: var(--gray-400);
+            margin-bottom: 4px;
+        }
+        .pm-summary-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--gray-800);
+        }
+        .pm-list-header {
+            display: grid;
+            grid-template-columns: 40px 1fr 100px 100px 120px;
+            gap: 10px;
+            padding: 8px 16px;
+            font-size: 11px;
+            color: var(--gray-400);
+            font-weight: 600;
+            border-bottom: 2px solid var(--gray-200);
+        }
+        .pm-payment-row {
+            display: grid;
+            grid-template-columns: 40px 1fr 100px 100px 120px;
+            gap: 10px;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--gray-100);
+            transition: background 0.15s;
+        }
+        .pm-payment-row:hover { background: var(--gray-50); }
+        .pm-payment-row.completed { background: #f0fdf4; }
+        .pm-payment-row.overdue { background: #fef2f2; }
+        .pm-payment-row.cancelled { background: #f9fafb; opacity: 0.6; }
+        .pm-month-num {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--gray-600);
+        }
+        .pm-payment-row.completed .pm-month-num {
+            background: #10b981;
+            color: white;
+        }
+        .pm-payment-row.overdue .pm-month-num {
+            background: #ef4444;
+            color: white;
+        }
+        .pm-amount-input {
+            width: 90px;
+            padding: 6px 10px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-family: 'Heebo', sans-serif;
+            font-size: 13px;
+            text-align: center;
+            direction: ltr;
+        }
+        .pm-mark-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: none;
+            font-family: 'Heebo', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .pm-mark-btn.mark-done { background: #10b981; color: white; }
+        .pm-mark-btn.mark-done:hover { background: #059669; }
+        .pm-mark-btn.already-done {
+            background: var(--gray-100);
+            color: #10b981;
+            cursor: default;
+            font-size: 11px;
+        }
+        .pm-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 12px;
+            justify-content: space-between;
+        }
+        .pm-accounting {
+            margin-top: 16px;
+            padding: 16px;
+            background: #f0f9ff;
+            border-radius: 12px;
+            border: 1px solid #bae6fd;
+        }
+        .pm-accounting-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 14px;
+        }
+        .pm-accounting-row.total {
+            border-top: 2px solid var(--primary-blue);
+            margin-top: 8px;
+            padding-top: 10px;
+            font-weight: 700;
+        }
+        .bm-quick-mark {
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-family: 'Heebo', sans-serif;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .bm-quick-mark:hover { background: #059669; }
+        .bm-quick-mark:disabled { opacity: 0.5; cursor: not-allowed; }
+        .bm-payments-btn {
+            background: none;
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-family: 'Heebo', sans-serif;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .bm-payments-btn:hover { background: var(--primary-blue); color: white; }
+        @media (max-width: 600px) {
+            .pm-client-summary { grid-template-columns: repeat(2, 1fr); }
+            .pm-list-header,
+            .pm-payment-row { grid-template-columns: 32px 1fr 80px 90px; }
+            .pm-list-header .pm-date-col,
+            .pm-payment-row .pm-date-col { display: none; }
+        }
+
         /* Password Popup */
         .pw-popup-overlay {
             display: none;
@@ -2625,6 +2818,16 @@
                     <div style="font-size: 11px; color: var(--gray-400); margin-top: 4px;">למקרה שהלקוח כבר שילם חלק מהתשלומים לפני ההכנסה למערכת</div>
                 </div>
 
+                <!-- טבלת סכומים לכל חודש -->
+                <div id="billingAmountsPreview" style="display:none;margin-top:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <label style="font-weight:600;font-size:13px;color:var(--gray-700);">פירוט סכומים לכל חודש</label>
+                        <button type="button" onclick="toggleAmountsTable()" id="billingAmountsToggle" style="background:none;border:1px solid var(--primary-blue);color:var(--primary-blue);border-radius:6px;padding:4px 12px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;">ערוך סכומים</button>
+                    </div>
+                    <div id="billingAmountsTable" style="display:none;max-height:250px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:8px;padding:8px;background:var(--gray-50);"></div>
+                    <div id="billingAmountsSummary" style="font-size:12px;color:var(--gray-500);margin-top:4px;"></div>
+                </div>
+
                 <div class="billing-section-title">פרטי כרטיס אשראי</div>
                 <div style="font-size: 11px; color: var(--gray-400); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -2855,6 +3058,38 @@
             <div class="edit-modal-footer">
                 <button class="edit-btn-cancel" onclick="closeEditModal()">ביטול</button>
                 <button class="edit-btn-save" id="editSaveBtn" onclick="saveEditBilling()">שמור שינויים</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Details Modal -->
+    <div id="pmOverlay" class="pm-overlay" onclick="if(event.target===this) closePaymentModal()">
+        <div class="pm-modal">
+            <div class="pm-header">
+                <h3 id="pmTitle">פירוט תשלומים</h3>
+                <button class="pm-close" onclick="closePaymentModal()">&times;</button>
+            </div>
+            <div class="pm-body" id="pmBody">
+                <div class="pm-client-summary" id="pmClientSummary"></div>
+                <div class="pm-list-header">
+                    <div>#</div>
+                    <div>תאריך חיוב</div>
+                    <div style="text-align:center;">סכום מתוכנן</div>
+                    <div style="text-align:center;">שולם בפועל</div>
+                    <div></div>
+                </div>
+                <div id="pmPaymentsList"></div>
+                <div class="pm-accounting" id="pmAccounting"></div>
+            </div>
+            <div class="pm-footer">
+                <div style="display:flex;gap:8px;">
+                    <button class="edit-btn-cancel" onclick="closePaymentModal()">סגור</button>
+                    <button onclick="cancelBillingSeriesUI()" style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:8px;padding:8px 16px;font-family:Heebo,sans-serif;font-size:13px;cursor:pointer;font-weight:600;">ביטול סדרה</button>
+                    <button onclick="extendBillingSeriesUI()" style="background:none;border:1px solid var(--primary-blue);color:var(--primary-blue);border-radius:8px;padding:8px 16px;font-family:Heebo,sans-serif;font-size:13px;cursor:pointer;font-weight:600;">הוסף חודשים</button>
+                </div>
+                <button class="edit-btn-save" id="pmMarkAllBtn" onclick="markNextPayment()" style="background:#10b981;">
+                    סמן תשלום הבא כבוצע
+                </button>
             </div>
         </div>
     </div>
@@ -4266,6 +4501,18 @@
             document.getElementById('billingCardType').value = '';
             document.getElementById('billingAutocomplete').classList.remove('show');
 
+            // Reset amounts preview
+            document.getElementById('billingAmountsPreview').style.display = 'none';
+            document.getElementById('billingAmountsTable').style.display = 'none';
+            document.getElementById('billingAmountsTable').innerHTML = '';
+            document.getElementById('billingAmountsSummary').innerHTML = '';
+            var toggleBtn = document.getElementById('billingAmountsToggle');
+            if (toggleBtn) {
+                toggleBtn.textContent = 'ערוך סכומים';
+                toggleBtn.style.background = 'none';
+                toggleBtn.style.color = 'var(--primary-blue)';
+            }
+
             // Restore form view (in case success was shown)
             document.getElementById('billingModalBody').style.display = '';
             document.getElementById('billingModalFooter').style.display = '';
@@ -4367,6 +4614,11 @@
                     }
                 }
 
+                const billingIdPrefix = 'BIL-' + Date.now();
+
+                // בדיקה אם יש סכומים מותאמים לכל חודש
+                const monthlyAmounts = getMonthlyAmountsFromTable();
+
                 const billingData = {
                     clientName: clientName,
                     phone: document.getElementById('billingPhone').value || '',
@@ -4395,7 +4647,12 @@
                     cardHolder: cardHolder,
                     cardType: cardType,
                     createdBy: currentUser || 'לא ידוע',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    billingIdPrefix: billingIdPrefix,
+                    totalActualPaid: 0,
+                    completedPaymentsCount: 0,
+                    lastPaymentDate: null,
+                    monthlyAmounts: monthlyAmounts || null
                 };
 
                 // שמירה ב-Firestore
@@ -4405,6 +4662,8 @@
                 const webhookData = {
                     ...billingData,
                     action: 'addRecurringBilling',
+                    billingIdPrefix: billingIdPrefix,
+                    monthlyAmounts: monthlyAmounts ? JSON.stringify(monthlyAmounts) : null,
                     timestamp: new Date().toISOString()
                 };
 
@@ -4589,10 +4848,15 @@
                 const totalMonths = parseInt(c.recurringMonthsCount) || 0;
                 const totalDeal = amount * totalMonths;
 
-                // Calculate paid months based on start date
-                const paidMonths = calculatePaidMonths(c);
-                totalPaid += amount * paidMonths;
-                totalRemaining += totalDeal - (amount * paidMonths);
+                // שימוש בנתונים אמיתיים אם קיימים, אחרת fallback לחישוב אוטומטי
+                if (c.totalActualPaid !== undefined && c.totalActualPaid !== null) {
+                    totalPaid += parseFloat(c.totalActualPaid) || 0;
+                    totalRemaining += totalDeal - (parseFloat(c.totalActualPaid) || 0);
+                } else {
+                    const paidMonths = calculatePaidMonths(c);
+                    totalPaid += amount * paidMonths;
+                    totalRemaining += totalDeal - (amount * paidMonths);
+                }
             });
 
             document.getElementById('bmStatTotal').textContent = active.length;
@@ -4718,8 +4982,12 @@
                 const amount = parseFloat(c.recurringMonthlyAmount) || 0;
                 const totalMonths = parseInt(c.recurringMonthsCount) || 0;
                 const totalDeal = amount * totalMonths;
-                const paidMonths = calculatePaidMonths(c);
-                const paidAmount = amount * paidMonths;
+                const paidMonths = (c.completedPaymentsCount !== undefined && c.completedPaymentsCount !== null)
+                    ? parseInt(c.completedPaymentsCount)
+                    : calculatePaidMonths(c);
+                const paidAmount = (c.totalActualPaid !== undefined && c.totalActualPaid !== null)
+                    ? parseFloat(c.totalActualPaid)
+                    : amount * paidMonths;
                 const progressPct = totalMonths > 0 ? Math.round((paidMonths / totalMonths) * 100) : 0;
                 const nextDate = getNextReminderDate(c);
 
@@ -4744,7 +5012,11 @@
                     '</td>' +
                     '<td style="font-size:12px;">' + formatDate(nextDate) + '</td>' +
                     '<td style="white-space:nowrap;">' +
-                        '<div style="display:flex;gap:6px;">' +
+                        '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+                            '<button class="bm-payments-btn" onclick="openPaymentModal(\'' + c.id + '\')">תשלומים</button>' +
+                            ((c.status || 'פעיל') === 'פעיל'
+                                ? '<button class="bm-quick-mark" onclick="quickMarkPayment(\'' + c.id + '\')">סמן תשלום</button>'
+                                : '') +
                             '<button onclick="openEditModal(\'' + c.id + '\')" style="background:none;border:1px solid var(--gray-300);color:var(--gray-500);border-radius:6px;padding:4px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;">עריכה</button>' +
                             '<a href="https://merchant.sensepass.com/apps/transactions/list" target="_blank" style="background:none;border:1px solid #10b981;color:#10b981;border-radius:6px;padding:4px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;">סליקה</a>' +
                             (c.cardEncrypted ? '<button onclick="revealAndCopy(\'' + c.id + '\')" style="background:none;border:1px solid #f59e0b;color:#f59e0b;border-radius:6px;padding:4px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;">העתק כרטיס</button>' : '') +
@@ -4760,8 +5032,12 @@
                 const amount = parseFloat(c.recurringMonthlyAmount) || 0;
                 const totalMonths = parseInt(c.recurringMonthsCount) || 0;
                 const totalDeal = amount * totalMonths;
-                const paidMonths = calculatePaidMonths(c);
-                const paidAmount = amount * paidMonths;
+                const paidMonths = (c.completedPaymentsCount !== undefined && c.completedPaymentsCount !== null)
+                    ? parseInt(c.completedPaymentsCount)
+                    : calculatePaidMonths(c);
+                const paidAmount = (c.totalActualPaid !== undefined && c.totalActualPaid !== null)
+                    ? parseFloat(c.totalActualPaid)
+                    : amount * paidMonths;
                 const remainingAmount = Math.max(0, totalDeal - paidAmount);
                 const progressPct = totalMonths > 0 ? Math.round((paidMonths / totalMonths) * 100) : 0;
                 const nextDate = getNextReminderDate(c);
@@ -4812,9 +5088,15 @@
                         '<div class="bm-card-progress-bar"><div class="bm-card-progress-fill' + progressClass + '" style="width:' + progressPct + '%"></div></div>' +
                     '</div>' +
                     (nextDate ? '<div style="margin-top:10px;font-size:11px;color:var(--gray-400);">תזכורת הבאה: ' + formatDate(nextDate) + '</div>' : '') +
-                    '<div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--gray-100);">' +
-                        '<a href="https://merchant.sensepass.com/apps/transactions/list" target="_blank" style="flex:1;text-align:center;background:#10b981;color:white;border:none;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;text-decoration:none;display:inline-block;">סליקת אשראי</a>' +
-                        (c.cardEncrypted ? '<button onclick="revealAndCopy(\'' + c.id + '\')" style="flex:1;background:none;border:1px solid #f59e0b;color:#f59e0b;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">העתק פרטי כרטיס</button>' : '') +
+                    '<div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--gray-100);flex-wrap:wrap;">' +
+                        '<button onclick="openPaymentModal(\'' + c.id + '\')" style="flex:1;text-align:center;background:var(--primary-blue);color:white;border:none;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">פירוט תשלומים</button>' +
+                        ((c.status || 'פעיל') === 'פעיל'
+                            ? '<button onclick="quickMarkPayment(\'' + c.id + '\')" style="flex:1;text-align:center;background:#10b981;color:white;border:none;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">סמן תשלום</button>'
+                            : '') +
+                    '</div>' +
+                    '<div style="display:flex;gap:8px;margin-top:8px;">' +
+                        '<a href="https://merchant.sensepass.com/apps/transactions/list" target="_blank" style="flex:1;text-align:center;background:none;border:1px solid #10b981;color:#10b981;border-radius:8px;padding:6px;font-size:11px;font-family:Heebo,sans-serif;font-weight:600;text-decoration:none;display:inline-block;">סליקת אשראי</a>' +
+                        (c.cardEncrypted ? '<button onclick="revealAndCopy(\'' + c.id + '\')" style="flex:1;background:none;border:1px solid #f59e0b;color:#f59e0b;border-radius:8px;padding:6px;font-size:11px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">העתק כרטיס</button>' : '') +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -5083,6 +5365,28 @@
 
                 await db.collection('recurring_billing').doc(docId).update(updateData);
 
+                // סנכרון שינויים ל-Google Sheets
+                const clientDoc = await db.collection('recurring_billing').doc(docId).get();
+                const clientData = clientDoc.data();
+                if (clientData.billingIdPrefix) {
+                    const WEBHOOK_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
+                    fetch(WEBHOOK_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'updateClientInBilling',
+                            billingIdPrefix: clientData.billingIdPrefix,
+                            clientName: clientName,
+                            phone: updateData.phone,
+                            email: updateData.email,
+                            idNumber: updateData.idNumber,
+                            attorney: updateData.attorney,
+                            caseNumber: updateData.caseNumber
+                        })
+                    });
+                }
+
                 closeEditModal();
                 loadBillingData(); // רענון התצוגה
             } catch (error) {
@@ -5092,6 +5396,726 @@
 
             saveBtn.disabled = false;
             saveBtn.textContent = 'שמור שינויים';
+        }
+
+        // ========== מודאל פירוט תשלומים ==========
+
+        let currentPaymentDocId = null;
+        let currentPayments = [];
+
+        async function openPaymentModal(docId) {
+            currentPaymentDocId = docId;
+            const overlay = document.getElementById('pmOverlay');
+
+            try {
+                const clientDoc = await db.collection('recurring_billing').doc(docId).get();
+                if (!clientDoc.exists) {
+                    alert('הלקוח לא נמצא');
+                    return;
+                }
+                const client = { id: docId, ...clientDoc.data() };
+                document.getElementById('pmTitle').textContent = 'תשלומים - ' + (client.clientName || '');
+
+                // טעינת תשלומים מ-Firebase subcollection
+                const paymentsSnap = await db.collection('recurring_billing').doc(docId)
+                    .collection('payments').orderBy('monthNumber', 'asc').get();
+
+                if (paymentsSnap.empty) {
+                    // מיגרציה חד-פעמית: יצירת מסמכי תשלומים מנתוני הלקוח
+                    await generatePaymentDocs(docId, client);
+                    const snap2 = await db.collection('recurring_billing').doc(docId)
+                        .collection('payments').orderBy('monthNumber', 'asc').get();
+                    currentPayments = [];
+                    snap2.forEach(function(d) { currentPayments.push({ id: d.id, ...d.data() }); });
+                } else {
+                    currentPayments = [];
+                    paymentsSnap.forEach(function(d) { currentPayments.push({ id: d.id, ...d.data() }); });
+                }
+
+                // סנכרון מ-Google Sheets (לזיהוי תשלומים שסומנו מהמייל או מהגיליון)
+                if (client.billingIdPrefix) {
+                    await reconcilePaymentsFromSheets(client.billingIdPrefix, docId, currentPayments);
+                    // טעינה מחדש אחרי סנכרון
+                    const refreshSnap = await db.collection('recurring_billing').doc(docId)
+                        .collection('payments').orderBy('monthNumber', 'asc').get();
+                    currentPayments = [];
+                    refreshSnap.forEach(function(d) { currentPayments.push({ id: d.id, ...d.data() }); });
+                }
+
+                renderPaymentModal(client, currentPayments);
+                overlay.classList.add('show');
+
+            } catch (error) {
+                console.error('Error opening payment modal:', error);
+                alert('שגיאה בטעינת תשלומים: ' + error.message);
+            }
+        }
+
+        async function reconcilePaymentsFromSheets(billingIdPrefix, docId, firebasePayments) {
+            try {
+                const WEBAPP_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
+                const url = WEBAPP_URL + '?action=getPayments&prefix=' + encodeURIComponent(billingIdPrefix);
+                const response = await fetch(url);
+                if (!response.ok) return;
+                const data = await response.json();
+                if (!data.success || !data.payments) return;
+
+                var sheetsPayments = data.payments;
+                var updatedCount = 0;
+
+                for (var i = 0; i < sheetsPayments.length; i++) {
+                    var sp = sheetsPayments[i];
+                    if (sp.status !== 'בוצע') continue;
+
+                    // מציאת התשלום המתאים ב-Firebase לפי billingIdSuffix
+                    var fbPayment = firebasePayments.find(function(fp) {
+                        return fp.billingIdSuffix === sp.billingId && fp.status !== 'בוצע';
+                    });
+
+                    if (fbPayment) {
+                        // עדכון Firebase - תשלום סומן כבוצע בגיליון/מייל אבל לא ב-Firebase
+                        var payRef = db.collection('recurring_billing').doc(docId)
+                            .collection('payments').doc(fbPayment.id);
+                        await payRef.update({
+                            status: 'בוצע',
+                            actualAmountPaid: sp.actualAmountPaid || sp.plannedAmount,
+                            actualPaymentDate: sp.actualPaymentDate || sp.completionDate,
+                            completedBy: sp.completedBy || 'sheets-sync',
+                            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        updatedCount++;
+                    }
+                }
+
+                if (updatedCount > 0) {
+                    // עדכון סיכום הלקוח
+                    var allPaySnap = await db.collection('recurring_billing').doc(docId)
+                        .collection('payments').get();
+                    var totalPaid = 0;
+                    var completedCount = 0;
+                    allPaySnap.forEach(function(d) {
+                        var p = d.data();
+                        if (p.status === 'בוצע') {
+                            totalPaid += parseFloat(p.actualAmountPaid) || parseFloat(p.plannedAmount) || 0;
+                            completedCount++;
+                        }
+                    });
+                    await db.collection('recurring_billing').doc(docId).update({
+                        totalActualPaid: totalPaid,
+                        completedPaymentsCount: completedCount
+                    });
+                    console.log('סנכרון: עודכנו ' + updatedCount + ' תשלומים מהגיליון');
+                }
+            } catch (error) {
+                console.log('שגיאה בסנכרון מגיליון (לא קריטי):', error.message);
+            }
+        }
+
+        async function generatePaymentDocs(docId, client) {
+            const amount = parseFloat(client.recurringMonthlyAmount) || 0;
+            const totalMonths = parseInt(client.recurringMonthsCount) || 0;
+            const startStr = client.recurringStartDate;
+            if (!startStr || !totalMonths) return;
+
+            const start = new Date(startStr);
+            const dayOfMonth = parseInt(client.recurringDayOfMonth) || 1;
+            const paidAlready = parseInt(client.paidMonthsAlready) || 0;
+            const billingPrefix = client.billingIdPrefix || '';
+
+            // בדיקה אם יש סכומים מותאמים לכל חודש
+            let monthlyAmounts = null;
+            if (client.monthlyAmounts && Array.isArray(client.monthlyAmounts)) {
+                monthlyAmounts = client.monthlyAmounts;
+            }
+
+            const batch = db.batch();
+
+            for (let i = 0; i < totalMonths; i++) {
+                const chargeDate = new Date(start.getFullYear(), start.getMonth() + i, dayOfMonth);
+                if (chargeDate.getDate() !== dayOfMonth) {
+                    chargeDate.setDate(0);
+                }
+
+                const thisMonthAmount = (monthlyAmounts && monthlyAmounts[i] !== undefined)
+                    ? parseFloat(monthlyAmounts[i]) : amount;
+                const isAlreadyPaid = i < paidAlready;
+                const payRef = db.collection('recurring_billing').doc(docId)
+                    .collection('payments').doc();
+
+                batch.set(payRef, {
+                    monthNumber: i + 1,
+                    plannedAmount: thisMonthAmount,
+                    plannedDate: chargeDate.toISOString().split('T')[0],
+                    billingIdSuffix: billingPrefix ? billingPrefix + '-' + (i + 1) : '',
+                    status: isAlreadyPaid ? 'בוצע' : 'ממתין',
+                    actualAmountPaid: isAlreadyPaid ? thisMonthAmount : null,
+                    actualPaymentDate: isAlreadyPaid ? chargeDate.toISOString().split('T')[0] : null,
+                    completedBy: isAlreadyPaid ? 'מיגרציה' : null,
+                    completedAt: isAlreadyPaid ? firebase.firestore.FieldValue.serverTimestamp() : null,
+                    notes: ''
+                });
+            }
+
+            await batch.commit();
+
+            // עדכון שדות סיכום בלקוח
+            let paidTotal = 0;
+            for (let i = 0; i < paidAlready; i++) {
+                paidTotal += (monthlyAmounts && monthlyAmounts[i] !== undefined)
+                    ? parseFloat(monthlyAmounts[i]) : amount;
+            }
+            await db.collection('recurring_billing').doc(docId).update({
+                totalActualPaid: paidTotal,
+                completedPaymentsCount: paidAlready,
+                billingIdPrefix: billingPrefix || ''
+            });
+        }
+
+        function formatDateHebrew(dateStr) {
+            if (!dateStr) return '';
+            try {
+                const d = new Date(dateStr);
+                if (isNaN(d.getTime())) return dateStr;
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = d.getFullYear();
+                return day + '/' + month + '/' + year;
+            } catch(e) {
+                return dateStr;
+            }
+        }
+
+        function renderPaymentModal(client, payments) {
+            const amount = parseFloat(client.recurringMonthlyAmount) || 0;
+            const totalPlanned = payments.reduce(function(sum, p) { return sum + (parseFloat(p.plannedAmount) || amount); }, 0);
+            const completedPayments = payments.filter(function(p) { return p.status === 'בוצע'; });
+            const totalActualPaid = completedPayments.reduce(function(sum, p) {
+                return sum + (parseFloat(p.actualAmountPaid) || parseFloat(p.plannedAmount) || 0);
+            }, 0);
+            const remaining = totalPlanned - totalActualPaid;
+            const completedCount = completedPayments.length;
+            const totalMonths = payments.length;
+
+            // סרגל סיכום
+            document.getElementById('pmClientSummary').innerHTML =
+                '<div class="pm-summary-item">' +
+                    '<div class="pm-summary-label">סה"כ עסקה</div>' +
+                    '<div class="pm-summary-value">₪' + totalPlanned.toLocaleString('he-IL') + '</div>' +
+                '</div>' +
+                '<div class="pm-summary-item">' +
+                    '<div class="pm-summary-label">שולם בפועל</div>' +
+                    '<div class="pm-summary-value" style="color:#10b981;">₪' + totalActualPaid.toLocaleString('he-IL') + '</div>' +
+                '</div>' +
+                '<div class="pm-summary-item">' +
+                    '<div class="pm-summary-label">יתרה</div>' +
+                    '<div class="pm-summary-value" style="color:#ef4444;">₪' + Math.max(0, remaining).toLocaleString('he-IL') + '</div>' +
+                '</div>' +
+                '<div class="pm-summary-item">' +
+                    '<div class="pm-summary-label">תשלומים</div>' +
+                    '<div class="pm-summary-value">' + completedCount + '/' + totalMonths + '</div>' +
+                '</div>';
+
+            // רשימת תשלומים
+            var container = document.getElementById('pmPaymentsList');
+            container.innerHTML = payments.map(function(p) {
+                var isCompleted = p.status === 'בוצע';
+                var isOverdue = p.status === 'באיחור';
+                var isCancelled = p.status === 'בוטל';
+                var rowClass = isCompleted ? 'completed' : (isOverdue ? 'overdue' : (isCancelled ? 'cancelled' : ''));
+                var plannedAmt = parseFloat(p.plannedAmount) || amount;
+
+                // בדיקה אם תאריך חלף (לסימון אוטומטי כבאיחור)
+                if (!isCompleted && !isCancelled && !isOverdue && p.plannedDate) {
+                    var pDate = new Date(p.plannedDate);
+                    var today = new Date();
+                    today.setHours(0,0,0,0);
+                    if (pDate < today) {
+                        rowClass = 'overdue';
+                    }
+                }
+
+                return '<div class="pm-payment-row ' + rowClass + '" data-payment-id="' + p.id + '">' +
+                    '<div class="pm-month-num">' + p.monthNumber + '</div>' +
+                    '<div style="font-size:13px;">' +
+                        formatDateHebrew(p.plannedDate) +
+                        (isCompleted && p.actualPaymentDate ?
+                            '<br><span style="font-size:11px;color:var(--gray-400);">שולם: ' + formatDateHebrew(p.actualPaymentDate) + '</span>' : '') +
+                    '</div>' +
+                    '<div style="text-align:center;">' +
+                        (isCompleted || isCancelled
+                            ? '<span style="font-size:13px;">₪' + plannedAmt.toLocaleString('he-IL') + '</span>'
+                            : '<input type="number" class="pm-amount-input" value="' + plannedAmt + '" ' +
+                              'onchange="updatePlannedAmount(\'' + p.id + '\', this.value)" min="0" step="0.01">') +
+                    '</div>' +
+                    '<div style="text-align:center;font-size:13px;">' +
+                        (isCompleted
+                            ? '<span style="color:#10b981;font-weight:600;">₪' +
+                              (parseFloat(p.actualAmountPaid) || plannedAmt).toLocaleString('he-IL') + '</span>'
+                            : '<span style="color:var(--gray-300);">—</span>') +
+                    '</div>' +
+                    '<div style="text-align:center;">' +
+                        (isCompleted
+                            ? '<span class="pm-mark-btn already-done">&#10004; בוצע</span>'
+                            : (isCancelled
+                                ? '<span style="color:var(--gray-400);font-size:11px;">בוטל</span>'
+                                : '<button class="pm-mark-btn mark-done" onclick="markSinglePayment(\'' +
+                                  currentPaymentDocId + '\',\'' + p.id + '\')">סמן כבוצע</button>')) +
+                    '</div>' +
+                '</div>';
+            }).join('');
+
+            // סיכום חשבונאי
+            renderAccountingSummary(client, payments);
+
+            // עדכון כפתור "סמן הבא"
+            var nextPending = payments.find(function(p) { return p.status === 'ממתין' || p.status === 'באיחור'; });
+            var markBtn = document.getElementById('pmMarkAllBtn');
+            if (!nextPending) {
+                markBtn.disabled = true;
+                markBtn.textContent = 'כל התשלומים בוצעו';
+            } else {
+                markBtn.disabled = false;
+                markBtn.textContent = 'סמן תשלום #' + nextPending.monthNumber + ' כבוצע';
+            }
+        }
+
+        function renderAccountingSummary(client, payments) {
+            var amount = parseFloat(client.recurringMonthlyAmount) || 0;
+            var totalPlanned = payments.reduce(function(sum, p) { return sum + (parseFloat(p.plannedAmount) || amount); }, 0);
+            var completedPayments = payments.filter(function(p) { return p.status === 'בוצע'; });
+            var totalActualPaid = completedPayments.reduce(function(sum, p) {
+                return sum + (parseFloat(p.actualAmountPaid) || parseFloat(p.plannedAmount) || 0);
+            }, 0);
+            var totalPlannedForCompleted = completedPayments.reduce(function(sum, p) {
+                return sum + (parseFloat(p.plannedAmount) || 0);
+            }, 0);
+            var difference = totalActualPaid - totalPlannedForCompleted;
+            var remaining = totalPlanned - totalActualPaid;
+
+            document.getElementById('pmAccounting').innerHTML =
+                '<div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--primary-blue);">סיכום חשבונאי</div>' +
+                '<div class="pm-accounting-row">' +
+                    '<span>סה"כ מתוכנן (כל התשלומים)</span>' +
+                    '<span>₪' + totalPlanned.toLocaleString('he-IL') + '</span>' +
+                '</div>' +
+                '<div class="pm-accounting-row">' +
+                    '<span>סה"כ שולם בפועל</span>' +
+                    '<span style="color:#10b981;">₪' + totalActualPaid.toLocaleString('he-IL') + '</span>' +
+                '</div>' +
+                (difference !== 0 ?
+                '<div class="pm-accounting-row">' +
+                    '<span>הפרש (בפועל לעומת מתוכנן)</span>' +
+                    '<span style="color:' + (difference >= 0 ? '#10b981' : '#ef4444') + ';">₪' +
+                    difference.toLocaleString('he-IL') + '</span>' +
+                '</div>' : '') +
+                '<div class="pm-accounting-row total">' +
+                    '<span>יתרת גבייה</span>' +
+                    '<span style="color:#ef4444;">₪' + Math.max(0, remaining).toLocaleString('he-IL') + '</span>' +
+                '</div>';
+        }
+
+        async function markSinglePayment(clientDocId, paymentDocId) {
+            var paymentRow = document.querySelector('[data-payment-id="' + paymentDocId + '"]');
+            var amountInput = paymentRow ? paymentRow.querySelector('.pm-amount-input') : null;
+            var payData = currentPayments.find(function(p) { return p.id === paymentDocId; });
+            var plannedAmount = amountInput ? parseFloat(amountInput.value) : (payData ? parseFloat(payData.plannedAmount) : 0);
+
+            // prompt לסכום בפועל
+            var actualAmountStr = prompt('סכום ששולם בפועל:', plannedAmount ? plannedAmount.toString() : '');
+            if (actualAmountStr === null) return;
+
+            var actualAmount = parseFloat(actualAmountStr);
+            if (isNaN(actualAmount) || actualAmount < 0) {
+                alert('סכום לא תקין');
+                return;
+            }
+
+            // prompt לתאריך תשלום
+            var today = new Date().toISOString().split('T')[0];
+            var actualDate = prompt('תאריך תשלום (YYYY-MM-DD):', today);
+            if (actualDate === null) return;
+
+            try {
+                // 1. עדכון Firebase subcollection
+                var payRef = db.collection('recurring_billing').doc(clientDocId)
+                    .collection('payments').doc(paymentDocId);
+
+                await payRef.update({
+                    status: 'בוצע',
+                    actualAmountPaid: actualAmount,
+                    actualPaymentDate: actualDate,
+                    completedBy: currentUser || 'webapp',
+                    completedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // 2. עדכון שדות סיכום בלקוח
+                var clientRef = db.collection('recurring_billing').doc(clientDocId);
+                var clientDoc = await clientRef.get();
+                var clientData = clientDoc.data();
+                var prevTotal = parseFloat(clientData.totalActualPaid) || 0;
+                var prevCount = parseInt(clientData.completedPaymentsCount) || 0;
+
+                await clientRef.update({
+                    totalActualPaid: prevTotal + actualAmount,
+                    completedPaymentsCount: prevCount + 1,
+                    lastPaymentDate: actualDate
+                });
+
+                // 3. סנכרון ל-Google Sheets
+                var billingIdSuffix = payData ? payData.billingIdSuffix : '';
+                if (billingIdSuffix) {
+                    var WEBHOOK_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
+                    fetch(WEBHOOK_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'markPaymentCompleted',
+                            billingId: billingIdSuffix,
+                            rowIndex: 0,
+                            actualAmount: actualAmount,
+                            actualDate: actualDate
+                        })
+                    });
+                }
+
+                // 4. רענון המודאל
+                await openPaymentModal(clientDocId);
+
+            } catch (error) {
+                console.error('Error marking payment:', error);
+                alert('שגיאה בסימון תשלום: ' + error.message);
+            }
+        }
+
+        async function updatePlannedAmount(paymentDocId, newValue) {
+            var newAmount = parseFloat(newValue);
+            if (isNaN(newAmount) || newAmount < 0) return;
+
+            try {
+                var payRef = db.collection('recurring_billing').doc(currentPaymentDocId)
+                    .collection('payments').doc(paymentDocId);
+                var payDoc = await payRef.get();
+                var payData = payDoc.data();
+
+                await payRef.update({ plannedAmount: newAmount });
+
+                // סנכרון ל-Google Sheets
+                if (payData.billingIdSuffix) {
+                    var WEBHOOK_URL = window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK;
+                    fetch(WEBHOOK_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'updatePaymentAmount',
+                            billingId: payData.billingIdSuffix,
+                            newAmount: newAmount
+                        })
+                    });
+                }
+            } catch (error) {
+                console.error('Error updating amount:', error);
+            }
+        }
+
+        async function markNextPayment() {
+            var nextPending = currentPayments.find(function(p) { return p.status === 'ממתין' || p.status === 'באיחור'; });
+            if (!nextPending) {
+                alert('אין תשלומים ממתינים');
+                return;
+            }
+            await markSinglePayment(currentPaymentDocId, nextPending.id);
+        }
+
+        function closePaymentModal() {
+            document.getElementById('pmOverlay').classList.remove('show');
+            currentPaymentDocId = null;
+            currentPayments = [];
+            loadBillingData();
+        }
+
+        async function quickMarkPayment(docId) {
+            try {
+                var snap = await db.collection('recurring_billing').doc(docId)
+                    .collection('payments').orderBy('monthNumber', 'asc').get();
+
+                if (snap.empty) {
+                    openPaymentModal(docId);
+                    return;
+                }
+
+                var payments = [];
+                snap.forEach(function(d) { payments.push({ id: d.id, ...d.data() }); });
+
+                var next = payments.find(function(p) { return p.status === 'ממתין' || p.status === 'באיחור'; });
+                if (!next) {
+                    alert('אין תשלומים ממתינים');
+                    return;
+                }
+
+                var planned = parseFloat(next.plannedAmount) || 0;
+                if (!confirm('לסמן תשלום #' + next.monthNumber + ' (₪' + planned.toLocaleString('he-IL') + ') כבוצע?')) {
+                    return;
+                }
+
+                currentPaymentDocId = docId;
+                currentPayments = payments;
+                await markSinglePayment(docId, next.id);
+                currentPaymentDocId = null;
+                currentPayments = [];
+
+            } catch (error) {
+                console.error('Error in quick mark:', error);
+                alert('שגיאה: ' + error.message);
+            }
+        }
+
+        async function cancelBillingSeriesUI() {
+            if (!currentPaymentDocId) return;
+            var pendingCount = currentPayments.filter(function(p) { return p.status === 'ממתין' || p.status === 'באיחור'; }).length;
+            if (pendingCount === 0) {
+                alert('אין תשלומים ממתינים לביטול');
+                return;
+            }
+            if (!confirm('האם לבטל ' + pendingCount + ' תשלומים ממתינים? פעולה זו לא ניתנת לביטול.')) return;
+
+            try {
+                var batch = db.batch();
+                currentPayments.forEach(function(p) {
+                    if (p.status === 'ממתין' || p.status === 'באיחור') {
+                        var ref = db.collection('recurring_billing').doc(currentPaymentDocId)
+                            .collection('payments').doc(p.id);
+                        batch.update(ref, { status: 'בוטל' });
+                    }
+                });
+                await batch.commit();
+
+                // עדכון סטטוס לקוח
+                await db.collection('recurring_billing').doc(currentPaymentDocId).update({
+                    status: 'בוטל'
+                });
+
+                // סנכרון ל-Sheets
+                var clientDoc = await db.collection('recurring_billing').doc(currentPaymentDocId).get();
+                var billingPrefix = clientDoc.data().billingIdPrefix;
+                if (billingPrefix) {
+                    fetch(window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'cancelBillingSeries',
+                            billingIdPrefix: billingPrefix
+                        })
+                    });
+                }
+
+                alert('הסדרה בוטלה בהצלחה');
+                await openPaymentModal(currentPaymentDocId);
+            } catch (error) {
+                console.error('Error cancelling series:', error);
+                alert('שגיאה בביטול: ' + error.message);
+            }
+        }
+
+        async function extendBillingSeriesUI() {
+            if (!currentPaymentDocId) return;
+
+            var additionalMonths = prompt('כמה חודשים להוסיף?', '');
+            if (!additionalMonths || isNaN(parseInt(additionalMonths))) return;
+            additionalMonths = parseInt(additionalMonths);
+
+            var clientDoc = await db.collection('recurring_billing').doc(currentPaymentDocId).get();
+            var client = clientDoc.data();
+            var amount = parseFloat(client.recurringMonthlyAmount) || 0;
+
+            var amountStr = prompt('סכום חודשי לחודשים החדשים:', amount.toString());
+            if (!amountStr || isNaN(parseFloat(amountStr))) return;
+            var monthlyAmount = parseFloat(amountStr);
+
+            try {
+                // עדכון מספר חודשים כולל ב-Firebase
+                var currentTotal = parseInt(client.recurringMonthsCount) || currentPayments.length;
+                var newTotal = currentTotal + additionalMonths;
+                await db.collection('recurring_billing').doc(currentPaymentDocId).update({
+                    recurringMonthsCount: newTotal.toString(),
+                    status: 'פעיל'
+                });
+
+                // חישוב התאריך הבא לפי התשלום האחרון
+                var lastPayment = currentPayments[currentPayments.length - 1];
+                var lastDate = lastPayment ? new Date(lastPayment.plannedDate) : new Date();
+                var dayOfMonth = parseInt(client.recurringDayOfMonth) || lastDate.getDate();
+                var billingPrefix = client.billingIdPrefix || '';
+
+                // יצירת מסמכי תשלום חדשים ב-Firebase
+                var batch = db.batch();
+                for (var i = 0; i < additionalMonths; i++) {
+                    var monthIndex = currentTotal + i;
+                    var chargeDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + i + 1, dayOfMonth);
+                    if (chargeDate.getDate() !== dayOfMonth) {
+                        chargeDate.setDate(0);
+                    }
+
+                    var payRef = db.collection('recurring_billing').doc(currentPaymentDocId)
+                        .collection('payments').doc();
+                    batch.set(payRef, {
+                        monthNumber: monthIndex + 1,
+                        plannedAmount: monthlyAmount,
+                        plannedDate: chargeDate.toISOString().split('T')[0],
+                        billingIdSuffix: billingPrefix ? billingPrefix + '-' + (monthIndex + 1) : '',
+                        status: 'ממתין',
+                        actualAmountPaid: null,
+                        actualPaymentDate: null,
+                        completedBy: null,
+                        completedAt: null,
+                        notes: ''
+                    });
+                }
+                await batch.commit();
+
+                // סנכרון ל-Sheets
+                if (billingPrefix) {
+                    fetch(window.ENV_CONFIG.GOOGLE_SHEETS_WEBHOOK, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'extendBillingSeries',
+                            billingIdPrefix: billingPrefix,
+                            additionalMonths: additionalMonths,
+                            monthlyAmount: monthlyAmount,
+                            dayOfMonth: dayOfMonth,
+                            clientName: client.clientName || '',
+                            phone: client.phone || '',
+                            email: client.email || '',
+                            idNumber: client.idNumber || '',
+                            attorney: client.attorney || '',
+                            caseNumber: client.caseNumber || '',
+                            transactionType: client.transactionType || '',
+                            transactionDescription: client.transactionDescription || '',
+                            branch: client.branch || 'תל אביב'
+                        })
+                    });
+                }
+
+                alert('נוספו ' + additionalMonths + ' חודשים בהצלחה');
+                await openPaymentModal(currentPaymentDocId);
+            } catch (error) {
+                console.error('Error extending series:', error);
+                alert('שגיאה בהוספת חודשים: ' + error.message);
+            }
+        }
+
+        // === טבלת סכומים לכל חודש בטופס הוספה ===
+        function generateAmountsPreview() {
+            var amountInput = document.getElementById('billingAmount');
+            var monthsInput = document.getElementById('billingMonths');
+            var preview = document.getElementById('billingAmountsPreview');
+            var tableDiv = document.getElementById('billingAmountsTable');
+            var summaryDiv = document.getElementById('billingAmountsSummary');
+
+            var amount = parseFloat(amountInput.value);
+            var months = parseInt(monthsInput.value);
+
+            if (!amount || !months || months < 1) {
+                preview.style.display = 'none';
+                return;
+            }
+
+            preview.style.display = 'block';
+            var total = amount * months;
+            summaryDiv.innerHTML = '<strong>סה"כ עסקה:</strong> ₪' + total.toLocaleString('he-IL') + ' (' + months + ' תשלומים × ₪' + amount.toLocaleString('he-IL') + ')';
+
+            // Generate table rows
+            var startDate = document.getElementById('billingStartDate').value;
+            var dayOfMonth = parseInt(document.getElementById('billingDayOfMonth').value) || 1;
+            var baseDate = startDate ? new Date(startDate) : new Date();
+
+            var html = '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+            html += '<thead><tr style="background:var(--primary-blue);color:#fff;">';
+            html += '<th style="padding:6px 8px;border-radius:0 6px 0 0;text-align:center;">חודש</th>';
+            html += '<th style="padding:6px 8px;text-align:center;">תאריך חיוב</th>';
+            html += '<th style="padding:6px 8px;border-radius:6px 0 0 0;text-align:center;">סכום (₪)</th>';
+            html += '</tr></thead><tbody>';
+
+            for (var i = 0; i < months; i++) {
+                var chargeDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, dayOfMonth);
+                if (chargeDate.getDate() !== dayOfMonth) {
+                    chargeDate.setDate(0);
+                }
+                var dateStr = chargeDate.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                var bgColor = i % 2 === 0 ? '#fff' : 'var(--gray-50)';
+                html += '<tr style="background:' + bgColor + ';">';
+                html += '<td style="padding:6px 8px;text-align:center;font-weight:600;color:var(--primary-blue);">' + (i + 1) + '</td>';
+                html += '<td style="padding:6px 8px;text-align:center;color:var(--gray-600);">' + dateStr + '</td>';
+                html += '<td style="padding:4px 6px;text-align:center;">';
+                html += '<input type="number" class="billing-month-amount" data-month="' + i + '" value="' + amount + '" ';
+                html += 'style="width:80px;text-align:center;border:1px solid var(--gray-200);border-radius:4px;padding:3px 6px;font-size:12px;font-family:Heebo,sans-serif;" ';
+                html += 'onchange="updateAmountsSummary()">';
+                html += '</td></tr>';
+            }
+            html += '</tbody></table>';
+            tableDiv.innerHTML = html;
+
+            // If already open, keep it open
+            if (tableDiv.style.display === 'block') {
+                updateAmountsSummary();
+            }
+        }
+
+        function toggleAmountsTable() {
+            var tableDiv = document.getElementById('billingAmountsTable');
+            var toggleBtn = document.getElementById('billingAmountsToggle');
+            if (tableDiv.style.display === 'none' || !tableDiv.style.display) {
+                tableDiv.style.display = 'block';
+                toggleBtn.textContent = 'הסתר טבלה';
+                toggleBtn.style.background = 'var(--primary-blue)';
+                toggleBtn.style.color = '#fff';
+            } else {
+                tableDiv.style.display = 'none';
+                toggleBtn.textContent = 'ערוך סכומים';
+                toggleBtn.style.background = 'none';
+                toggleBtn.style.color = 'var(--primary-blue)';
+            }
+        }
+
+        function updateAmountsSummary() {
+            var inputs = document.querySelectorAll('.billing-month-amount');
+            var summaryDiv = document.getElementById('billingAmountsSummary');
+            var total = 0;
+            var allSame = true;
+            var firstVal = inputs.length > 0 ? parseFloat(inputs[0].value) : 0;
+
+            inputs.forEach(function(inp) {
+                var val = parseFloat(inp.value) || 0;
+                total += val;
+                if (val !== firstVal) allSame = false;
+            });
+
+            var text = '<strong>סה"כ עסקה:</strong> ₪' + total.toLocaleString('he-IL') + ' (' + inputs.length + ' תשלומים)';
+            if (!allSame) {
+                text += ' <span style="color:var(--primary-blue);font-weight:600;">⚡ תשלומים לא שווים</span>';
+            }
+            summaryDiv.innerHTML = text;
+        }
+
+        function getMonthlyAmountsFromTable() {
+            var inputs = document.querySelectorAll('.billing-month-amount');
+            if (inputs.length === 0) return null;
+
+            var baseAmount = parseFloat(document.getElementById('billingAmount').value) || 0;
+            var amounts = [];
+            var hasCustom = false;
+
+            inputs.forEach(function(inp) {
+                var val = parseFloat(inp.value) || 0;
+                amounts.push(val);
+                if (val !== baseAmount) hasCustom = true;
+            });
+
+            return hasCustom ? amounts : null;
         }
 
         // Card number formatting in edit modal
@@ -5110,6 +6134,25 @@
                     if (val.length >= 3) val = val.substring(0, 2) + '/' + val.substring(2);
                     e.target.value = val;
                 });
+            }
+
+            // Event listeners לטבלת סכומים בטופס הוספת גבייה
+            var billingAmountField = document.getElementById('billingAmount');
+            var billingMonthsField = document.getElementById('billingMonths');
+            var billingStartDateField = document.getElementById('billingStartDate');
+            var billingDayOfMonthField = document.getElementById('billingDayOfMonth');
+
+            if (billingAmountField) {
+                billingAmountField.addEventListener('input', generateAmountsPreview);
+            }
+            if (billingMonthsField) {
+                billingMonthsField.addEventListener('input', generateAmountsPreview);
+            }
+            if (billingStartDateField) {
+                billingStartDateField.addEventListener('change', generateAmountsPreview);
+            }
+            if (billingDayOfMonthField) {
+                billingDayOfMonthField.addEventListener('input', generateAmountsPreview);
             }
         });
 
