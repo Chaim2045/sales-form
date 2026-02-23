@@ -4876,7 +4876,8 @@
                     var amount = parseFloat(c.recurringMonthlyAmount) || 0;
                     var totalMonths = parseInt(c.recurringMonthsCount) || 0;
                     var paidMonths = parseInt(c.completedPaymentsCount) || parseInt(c.paidMonthsAlready) || 0;
-                    var totalDeal = amount * totalMonths;
+                    var totalDeal = (c.totalPlannedAmount !== undefined && c.totalPlannedAmount !== null)
+                        ? parseFloat(c.totalPlannedAmount) : amount * totalMonths;
                     var totalPaid = c.totalActualPaid !== undefined ? parseFloat(c.totalActualPaid) : amount * paidMonths;
                     var remaining = totalDeal - totalPaid;
 
@@ -5036,17 +5037,15 @@
             billingClients.forEach(c => {
                 const amount = parseFloat(c.recurringMonthlyAmount) || 0;
                 const totalMonths = parseInt(c.recurringMonthsCount) || 0;
-                const totalDeal = amount * totalMonths;
+                const totalDeal = (c.totalPlannedAmount !== undefined && c.totalPlannedAmount !== null)
+                    ? parseFloat(c.totalPlannedAmount)
+                    : amount * totalMonths;
+                const paid = (c.totalActualPaid !== undefined && c.totalActualPaid !== null)
+                    ? parseFloat(c.totalActualPaid) || 0
+                    : amount * calculatePaidMonths(c);
 
-                // שימוש בנתונים אמיתיים אם קיימים, אחרת fallback לחישוב אוטומטי
-                if (c.totalActualPaid !== undefined && c.totalActualPaid !== null) {
-                    totalPaid += parseFloat(c.totalActualPaid) || 0;
-                    totalRemaining += totalDeal - (parseFloat(c.totalActualPaid) || 0);
-                } else {
-                    const paidMonths = calculatePaidMonths(c);
-                    totalPaid += amount * paidMonths;
-                    totalRemaining += totalDeal - (amount * paidMonths);
-                }
+                totalPaid += paid;
+                totalRemaining += totalDeal - paid;
             });
 
             document.getElementById('bmStatTotal').textContent = active.length;
@@ -5171,7 +5170,9 @@
             tbody.innerHTML = clients.map(c => {
                 const amount = parseFloat(c.recurringMonthlyAmount) || 0;
                 const totalMonths = parseInt(c.recurringMonthsCount) || 0;
-                const totalDeal = amount * totalMonths;
+                const totalDeal = (c.totalPlannedAmount !== undefined && c.totalPlannedAmount !== null)
+                    ? parseFloat(c.totalPlannedAmount)
+                    : amount * totalMonths;
                 const paidMonths = (c.completedPaymentsCount !== undefined && c.completedPaymentsCount !== null)
                     ? parseInt(c.completedPaymentsCount)
                     : calculatePaidMonths(c);
@@ -5238,7 +5239,9 @@
             container.innerHTML = clients.map(c => {
                 const amount = parseFloat(c.recurringMonthlyAmount) || 0;
                 const totalMonths = parseInt(c.recurringMonthsCount) || 0;
-                const totalDeal = amount * totalMonths;
+                const totalDeal = (c.totalPlannedAmount !== undefined && c.totalPlannedAmount !== null)
+                    ? parseFloat(c.totalPlannedAmount)
+                    : amount * totalMonths;
                 const paidMonths = (c.completedPaymentsCount !== undefined && c.completedPaymentsCount !== null)
                     ? parseInt(c.completedPaymentsCount)
                     : calculatePaidMonths(c);
@@ -5747,26 +5750,7 @@
                     await batch.commit();
 
                     // עדכון שדות סיכום בלקוח
-                    var updatedSnap = await db.collection('recurring_billing').doc(docId)
-                        .collection('payments').get();
-                    var totalPaid = 0;
-                    var paidCount = 0;
-                    var lastDate = null;
-                    updatedSnap.forEach(function(doc) {
-                        var pd = doc.data();
-                        if (pd.status === 'בוצע') {
-                            totalPaid += parseFloat(pd.actualAmountPaid) || parseFloat(pd.plannedAmount) || 0;
-                            paidCount++;
-                            if (pd.actualPaymentDate && (!lastDate || pd.actualPaymentDate > lastDate)) {
-                                lastDate = pd.actualPaymentDate;
-                            }
-                        }
-                    });
-                    await db.collection('recurring_billing').doc(docId).update({
-                        totalActualPaid: totalPaid,
-                        completedPaymentsCount: paidCount,
-                        lastPaymentDate: lastDate || ''
-                    });
+                    await recalcClientSummary(docId);
                 }
             } catch (error) {
                 console.error('Error syncing payments after edit:', error);
@@ -5867,12 +5851,16 @@
 
             // עדכון שדות סיכום בלקוח
             let paidTotal = 0;
-            for (let i = 0; i < paidAlready; i++) {
-                paidTotal += (monthlyAmounts && monthlyAmounts[i] !== undefined)
+            let plannedTotal = 0;
+            for (let i = 0; i < totalMonths; i++) {
+                let thisAmount = (monthlyAmounts && monthlyAmounts[i] !== undefined)
                     ? parseFloat(monthlyAmounts[i]) : amount;
+                plannedTotal += thisAmount;
+                if (i < paidAlready) paidTotal += thisAmount;
             }
             await db.collection('recurring_billing').doc(docId).update({
                 totalActualPaid: paidTotal,
+                totalPlannedAmount: plannedTotal,
                 completedPaymentsCount: paidAlready,
                 billingIdPrefix: billingPrefix || ''
             });
@@ -6192,10 +6180,16 @@
             var snap = await db.collection('recurring_billing').doc(docId)
                 .collection('payments').get();
             var totalPaid = 0;
+            var totalPlanned = 0;
             var paidCount = 0;
+            var activeCount = 0;
             var lastDate = null;
             snap.forEach(function(d) {
                 var p = d.data();
+                if (p.status !== 'בוטל') {
+                    totalPlanned += parseFloat(p.plannedAmount) || 0;
+                    activeCount++;
+                }
                 if (p.status === 'בוצע') {
                     totalPaid += parseFloat(p.actualAmountPaid) || parseFloat(p.plannedAmount) || 0;
                     paidCount++;
@@ -6206,7 +6200,9 @@
             });
             await db.collection('recurring_billing').doc(docId).update({
                 totalActualPaid: totalPaid,
+                totalPlannedAmount: totalPlanned,
                 completedPaymentsCount: paidCount,
+                recurringMonthsCount: activeCount.toString(),
                 lastPaymentDate: lastDate || ''
             });
         }
