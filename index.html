@@ -2872,7 +2872,7 @@
                         <tr>
                             <th>לקוח</th>
                             <th>עו"ד מטפל</th>
-                            <th>סכום חודשי</th>
+                            <th>סכום חודשי <span style="font-weight:400;font-size:10px;color:#94a3b8;">(כולל מע"מ)</span></th>
                             <th>סה"כ עסקה</th>
                             <th>שולם</th>
                             <th>התקדמות</th>
@@ -5265,7 +5265,7 @@
                     '</div>' +
                     '<div class="bm-card-body">' +
                         '<div class="bm-card-field">' +
-                            '<div class="bm-card-field-label">סכום חודשי</div>' +
+                            '<div class="bm-card-field-label">סכום חודשי <span style="font-size:9px;color:#94a3b8;">(כולל מע"מ)</span></div>' +
                             '<div class="bm-card-field-value">₪' + amount.toLocaleString('he-IL') + '</div>' +
                         '</div>' +
                         '<div class="bm-card-field">' +
@@ -5906,7 +5906,7 @@
             // סרגל סיכום
             document.getElementById('pmClientSummary').innerHTML =
                 '<div class="pm-summary-item">' +
-                    '<div class="pm-summary-label">סה"כ עסקה</div>' +
+                    '<div class="pm-summary-label">סה"כ עסקה <span style="font-size:10px;color:#94a3b8;">(כולל מע"מ)</span></div>' +
                     '<div class="pm-summary-value">₪' + totalPlanned.toLocaleString('he-IL') + '</div>' +
                 '</div>' +
                 '<div class="pm-summary-item">' +
@@ -5941,6 +5941,8 @@
                     }
                 }
 
+                var actualAmt = parseFloat(p.actualAmountPaid) || plannedAmt;
+
                 return '<div class="pm-payment-row ' + rowClass + '" data-payment-id="' + p.id + '">' +
                     '<div class="pm-month-num">' + p.monthNumber + '</div>' +
                     '<div style="font-size:13px;">' +
@@ -5949,24 +5951,29 @@
                             '<br><span style="font-size:11px;color:var(--gray-400);">שולם: ' + formatDateHebrew(p.actualPaymentDate) + '</span>' : '') +
                     '</div>' +
                     '<div style="text-align:center;">' +
-                        (isCompleted || isCancelled
+                        (isCancelled
                             ? '<span style="font-size:13px;">₪' + plannedAmt.toLocaleString('he-IL') + '</span>'
                             : '<input type="number" class="pm-amount-input" value="' + plannedAmt + '" ' +
                               'onchange="updatePlannedAmount(\'' + p.id + '\', this.value)" min="0" step="0.01">') +
                     '</div>' +
-                    '<div style="text-align:center;font-size:13px;">' +
-                        (isCompleted
-                            ? '<span style="color:#10b981;font-weight:600;">₪' +
-                              (parseFloat(p.actualAmountPaid) || plannedAmt).toLocaleString('he-IL') + '</span>'
-                            : '<span style="color:var(--gray-300);">—</span>') +
-                    '</div>' +
                     '<div style="text-align:center;">' +
                         (isCompleted
-                            ? '<span class="pm-mark-btn already-done">&#10004; בוצע</span>'
+                            ? '<input type="number" class="pm-amount-input" value="' + actualAmt + '" ' +
+                              'onchange="updateActualAmount(\'' + p.id + '\', this.value)" min="0" step="0.01" ' +
+                              'style="color:#10b981;font-weight:600;">'
+                            : '<span style="color:var(--gray-300);font-size:13px;">—</span>') +
+                    '</div>' +
+                    '<div style="text-align:center;display:flex;gap:4px;align-items:center;justify-content:center;">' +
+                        (isCompleted
+                            ? '<button class="pm-mark-btn already-done" onclick="editCompletedPayment(\'' +
+                              currentPaymentDocId + '\',\'' + p.id + '\')" style="cursor:pointer;" title="לחץ לעריכה">&#10004; בוצע</button>'
                             : (isCancelled
                                 ? '<span style="color:var(--gray-400);font-size:11px;">בוטל</span>'
                                 : '<button class="pm-mark-btn mark-done" onclick="markSinglePayment(\'' +
                                   currentPaymentDocId + '\',\'' + p.id + '\')">סמן כבוצע</button>')) +
+                        '<button onclick="deletePayment(\'' + currentPaymentDocId + '\',\'' + p.id + '\',' + p.monthNumber + ')" ' +
+                            'style="background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:14px;padding:2px 4px;line-height:1;" ' +
+                            'title="הסר תשלום מהסדרה">&#10005;</button>' +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -6000,7 +6007,7 @@
             var remaining = totalPlanned - totalActualPaid;
 
             document.getElementById('pmAccounting').innerHTML =
-                '<div class="pm-accounting-title">סיכום חשבונאי</div>' +
+                '<div class="pm-accounting-title">סיכום חשבונאי <span style="font-size:11px;font-weight:400;color:#94a3b8;">(כל הסכומים כוללים מע"מ)</span></div>' +
                 '<div class="pm-accounting-row">' +
                     '<span>סה"כ מתוכנן (כל התשלומים)</span>' +
                     '<span>₪' + totalPlanned.toLocaleString('he-IL') + '</span>' +
@@ -6088,8 +6095,148 @@
                 var payData = payDoc.data();
 
                 await payRef.update({ plannedAmount: newAmount });
+
+                // עדכון סיכומים אם זה תשלום שבוצע
+                if (payData && payData.status === 'בוצע') {
+                    await recalcClientSummary(currentPaymentDocId);
+                }
             } catch (error) {
                 console.error('Error updating amount:', error);
+            }
+        }
+
+        // עדכון סכום ששולם בפועל (עבור תשלום שכבר בוצע)
+        async function updateActualAmount(paymentDocId, newValue) {
+            var newAmount = parseFloat(newValue);
+            if (isNaN(newAmount) || newAmount < 0) return;
+
+            try {
+                var payRef = db.collection('recurring_billing').doc(currentPaymentDocId)
+                    .collection('payments').doc(paymentDocId);
+                await payRef.update({ actualAmountPaid: newAmount });
+
+                // עדכון סיכומי הלקוח
+                await recalcClientSummary(currentPaymentDocId);
+
+                // רענון סיכום חשבונאי במודאל
+                var clientDoc = await db.collection('recurring_billing').doc(currentPaymentDocId).get();
+                var refreshSnap = await db.collection('recurring_billing').doc(currentPaymentDocId)
+                    .collection('payments').orderBy('monthNumber').get();
+                var refreshPayments = [];
+                refreshSnap.forEach(function(d) { refreshPayments.push({ id: d.id, ...d.data() }); });
+                currentPayments = refreshPayments;
+                renderAccountingSummary({ id: currentPaymentDocId, ...clientDoc.data() }, refreshPayments);
+
+                // עדכון סרגל סיכום
+                var completedP = refreshPayments.filter(function(p) { return p.status === 'בוצע'; });
+                var totalActual = completedP.reduce(function(s, p) { return s + (parseFloat(p.actualAmountPaid) || 0); }, 0);
+                var totalPlanned = refreshPayments.reduce(function(s, p) { return s + (parseFloat(p.plannedAmount) || 0); }, 0);
+                var remaining = totalPlanned - totalActual;
+                var summaryItems = document.querySelectorAll('.pm-summary-value');
+                if (summaryItems.length >= 3) {
+                    summaryItems[1].innerHTML = '₪' + totalActual.toLocaleString('he-IL');
+                    summaryItems[2].innerHTML = '₪' + Math.max(0, remaining).toLocaleString('he-IL');
+                }
+            } catch (error) {
+                console.error('Error updating actual amount:', error);
+            }
+        }
+
+        // עריכת תשלום שכבר בוצע (שינוי תאריך תשלום)
+        async function editCompletedPayment(clientDocId, paymentDocId) {
+            var payData = currentPayments.find(function(p) { return p.id === paymentDocId; });
+            if (!payData) return;
+
+            var currentDate = payData.actualPaymentDate || payData.plannedDate || '';
+            var newDate = prompt('תאריך תשלום בפועל (YYYY-MM-DD):', currentDate);
+            if (newDate === null) return; // ביטול
+
+            // אפשרות לביטול סימון
+            if (newDate === '' && confirm('האם לבטל סימון תשלום זה כבוצע?')) {
+                try {
+                    var payRef = db.collection('recurring_billing').doc(clientDocId)
+                        .collection('payments').doc(paymentDocId);
+                    await payRef.update({
+                        status: 'ממתין',
+                        actualAmountPaid: null,
+                        actualPaymentDate: null,
+                        completedBy: null,
+                        completedAt: null
+                    });
+                    await recalcClientSummary(clientDocId);
+                    await openPaymentModal(clientDocId);
+                } catch (error) {
+                    console.error('Error reverting payment:', error);
+                    alert('שגיאה בביטול: ' + error.message);
+                }
+                return;
+            }
+
+            // עדכון תאריך
+            if (newDate) {
+                try {
+                    var payRef = db.collection('recurring_billing').doc(clientDocId)
+                        .collection('payments').doc(paymentDocId);
+                    await payRef.update({ actualPaymentDate: newDate });
+                    await recalcClientSummary(clientDocId);
+                    await openPaymentModal(clientDocId);
+                } catch (error) {
+                    console.error('Error updating payment date:', error);
+                    alert('שגיאה בעדכון: ' + error.message);
+                }
+            }
+        }
+
+        // חישוב מחדש של סיכומי הלקוח מתוך subcollection
+        async function recalcClientSummary(docId) {
+            var snap = await db.collection('recurring_billing').doc(docId)
+                .collection('payments').get();
+            var totalPaid = 0;
+            var paidCount = 0;
+            var lastDate = null;
+            snap.forEach(function(d) {
+                var p = d.data();
+                if (p.status === 'בוצע') {
+                    totalPaid += parseFloat(p.actualAmountPaid) || parseFloat(p.plannedAmount) || 0;
+                    paidCount++;
+                    if (p.actualPaymentDate && (!lastDate || p.actualPaymentDate > lastDate)) {
+                        lastDate = p.actualPaymentDate;
+                    }
+                }
+            });
+            await db.collection('recurring_billing').doc(docId).update({
+                totalActualPaid: totalPaid,
+                completedPaymentsCount: paidCount,
+                lastPaymentDate: lastDate || ''
+            });
+        }
+
+        // מחיקת תשלום מהסדרה
+        async function deletePayment(clientDocId, paymentDocId, monthNumber) {
+            if (!confirm('האם להסיר את תשלום #' + monthNumber + ' מהסדרה?\nפעולה זו לא ניתנת לביטול.')) return;
+
+            try {
+                // מחיקת המסמך מ-subcollection
+                await db.collection('recurring_billing').doc(clientDocId)
+                    .collection('payments').doc(paymentDocId).delete();
+
+                // עדכון מספר חודשים כולל בלקוח
+                var remainingSnap = await db.collection('recurring_billing').doc(clientDocId)
+                    .collection('payments').get();
+                var newTotalMonths = remainingSnap.size;
+
+                await db.collection('recurring_billing').doc(clientDocId).update({
+                    recurringMonthsCount: newTotalMonths.toString()
+                });
+
+                // חישוב מחדש של סיכומים
+                await recalcClientSummary(clientDocId);
+
+                // רענון המודאל
+                await openPaymentModal(clientDocId);
+            } catch (error) {
+                console.error('Error deleting payment:', error);
+                alert('שגיאה במחיקה: ' + error.message);
             }
         }
 
