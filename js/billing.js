@@ -5,6 +5,26 @@ function escapeHTML(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+function roundMoney(n) { return Math.round((parseFloat(n) || 0) * 100) / 100; }
+
+// ולידציות ישראליות
+function validateIsraeliPhone(phone) {
+    var digits = phone.replace(/\D/g, '');
+    return /^0[2-9]\d{7,8}$/.test(digits);
+}
+
+function validateIsraeliId(id) {
+    var digits = id.replace(/\D/g, '');
+    if (digits.length < 5 || digits.length > 9) return false;
+    digits = digits.padStart(9, '0');
+    var sum = 0;
+    for (var i = 0; i < 9; i++) {
+        var d = parseInt(digits[i], 10) * ((i % 2) + 1);
+        sum += d > 9 ? d - 9 : d;
+    }
+    return sum % 10 === 0;
+}
+
 function safeChargeDate(year, month, dayOfMonth) {
     var lastDay = new Date(year, month + 1, 0).getDate();
     var day = Math.min(dayOfMonth, lastDay);
@@ -123,6 +143,33 @@ async function submitBillingForm() {
         return;
     }
 
+    // ולידציות מורחבות
+    var phoneVal = (document.getElementById('billingPhone').value || '').trim();
+    if (phoneVal && !validateIsraeliPhone(phoneVal)) {
+        alert('מספר טלפון לא תקין. נא להזין מספר ישראלי (לדוגמה: 0501234567)');
+        return;
+    }
+    var idVal = (document.getElementById('billingIdNumber').value || '').trim();
+    if (idVal && !validateIsraeliId(idVal)) {
+        alert('מספר ת.ז לא תקין. נא לבדוק את המספר ולנסות שוב.');
+        return;
+    }
+    if (parseFloat(totalDeal) <= 0) {
+        alert('סכום עסקה חייב להיות גדול מאפס');
+        return;
+    }
+    var monthsNum_ = parseInt(months);
+    if (monthsNum_ < 1 || monthsNum_ > 120) {
+        alert('מספר תשלומים חייב להיות בין 1 ל-120');
+        return;
+    }
+    var startDateObj = new Date(startDate);
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (startDateObj < today) {
+        if (!confirm('תאריך ההתחלה שנבחר הוא בעבר (' + startDate + '). להמשיך?')) return;
+    }
+
     const submitBtn = document.getElementById('billingSubmitBtn');
     submitBtn.disabled = true;
     document.getElementById('billingSubmitText').textContent = 'שומר...';
@@ -159,14 +206,32 @@ async function submitBillingForm() {
             cardLast4 = cardNumber.slice(-4);
         }
 
+        // מניעת כפילויות — בדיקת טלפון
+        const phone = document.getElementById('billingPhone').value.replace(/\D/g, '');
+        if (phone) {
+            var existingSnap = await db.collection('recurring_billing')
+                .where('phone', '==', phone).get();
+            var activeExisting = [];
+            existingSnap.forEach(function(d) {
+                if (d.data().status !== 'בוטל') activeExisting.push(d.data());
+            });
+            if (activeExisting.length > 0) {
+                if (!confirm('לקוח עם טלפון זהה כבר קיים: ' + activeExisting[0].clientName + '.\nלהוסיף בכל זאת?')) {
+                    submitBtn.disabled = false;
+                    document.getElementById('billingSubmitText').textContent = 'שמור וצור תזכורות';
+                    return;
+                }
+            }
+        }
+
         const billingIdPrefix = 'BIL-' + Date.now();
 
         // בדיקה אם יש סכומים מותאמים לכל חודש
         const monthlyAmounts = getMonthlyAmountsFromTable();
 
-        const totalDealNum = parseFloat(totalDeal);
+        const totalDealNum = roundMoney(totalDeal);
         const monthsNum = parseInt(months);
-        const perPayment = amount ? parseFloat(amount) : Math.round(totalDealNum / monthsNum);
+        const perPayment = amount ? roundMoney(amount) : roundMoney(totalDealNum / monthsNum);
 
         const billingData = {
             clientName: clientName,
@@ -492,6 +557,91 @@ function updateBillingSummary() {
     document.getElementById('bmStatMonthly').textContent = '₪' + totalMonthly.toLocaleString('he-IL');
     document.getElementById('bmStatPaid').textContent = '₪' + totalPaid.toLocaleString('he-IL');
     document.getElementById('bmStatRemaining').textContent = '₪' + Math.max(0, totalRemaining).toLocaleString('he-IL');
+
+    // דוח גיול חובות
+    updateAgingReport();
+}
+
+function updateAgingReport() {
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var buckets = { d30: 0, d60: 0, d60plus: 0 };
+    billingClients.forEach(function(c) {
+        if (c.status === 'בוטל' || c.status === 'מושהה') return;
+        var pending = c._pendingPayments || [];
+        pending.forEach(function(p) {
+            if (!p.plannedDate) return;
+            var pDate = new Date(p.plannedDate + 'T00:00:00');
+            if (pDate >= today) return; // not overdue
+            var daysOverdue = Math.floor((today - pDate) / 86400000);
+            var amt = roundMoney(p.plannedAmount);
+            if (daysOverdue <= 30) buckets.d30 += amt;
+            else if (daysOverdue <= 60) buckets.d60 += amt;
+            else buckets.d60plus += amt;
+        });
+    });
+    buckets.d30 = roundMoney(buckets.d30);
+    buckets.d60 = roundMoney(buckets.d60);
+    buckets.d60plus = roundMoney(buckets.d60plus);
+    var totalOverdue = roundMoney(buckets.d30 + buckets.d60 + buckets.d60plus);
+
+    var el = document.getElementById('bmAgingReport');
+    if (!el) return;
+    if (totalOverdue === 0) {
+        el.style.display = 'none';
+        return;
+    }
+    el.style.display = '';
+    el.innerHTML =
+        '<div class="bm-aging-title">גיול חובות</div>' +
+        '<div class="bm-aging-row"><span>0-30 יום</span><span>₪' + buckets.d30.toLocaleString('he-IL') + '</span></div>' +
+        '<div class="bm-aging-row"><span>30-60 יום</span><span style="color:#f59e0b;">₪' + buckets.d60.toLocaleString('he-IL') + '</span></div>' +
+        '<div class="bm-aging-row"><span>60+ יום</span><span style="color:#ef4444;">₪' + buckets.d60plus.toLocaleString('he-IL') + '</span></div>' +
+        '<div class="bm-aging-row total"><span>סה"כ באיחור</span><span style="color:#ef4444;">₪' + totalOverdue.toLocaleString('he-IL') + '</span></div>';
+
+    // עדכון תחזית תזרים
+    updateCashFlowForecast();
+}
+
+function updateCashFlowForecast() {
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var d30 = new Date(today); d30.setDate(d30.getDate() + 30);
+    var d60 = new Date(today); d60.setDate(d60.getDate() + 60);
+    var d90 = new Date(today); d90.setDate(d90.getDate() + 90);
+
+    var forecast = { m1: 0, m2: 0, m3: 0 };
+    billingClients.forEach(function(c) {
+        if (c.status === 'בוטל' || c.status === 'מושהה') return;
+        var pending = c._pendingPayments || [];
+        pending.forEach(function(p) {
+            if (!p.plannedDate) return;
+            var pDate = new Date(p.plannedDate + 'T00:00:00');
+            if (pDate < today) return; // overdue, handled by aging
+            var amt = roundMoney(p.plannedAmount);
+            if (pDate <= d30) forecast.m1 += amt;
+            else if (pDate <= d60) forecast.m2 += amt;
+            else if (pDate <= d90) forecast.m3 += amt;
+        });
+    });
+    forecast.m1 = roundMoney(forecast.m1);
+    forecast.m2 = roundMoney(forecast.m2);
+    forecast.m3 = roundMoney(forecast.m3);
+    var totalForecast = roundMoney(forecast.m1 + forecast.m2 + forecast.m3);
+
+    var el = document.getElementById('bmForecastReport');
+    if (!el) return;
+    if (totalForecast === 0) {
+        el.style.display = 'none';
+        return;
+    }
+    el.style.display = '';
+    el.innerHTML =
+        '<div class="bm-forecast-title">תחזית תזרים (90 יום)</div>' +
+        '<div class="bm-forecast-row"><span>30 יום הקרובים</span><span style="color:#10b981;">₪' + forecast.m1.toLocaleString('he-IL') + '</span></div>' +
+        '<div class="bm-forecast-row"><span>30-60 יום</span><span style="color:#10b981;">₪' + forecast.m2.toLocaleString('he-IL') + '</span></div>' +
+        '<div class="bm-forecast-row"><span>60-90 יום</span><span style="color:#10b981;">₪' + forecast.m3.toLocaleString('he-IL') + '</span></div>' +
+        '<div class="bm-forecast-row total"><span>סה"כ צפוי</span><span style="color:#10b981;">₪' + totalForecast.toLocaleString('he-IL') + '</span></div>';
 }
 
 function calculatePaidMonths(client) {
@@ -1017,9 +1167,11 @@ function copyToClipboard(text, btn) {
 
 let editingDocId = null;
 
+var _editVersion = null; // optimistic locking
 async function openEditModal(docId) {
     editingDocId = docId;
     editPaymentsCache = []; // איפוס cache
+    _editVersion = null;
     try {
         const doc = await db.collection('recurring_billing').doc(docId).get();
         if (!doc.exists) {
@@ -1027,6 +1179,7 @@ async function openEditModal(docId) {
             return;
         }
         const d = doc.data();
+        _editVersion = d.updatedAt || d.createdAt || null;
 
         document.getElementById('editDocId').value = docId;
         document.getElementById('editClientName').value = d.clientName || '';
@@ -1104,9 +1257,9 @@ async function saveEditBilling() {
     saveBtn.textContent = 'שומר...';
 
     try {
-        const editTotalDealNum = parseFloat(editTotalDeal);
+        const editTotalDealNum = roundMoney(editTotalDeal);
         const editMonthsNum = parseInt(months);
-        const editPerPayment = amount ? parseFloat(amount) : Math.round(editTotalDealNum / editMonthsNum);
+        const editPerPayment = amount ? roundMoney(amount) : roundMoney(editTotalDealNum / editMonthsNum);
 
         const updateData = {
             clientName: clientName,
@@ -1161,6 +1314,15 @@ async function saveEditBilling() {
         const oldClientDoc = await db.collection('recurring_billing').doc(docId).get();
         const oldClientData = oldClientDoc.data();
 
+        // בדיקת עריכה בו-זמנית (optimistic locking)
+        var currentVersion = oldClientData.updatedAt || oldClientData.createdAt || null;
+        if (_editVersion && currentVersion && _editVersion.seconds !== undefined &&
+            currentVersion.seconds !== undefined &&
+            currentVersion.seconds !== _editVersion.seconds) {
+            alert('המסמך עודכן על ידי משתמש אחר מאז שפתחת אותו לעריכה.\nנא לסגור ולפתוח מחדש.');
+            return;
+        }
+
         await db.collection('recurring_billing').doc(docId).update(updateData);
 
         // עדכון סכומים ישירות ב-subcollection (מקור אמת יחיד)
@@ -1186,10 +1348,10 @@ async function saveEditBilling() {
     } catch (error) {
         console.error('Error saving edit:', error);
         alert('שגיאה בשמירה: ' + error.message);
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'שמור שינויים';
     }
-
-    saveBtn.disabled = false;
-    saveBtn.textContent = 'שמור שינויים';
 }
 
 // סנכרון subcollection payments אחרי עריכה - מטפל בכל השדות

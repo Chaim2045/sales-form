@@ -79,12 +79,40 @@ function requestPassword(mode) {
         var title = document.getElementById('pwPopupTitle');
         var desc = document.getElementById('pwPopupDesc');
 
+        // הסרת שדות אישור קודמים אם קיימים
+        var oldConfirm = document.getElementById('pwPopupConfirmInput');
+        if (oldConfirm) oldConfirm.parentNode.removeChild(oldConfirm);
+        var oldLabel = document.getElementById('pwPopupConfirmLabel');
+        if (oldLabel) oldLabel.parentNode.removeChild(oldLabel);
+        var oldCheck = document.getElementById('pwPopupSavedWrap');
+        if (oldCheck) oldCheck.parentNode.removeChild(oldCheck);
+
         if (mode === 'decrypt') {
             title.textContent = 'צפייה בפרטי כרטיס';
             desc.innerHTML = 'הזן את סיסמת המשרד כדי לצפות במספר הכרטיס המלא.<br>פעולה זו נרשמת ביומן הביקורת.';
         } else {
             title.textContent = 'הצפנת פרטי כרטיס';
-            desc.innerHTML = 'סיסמה זו משמשת להצפנת פרטי כרטיס האשראי של הלקוח.<br>רק מי שיודע את הסיסמה יוכל לצפות במספר הכרטיס המלא.';
+            desc.innerHTML = '<strong style="color:#ef4444;">סיסמה זו היא הדרך היחידה לגשת לנתוני הכרטיס.</strong><br>רשום אותה ושמור במקום בטוח. ללא הסיסמה לא ניתן יהיה לצפות במספר הכרטיס.';
+            // הוספת שדה אישור סיסמה
+            var confirmLabel = document.createElement('label');
+            confirmLabel.id = 'pwPopupConfirmLabel';
+            confirmLabel.textContent = 'הזן סיסמה שוב לאישור';
+            confirmLabel.style.cssText = 'display:block;margin-top:10px;font-size:13px;color:#94a3b8;';
+            var confirmInput = document.createElement('input');
+            confirmInput.type = 'password';
+            confirmInput.id = 'pwPopupConfirmInput';
+            confirmInput.placeholder = 'אישור סיסמה';
+            confirmInput.style.cssText = input.style.cssText || '';
+            confirmInput.className = input.className;
+            input.parentNode.insertBefore(confirmLabel, input.nextSibling);
+            confirmLabel.parentNode.insertBefore(confirmInput, confirmLabel.nextSibling);
+            // checkbox אישור שמירה
+            var checkWrap = document.createElement('div');
+            checkWrap.id = 'pwPopupSavedWrap';
+            checkWrap.style.cssText = 'margin-top:10px;display:flex;align-items:center;gap:8px;direction:rtl;';
+            checkWrap.innerHTML = '<input type="checkbox" id="pwPopupSavedCheck" style="width:18px;height:18px;cursor:pointer;">' +
+                '<label for="pwPopupSavedCheck" style="font-size:13px;color:#cbd5e1;cursor:pointer;">אני מאשר/ת ששמרתי את הסיסמה במקום בטוח</label>';
+            confirmInput.parentNode.insertBefore(checkWrap, confirmInput.nextSibling);
         }
 
         input.value = '';
@@ -105,6 +133,22 @@ function requestPassword(mode) {
             if (!val) {
                 errorEl.textContent = 'נא להזין סיסמה';
                 return;
+            }
+            if (mode === 'encrypt') {
+                if (val.length < 6) {
+                    errorEl.textContent = 'סיסמה חייבת להכיל לפחות 6 תווים';
+                    return;
+                }
+                var confirmInput = document.getElementById('pwPopupConfirmInput');
+                var savedCheckbox = document.getElementById('pwPopupSavedCheck');
+                if (confirmInput && confirmInput.value !== val) {
+                    errorEl.textContent = 'הסיסמאות אינן תואמות';
+                    return;
+                }
+                if (savedCheckbox && !savedCheckbox.checked) {
+                    errorEl.textContent = 'נא לאשר ששמרת את הסיסמה';
+                    return;
+                }
             }
             cleanup();
             resolve(val);

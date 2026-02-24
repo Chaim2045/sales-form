@@ -1,5 +1,7 @@
 // ========== מודאל פירוט תשלומים ==========
 
+function roundMoney(n) { return Math.round((parseFloat(n) || 0) * 100) / 100; }
+
 function safeChargeDate(year, month, dayOfMonth) {
     var lastDay = new Date(year, month + 1, 0).getDate();
     var day = Math.min(dayOfMonth, lastDay);
@@ -128,7 +130,7 @@ async function openPaymentModal(docId) {
 
 
 async function generatePaymentDocs(docId, client) {
-    const amount = parseFloat(client.recurringMonthlyAmount) || 0;
+    const amount = roundMoney(client.recurringMonthlyAmount);
     const totalMonths = parseInt(client.recurringMonthsCount) || 0;
     const startStr = client.recurringStartDate;
     if (!startStr || !totalMonths) return;
@@ -150,7 +152,7 @@ async function generatePaymentDocs(docId, client) {
         const chargeDate = safeChargeDate(start.getFullYear(), start.getMonth() + i, dayOfMonth);
 
         const thisMonthAmount = (monthlyAmounts && monthlyAmounts[i] !== undefined)
-            ? parseFloat(monthlyAmounts[i]) : amount;
+            ? roundMoney(monthlyAmounts[i]) : amount;
         const isAlreadyPaid = i < paidAlready;
         const payRef = db.collection('recurring_billing').doc(docId)
             .collection('payments').doc();
@@ -176,10 +178,12 @@ async function generatePaymentDocs(docId, client) {
     let plannedTotal = 0;
     for (let i = 0; i < totalMonths; i++) {
         let thisAmount = (monthlyAmounts && monthlyAmounts[i] !== undefined)
-            ? parseFloat(monthlyAmounts[i]) : amount;
+            ? roundMoney(monthlyAmounts[i]) : amount;
         plannedTotal += thisAmount;
         if (i < paidAlready) paidTotal += thisAmount;
     }
+    plannedTotal = roundMoney(plannedTotal);
+    paidTotal = roundMoney(paidTotal);
     await db.collection('recurring_billing').doc(docId).update({
         totalActualPaid: paidTotal,
         totalPlannedAmount: plannedTotal,
@@ -203,8 +207,8 @@ function formatDateHebrew(dateStr) {
 }
 
 function renderPaymentModal(client, payments) {
-    const amount = parseFloat(client.recurringMonthlyAmount) || 0;
-    const totalPlanned = payments.reduce(function(sum, p) { return sum + (parseFloat(p.plannedAmount) || amount); }, 0);
+    const amount = roundMoney(client.recurringMonthlyAmount);
+    const totalPlanned = roundMoney(payments.reduce(function(sum, p) { return sum + (roundMoney(p.plannedAmount) || amount); }, 0));
     const completedPayments = payments.filter(function(p) { return p.status === 'בוצע'; });
     const totalActualPaid = completedPayments.reduce(function(sum, p) {
         return sum + (parseFloat(p.actualAmountPaid) || parseFloat(p.plannedAmount) || 0);
@@ -304,17 +308,17 @@ function renderPaymentModal(client, payments) {
 }
 
 function renderAccountingSummary(client, payments) {
-    var amount = parseFloat(client.recurringMonthlyAmount) || 0;
-    var totalPlanned = payments.reduce(function(sum, p) { return sum + (parseFloat(p.plannedAmount) || amount); }, 0);
+    var amount = roundMoney(client.recurringMonthlyAmount);
+    var totalPlanned = roundMoney(payments.reduce(function(sum, p) { return sum + (roundMoney(p.plannedAmount) || amount); }, 0));
     var completedPayments = payments.filter(function(p) { return p.status === 'בוצע'; });
-    var totalActualPaid = completedPayments.reduce(function(sum, p) {
-        return sum + (parseFloat(p.actualAmountPaid) || parseFloat(p.plannedAmount) || 0);
-    }, 0);
-    var totalPlannedForCompleted = completedPayments.reduce(function(sum, p) {
-        return sum + (parseFloat(p.plannedAmount) || 0);
-    }, 0);
-    var difference = totalActualPaid - totalPlannedForCompleted;
-    var remaining = totalPlanned - totalActualPaid;
+    var totalActualPaid = roundMoney(completedPayments.reduce(function(sum, p) {
+        return sum + (roundMoney(p.actualAmountPaid) || roundMoney(p.plannedAmount));
+    }, 0));
+    var totalPlannedForCompleted = roundMoney(completedPayments.reduce(function(sum, p) {
+        return sum + roundMoney(p.plannedAmount);
+    }, 0));
+    var difference = roundMoney(totalActualPaid - totalPlannedForCompleted);
+    var remaining = roundMoney(totalPlanned - totalActualPaid);
 
     document.getElementById('pmAccounting').innerHTML =
         '<div class="pm-accounting-title">סיכום חשבונאי <span style="font-size:11px;font-weight:400;color:#94a3b8;">(כל הסכומים כוללים מע"מ)</span></div>' +
@@ -338,8 +342,11 @@ function renderAccountingSummary(client, payments) {
         '</div>';
 }
 
+var _markingPayment = false;
 async function markSinglePayment(clientDocId, paymentDocId) {
+    if (_markingPayment) return;
     var paymentRow = document.querySelector('[data-payment-id="' + paymentDocId + '"]');
+    var markBtn = paymentRow ? paymentRow.querySelector('.pm-mark-btn') : null;
     var amountInput = paymentRow ? paymentRow.querySelector('.pm-amount-input') : null;
     var payData = currentPayments.find(function(p) { return p.id === paymentDocId; });
     var plannedAmount = amountInput ? parseFloat(amountInput.value) : (payData ? parseFloat(payData.plannedAmount) : 0);
@@ -357,6 +364,8 @@ async function markSinglePayment(clientDocId, paymentDocId) {
     var actualDate = await showInputModal('תאריך תשלום', today, 'date');
     if (actualDate === null) return;
 
+    _markingPayment = true;
+    if (markBtn) markBtn.disabled = true;
     try {
         // 1. עדכון Firebase subcollection
         var payRef = db.collection('recurring_billing').doc(clientDocId)
@@ -379,18 +388,21 @@ async function markSinglePayment(clientDocId, paymentDocId) {
     } catch (error) {
         console.error('Error marking payment:', error);
         alert('שגיאה בסימון תשלום: ' + error.message);
+    } finally {
+        _markingPayment = false;
+        if (markBtn) markBtn.disabled = false;
     }
 }
 
+var _updatingAmount = {};
 async function updatePlannedAmount(paymentDocId, newValue) {
-    var newAmount = parseFloat(newValue);
+    var newAmount = roundMoney(newValue);
     if (isNaN(newAmount) || newAmount < 0) return;
-
+    if (_updatingAmount[paymentDocId]) return;
+    _updatingAmount[paymentDocId] = true;
     try {
         var payRef = db.collection('recurring_billing').doc(currentPaymentDocId)
             .collection('payments').doc(paymentDocId);
-        var payDoc = await payRef.get();
-        var payData = payDoc.data();
 
         await payRef.update({ plannedAmount: newAmount });
 
@@ -398,14 +410,18 @@ async function updatePlannedAmount(paymentDocId, newValue) {
         await recalcClientSummary(currentPaymentDocId);
     } catch (error) {
         console.error('Error updating amount:', error);
+    } finally {
+        delete _updatingAmount[paymentDocId];
     }
 }
 
 // עדכון סכום ששולם בפועל (עבור תשלום שכבר בוצע)
+var _updatingActual = {};
 async function updateActualAmount(paymentDocId, newValue) {
-    var newAmount = parseFloat(newValue);
+    var newAmount = roundMoney(newValue);
     if (isNaN(newAmount) || newAmount < 0) return;
-
+    if (_updatingActual[paymentDocId]) return;
+    _updatingActual[paymentDocId] = true;
     try {
         var payRef = db.collection('recurring_billing').doc(currentPaymentDocId)
             .collection('payments').doc(paymentDocId);
@@ -435,6 +451,8 @@ async function updateActualAmount(paymentDocId, newValue) {
         }
     } catch (error) {
         console.error('Error updating actual amount:', error);
+    } finally {
+        delete _updatingActual[paymentDocId];
     }
 }
 
@@ -493,17 +511,19 @@ async function recalcClientSummary(docId) {
     snap.forEach(function(d) {
         var p = d.data();
         if (p.status !== 'בוטל') {
-            totalPlanned += parseFloat(p.plannedAmount) || 0;
+            totalPlanned += roundMoney(p.plannedAmount);
             activeCount++;
         }
         if (p.status === 'בוצע') {
-            totalPaid += parseFloat(p.actualAmountPaid) || parseFloat(p.plannedAmount) || 0;
+            totalPaid += roundMoney(p.actualAmountPaid) || roundMoney(p.plannedAmount);
             paidCount++;
             if (p.actualPaymentDate && (!lastDate || p.actualPaymentDate > lastDate)) {
                 lastDate = p.actualPaymentDate;
             }
         }
     });
+    totalPlanned = roundMoney(totalPlanned);
+    totalPaid = roundMoney(totalPaid);
     await db.collection('recurring_billing').doc(docId).update({
         totalActualPaid: totalPaid,
         totalPlannedAmount: totalPlanned,
@@ -514,22 +534,22 @@ async function recalcClientSummary(docId) {
 }
 
 // מחיקת תשלום מהסדרה
+var _deletingPayment = false;
 async function deletePayment(clientDocId, paymentDocId, monthNumber) {
+    if (_deletingPayment) return;
     if (!confirm('האם להסיר את תשלום #' + monthNumber + ' מהסדרה?\nפעולה זו לא ניתנת לביטול.')) return;
 
+    _deletingPayment = true;
     try {
-        // מחיקת המסמך מ-subcollection
         await db.collection('recurring_billing').doc(clientDocId)
             .collection('payments').doc(paymentDocId).delete();
-
-        // חישוב מחדש של כל הסיכומים מ-subcollection (מקור אמת יחיד)
         await recalcClientSummary(clientDocId);
-
-        // רענון המודאל
         await openPaymentModal(clientDocId);
     } catch (error) {
         console.error('Error deleting payment:', error);
         alert('שגיאה במחיקה: ' + error.message);
+    } finally {
+        _deletingPayment = false;
     }
 }
 
@@ -540,6 +560,46 @@ async function markNextPayment() {
         return;
     }
     await markSinglePayment(currentPaymentDocId, nextPending.id);
+}
+
+async function markAllDuePayments() {
+    if (!currentPaymentDocId) return;
+    var today = new Date().toISOString().split('T')[0];
+    var duePayments = currentPayments.filter(function(p) {
+        return (p.status === 'ממתין' || p.status === 'באיחור') && p.plannedDate <= today;
+    });
+    if (duePayments.length === 0) {
+        alert('אין תשלומים שהגיע מועד פירעונם');
+        return;
+    }
+    if (!confirm('יש ' + duePayments.length + ' תשלומים שהגיע מועדם. לסמן הכל כבוצע?')) return;
+
+    var btn = document.getElementById('pmBatchMarkBtn');
+    if (btn) btn.disabled = true;
+    try {
+        var batch = db.batch();
+        var nowISO = new Date().toISOString().split('T')[0];
+        duePayments.forEach(function(p) {
+            var ref = db.collection('recurring_billing').doc(currentPaymentDocId)
+                .collection('payments').doc(p.id);
+            batch.update(ref, {
+                status: 'בוצע',
+                actualAmountPaid: roundMoney(p.plannedAmount),
+                actualPaymentDate: nowISO,
+                completedBy: currentUser || (authUser ? authUser.email : 'לא ידוע'),
+                completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        });
+        await batch.commit();
+        await recalcClientSummary(currentPaymentDocId);
+        alert(duePayments.length + ' תשלומים סומנו כבוצעו');
+        await openPaymentModal(currentPaymentDocId);
+    } catch (error) {
+        console.error('Error batch marking:', error);
+        alert('שגיאה בסימון קבוצתי: ' + error.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 function closePaymentModal() {
@@ -585,43 +645,62 @@ async function quickMarkPayment(docId) {
     }
 }
 
+var _cancellingOrPausing = false;
 async function cancelBillingSeriesUI() {
-    if (!currentPaymentDocId) return;
+    if (!currentPaymentDocId || _cancellingOrPausing) return;
     var pendingCount = currentPayments.filter(function(p) { return p.status === 'ממתין' || p.status === 'באיחור'; }).length;
     if (pendingCount === 0) {
         alert('אין תשלומים ממתינים לביטול');
         return;
     }
-    if (!confirm('האם לבטל ' + pendingCount + ' תשלומים ממתינים? פעולה זו לא ניתנת לביטול.')) return;
 
+    // בחירה: השהיה או ביטול
+    var choice = prompt('יש ' + pendingCount + ' תשלומים ממתינים.\nהקלד "השהה" להשהיית הסדרה (ניתן לחידוש), או "בטל" לביטול סופי:');
+    if (!choice) return;
+    choice = choice.trim();
+    var isPause = (choice === 'השהה' || choice === 'השהיה');
+    var isCancel = (choice === 'בטל' || choice === 'ביטול');
+    if (!isPause && !isCancel) {
+        alert('נא להקליד "השהה" או "בטל"');
+        return;
+    }
+
+    _cancellingOrPausing = true;
     try {
-        var batch = db.batch();
-        currentPayments.forEach(function(p) {
-            if (p.status === 'ממתין' || p.status === 'באיחור') {
-                var ref = db.collection('recurring_billing').doc(currentPaymentDocId)
-                    .collection('payments').doc(p.id);
-                batch.update(ref, { status: 'בוטל' });
-            }
-        });
-        await batch.commit();
-
-        // עדכון סטטוס לקוח
-        await db.collection('recurring_billing').doc(currentPaymentDocId).update({
-            status: 'בוטל'
-        });
-
-        // חישוב מחדש של סיכומים מ-subcollection
-        await recalcClientSummary(currentPaymentDocId);
-
-        alert('הסדרה בוטלה בהצלחה');
+        if (isCancel) {
+            var batch = db.batch();
+            currentPayments.forEach(function(p) {
+                if (p.status === 'ממתין' || p.status === 'באיחור') {
+                    var ref = db.collection('recurring_billing').doc(currentPaymentDocId)
+                        .collection('payments').doc(p.id);
+                    batch.update(ref, { status: 'בוטל' });
+                }
+            });
+            await batch.commit();
+            await db.collection('recurring_billing').doc(currentPaymentDocId).update({
+                status: 'בוטל'
+            });
+            await recalcClientSummary(currentPaymentDocId);
+            alert('הסדרה בוטלה בהצלחה');
+        } else {
+            // השהיה — התשלומים נשארים, הסטטוס משתנה למושהה
+            await db.collection('recurring_billing').doc(currentPaymentDocId).update({
+                status: 'מושהה'
+            });
+            alert('הסדרה הושהתה. ניתן לחדש אותה בכל עת דרך עריכת הלקוח.');
+        }
         await openPaymentModal(currentPaymentDocId);
     } catch (error) {
-        console.error('Error cancelling series:', error);
-        alert('שגיאה בביטול: ' + error.message);
+        console.error('Error cancelling/pausing series:', error);
+        alert('שגיאה: ' + error.message);
+    } finally {
+        _cancellingOrPausing = false;
     }
 }
 
+var _extendingSeries = false;
 async function extendBillingSeriesUI() {
+    if (_extendingSeries) return;
     if (!currentPaymentDocId) return;
 
     var additionalMonths = await showInputModal('כמה חודשים להוסיף?', '', 'number', function(v) { return v > 0 && v <= 60 && v === Math.floor(v); });
@@ -630,11 +709,13 @@ async function extendBillingSeriesUI() {
 
     var clientDoc = await db.collection('recurring_billing').doc(currentPaymentDocId).get();
     var client = clientDoc.data();
-    var amount = parseFloat(client.recurringMonthlyAmount) || 0;
+    var amount = roundMoney(client.recurringMonthlyAmount);
 
     var monthlyAmount = await showInputModal('סכום חודשי לחודשים החדשים', amount.toString(), 'number', function(v) { return v > 0; });
     if (monthlyAmount === null) return;
+    monthlyAmount = roundMoney(monthlyAmount);
 
+    _extendingSeries = true;
     try {
         var currentTotal = parseInt(client.recurringMonthsCount) || currentPayments.length;
         var newTotal = currentTotal + additionalMonths;
@@ -681,6 +762,8 @@ async function extendBillingSeriesUI() {
     } catch (error) {
         console.error('Error extending series:', error);
         alert('שגיאה בהוספת חודשים: ' + error.message);
+    } finally {
+        _extendingSeries = false;
     }
 }
 

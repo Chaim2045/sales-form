@@ -808,3 +808,67 @@
         max-height: 60vh;
     }
 }
+
+/* Aging Report */
+.bm-aging {
+    background: #1e293b;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+}
+.bm-aging-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin-bottom: 10px;
+}
+.bm-aging-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 13px;
+    color: #cbd5e1;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.bm-aging-row:last-child { border-bottom: none; }
+.bm-aging-row.total {
+    font-weight: 600;
+    padding-top: 8px;
+    margin-top: 4px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    border-bottom: none;
+    font-size: 14px;
+}
+
+/* Cash Flow Forecast */
+.bm-forecast {
+    background: #1e293b;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+}
+.bm-forecast-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin-bottom: 10px;
+}
+.bm-forecast-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 13px;
+    color: #cbd5e1;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.bm-forecast-row:last-child { border-bottom: none; }
+.bm-forecast-row.total {
+    font-weight: 600;
+    padding-top: 8px;
+    margin-top: 4px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    border-bottom: none;
+    font-size: 14px;
+}

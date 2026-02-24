@@ -685,6 +685,12 @@
             </div>
         </div>
 
+        <!-- Aging Report + Cash Flow Forecast -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="bm-aging" id="bmAgingReport" style="display:none;"></div>
+            <div class="bm-forecast" id="bmForecastReport" style="display:none;"></div>
+        </div>
+
         <!-- Toolbar -->
         <div class="bm-toolbar">
             <input type="text" class="bm-search" id="bmSearch" placeholder="חיפוש לקוח..." oninput="filterBillingView()">
@@ -774,7 +780,7 @@
                     </div>
                     <div class="form-group">
                         <label>טלפון</label>
-                        <input type="tel" id="billingPhone" placeholder="050-0000000">
+                        <input type="tel" id="billingPhone" placeholder="050-0000000" inputmode="tel" pattern="0[2-9]\d{7,8}">
                     </div>
                 </div>
 
@@ -785,7 +791,7 @@
                     </div>
                     <div class="form-group">
                         <label>ח.פ / ת.ז</label>
-                        <input type="text" id="billingIdNumber" placeholder="מספר זיהוי">
+                        <input type="text" id="billingIdNumber" placeholder="מספר זיהוי" inputmode="numeric" pattern="\d{5,9}">
                     </div>
                 </div>
 
@@ -1097,10 +1103,11 @@
                 <div class="pm-accounting" id="pmAccounting"></div>
             </div>
             <div class="pm-footer">
-                <div style="display:flex;gap:8px;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <button class="pm-footer-btn" onclick="closePaymentModal()">סגור</button>
                     <button class="pm-footer-btn danger" onclick="cancelBillingSeriesUI()">ביטול סדרה</button>
                     <button class="pm-footer-btn" onclick="extendBillingSeriesUI()">הוסף חודשים</button>
+                    <button class="pm-footer-btn" id="pmBatchMarkBtn" onclick="markAllDuePayments()" style="background:#059669;color:#fff;">סמן את כל המגיעים</button>
                 </div>
                 <button class="pm-footer-btn primary" id="pmMarkAllBtn" onclick="markNextPayment()">
                     סמן תשלום הבא כבוצע
