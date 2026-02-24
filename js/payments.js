@@ -64,6 +64,7 @@ let currentPayments = [];
 
 async function openPaymentModal(docId) {
     currentPaymentDocId = docId;
+    if (typeof closeNotificationPanel === 'function') closeNotificationPanel();
     const overlay = document.getElementById('pmOverlay');
 
     try {

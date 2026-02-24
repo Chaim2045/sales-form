@@ -431,6 +431,15 @@ async function loadBillingData() {
                             c.nextPaymentDate = pendingPayments[0].plannedDate || '';
                         }
 
+                        c._pendingPayments = pendingPayments.map(function(p) {
+                            return {
+                                plannedAmount: parseFloat(p.plannedAmount) || 0,
+                                plannedDate: p.plannedDate || '',
+                                status: p.status,
+                                monthNumber: p.monthNumber
+                            };
+                        });
+
                         c._realTotalPlanned = totalPlanned;
                         c._realTotalActual = totalActual;
                         c._realPaidCount = paidCount;
@@ -451,6 +460,7 @@ async function loadBillingData() {
 
         updateBillingSummary();
         renderBillingView();
+        updateNotificationBell();
     } catch (error) {
         console.error('Error loading billing data:', error);
         loading.innerHTML = '<p style="color:var(--error);">שגיאה בטעינת הנתונים</p>';
@@ -595,6 +605,98 @@ function renderBillingView() {
     else renderCardsView(filtered);
 }
 
+// ========== Notification Bell ==========
+
+function getNotificationItems() {
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var threeDays = new Date(today);
+    threeDays.setDate(threeDays.getDate() + 3);
+
+    var notifications = [];
+    billingClients.forEach(function(c) {
+        if (c.status === 'בוטל' || c.status === 'מושהה') return;
+        var pending = c._pendingPayments || [];
+        pending.forEach(function(p) {
+            if (!p.plannedDate) return;
+            var pDate = new Date(p.plannedDate + 'T00:00:00');
+            if (pDate < today) {
+                notifications.push({ type: 'overdue', clientId: c.id, clientName: c.clientName || '', amount: p.plannedAmount, date: p.plannedDate, sortDate: pDate.getTime() });
+            } else if (pDate <= threeDays) {
+                notifications.push({ type: 'upcoming', clientId: c.id, clientName: c.clientName || '', amount: p.plannedAmount, date: p.plannedDate, sortDate: pDate.getTime() });
+            }
+        });
+    });
+    notifications.sort(function(a, b) {
+        if (a.type !== b.type) return a.type === 'overdue' ? -1 : 1;
+        return a.sortDate - b.sortDate;
+    });
+    return notifications;
+}
+
+function updateNotificationBell() {
+    var badge = document.getElementById('bmNotifBadge');
+    var btn = document.getElementById('bmNotifBtn');
+    if (!badge || !btn) return;
+
+    var items = getNotificationItems();
+    var count = items.length;
+
+    if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.style.display = '';
+        btn.classList.add('has-alerts');
+    } else {
+        badge.style.display = 'none';
+        btn.classList.remove('has-alerts');
+    }
+
+    var countEl = document.getElementById('bmNotifCount');
+    if (countEl) countEl.textContent = count + ' פריטים';
+
+    var list = document.getElementById('bmNotifList');
+    if (!list) return;
+
+    if (count === 0) {
+        list.innerHTML =
+            '<div class="bm-notif-empty">' +
+                '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>' +
+                '<p>אין התראות פעילות</p>' +
+                '<p style="font-size:11px;margin-top:4px;">כל התשלומים מעודכנים</p>' +
+            '</div>';
+        return;
+    }
+
+    list.innerHTML = items.map(function(item) {
+        var typeLabel = item.type === 'overdue' ? 'חיוב באיחור' : 'חיוב קרוב';
+        var dotClass = item.type === 'overdue' ? 'overdue' : 'upcoming';
+        var dateFormatted = formatDate(item.date);
+        return '<div class="bm-notif-item" onclick="openPaymentModal(\'' + item.clientId + '\')">' +
+            '<div class="bm-notif-dot ' + dotClass + '"></div>' +
+            '<div class="bm-notif-content">' +
+                '<div class="bm-notif-title">' + typeLabel + '</div>' +
+                '<div class="bm-notif-detail">' + escapeHTML(item.clientName) + ' \u2022 ' + dateFormatted + '</div>' +
+            '</div>' +
+            '<div class="bm-notif-amount">\u20AA' + item.amount.toLocaleString('he-IL') + '</div>' +
+        '</div>';
+    }).join('');
+}
+
+function toggleNotifications(event) {
+    event.stopPropagation();
+    var panel = document.getElementById('bmNotifPanel');
+    if (!panel) return;
+    var isOpen = panel.classList.contains('show');
+    closeAllMenus();
+    closeNotificationPanel();
+    if (!isOpen) panel.classList.add('show');
+}
+
+function closeNotificationPanel() {
+    var panel = document.getElementById('bmNotifPanel');
+    if (panel) panel.classList.remove('show');
+}
+
 function renderTableView(clients) {
     const tbody = document.getElementById('bmTableBody');
     tbody.innerHTML = clients.map(c => {
@@ -672,7 +774,7 @@ function closeAllMenus() {
         m.classList.remove('show');
     });
 }
-document.addEventListener('click', function() { closeAllMenus(); });
+document.addEventListener('click', function() { closeAllMenus(); closeNotificationPanel(); });
 
 function renderCardsView(clients) {
     const container = document.getElementById('bmCardsContainer');
