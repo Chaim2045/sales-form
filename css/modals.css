@@ -79,14 +79,15 @@
 .edit-btn-save:hover { background: var(--primary-blue-hover); }
 .edit-btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* Payment Details Modal — Elegant Dark-Blue Design */
+/* Payment Details Modal — Linear-inspired minimal design */
+/* Palette: grayscale only. Color = semantic status only (green=done, muted red=overdue) */
 .pm-overlay {
     display: none;
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(15,23,42,0.45);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 1600;
     justify-content: center;
     align-items: flex-start;
@@ -96,324 +97,294 @@
 .pm-overlay.show { display: flex; }
 .pm-modal {
     background: #ffffff;
-    border-radius: 16px;
+    border-radius: 12px;
     width: 100%;
-    max-width: 740px;
-    margin: 20px auto;
-    box-shadow: 0 24px 48px rgba(15,23,42,0.15), 0 0 0 1px rgba(15,23,42,0.05);
-    animation: modalSlideIn 0.3s ease;
+    max-width: 720px;
+    margin: 30px auto;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
+    animation: modalSlideIn 0.25s ease;
     overflow: hidden;
 }
 
-/* Header — soft dark blue */
+/* Header — subtle dark, thin */
 .pm-header {
-    background: #1e3a5f;
-    color: #ffffff;
-    padding: 18px 28px;
+    background: #1a1a2e;
+    color: #e0e0e6;
+    padding: 14px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 .pm-header h3 {
     margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: -0.1px;
-    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    color: #e0e0e6;
+    letter-spacing: 0;
 }
 .pm-close {
-    background: rgba(255,255,255,0.08);
+    background: none;
     border: none;
-    color: rgba(255,255,255,0.6);
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    font-size: 18px;
+    color: rgba(255,255,255,0.35);
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    font-size: 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: color 0.15s;
 }
-.pm-close:hover { background: rgba(255,255,255,0.15); color: #ffffff; }
+.pm-close:hover { color: rgba(255,255,255,0.7); }
 
 /* Body */
 .pm-body {
-    padding: 24px 28px;
-    max-height: 70vh;
+    padding: 20px 24px;
+    max-height: 72vh;
     overflow-y: auto;
-    background: #fafbfd;
+    background: #ffffff;
 }
 
-/* Summary Cards — colored top border accent */
+/* Summary Cards — no colors, just numbers */
 .pm-client-summary {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: 24px;
+    gap: 1px;
+    margin-bottom: 20px;
+    background: #e8e8ec;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e8e8ec;
 }
 .pm-summary-item {
     text-align: center;
-    padding: 16px 12px 14px;
-    background: #ffffff;
-    border-radius: 10px;
-    border: 1px solid #edf0f4;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+    padding: 14px 10px;
+    background: #fafafa;
 }
-.pm-summary-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 12px;
-    right: 12px;
-    height: 3px;
-    border-radius: 0 0 3px 3px;
-    background: #cbd5e1;
-}
-.pm-summary-item:nth-child(1)::before { background: #3b82f6; }
-.pm-summary-item:nth-child(2)::before { background: #10b981; }
-.pm-summary-item:nth-child(3)::before { background: #f59e0b; }
-.pm-summary-item:nth-child(4)::before { background: #ef4444; }
+.pm-summary-item::before { display: none; }
 .pm-summary-label {
     font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #8896a8;
-    margin-bottom: 6px;
-    font-weight: 600;
+    letter-spacing: 0.4px;
+    color: #8b8b96;
+    margin-bottom: 4px;
+    font-weight: 500;
 }
 .pm-summary-value {
-    font-size: 17px;
-    font-weight: 700;
-    color: #1e293b;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a2e;
 }
 
 /* Table Header */
 .pm-list-header {
     display: grid;
-    grid-template-columns: 36px 1fr 100px 100px 110px;
-    gap: 10px;
-    padding: 10px 16px;
+    grid-template-columns: 32px 1fr 96px 96px 100px;
+    gap: 8px;
+    padding: 8px 12px;
     font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #8896a8;
-    font-weight: 700;
-    background: #ffffff;
-    border-radius: 8px;
-    border: 1px solid #edf0f4;
-    margin-bottom: 6px;
+    letter-spacing: 0.3px;
+    color: #8b8b96;
+    font-weight: 500;
+    background: transparent;
+    border-bottom: 1px solid #ebebf0;
+    margin-bottom: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
 }
 
 /* Payment Rows */
 .pm-payment-row {
     display: grid;
-    grid-template-columns: 36px 1fr 100px 100px 110px;
-    gap: 10px;
+    grid-template-columns: 32px 1fr 96px 96px 100px;
+    gap: 8px;
     align-items: center;
-    padding: 11px 16px;
-    background: #ffffff;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    margin-bottom: 4px;
-    transition: all 0.15s;
+    padding: 10px 12px;
+    background: transparent;
+    border-bottom: 1px solid #f4f4f6;
+    border-radius: 0;
+    margin-bottom: 0;
+    transition: background 0.1s;
 }
-.pm-payment-row:hover {
-    border-color: #e2e8f0;
-    box-shadow: 0 1px 4px rgba(15,23,42,0.05);
-}
-.pm-payment-row.completed {
-    background: #f0fdf4;
-    border-color: #d1fae5;
-}
-.pm-payment-row.overdue {
-    background: #fef2f2;
-    border-color: #fecaca;
-}
-.pm-payment-row.cancelled {
-    background: #f8f9fa;
-    opacity: 0.45;
-}
+.pm-payment-row:last-child { border-bottom: none; }
+.pm-payment-row:hover { background: #fafafa; }
+.pm-payment-row.completed { background: #fafcfa; }
+.pm-payment-row.overdue { background: #fdfafa; }
+.pm-payment-row.cancelled { opacity: 0.35; }
 
 /* Month Number Badge */
 .pm-month-num {
-    width: 30px; height: 30px;
-    border-radius: 8px;
-    background: #edf0f4;
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    background: #f0f0f4;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 12px;
-    color: #64748b;
+    font-weight: 600;
+    font-size: 11px;
+    color: #6e6e7a;
 }
 .pm-payment-row.completed .pm-month-num {
-    background: #10b981;
-    color: white;
+    background: #e8f5e8;
+    color: #2d7a2d;
 }
 .pm-payment-row.overdue .pm-month-num {
-    background: #fee2e2;
-    color: #dc2626;
+    background: #f5e8e8;
+    color: #9a3a3a;
 }
 
 /* Amount Inputs */
 .pm-amount-input {
-    width: 88px;
-    padding: 6px 10px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    width: 82px;
+    padding: 5px 8px;
+    border: 1px solid #e0e0e6;
+    border-radius: 6px;
     font-family: 'Heebo', sans-serif;
     font-size: 13px;
     text-align: center;
     direction: ltr;
     background: #fff;
-    transition: all 0.2s;
+    transition: border-color 0.15s;
 }
 .pm-amount-input:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    border-color: #8b8b96;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.04);
 }
 
 /* Mark Payment Buttons */
 .pm-mark-btn {
-    padding: 6px 14px;
-    border-radius: 8px;
-    border: none;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid #d8d8e0;
     font-family: 'Heebo', sans-serif;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
-}
-.pm-mark-btn.mark-done {
-    background: #1e3a5f;
-    color: white;
+    transition: all 0.15s;
+    background: #ffffff;
+    color: #3a3a4a;
 }
 .pm-mark-btn.mark-done:hover {
-    background: #264d73;
-    transform: translateY(-1px);
-    box-shadow: 0 3px 10px rgba(30,58,95,0.25);
+    background: #f0f0f4;
+    border-color: #c0c0cc;
 }
 .pm-mark-btn.already-done {
     background: transparent;
-    color: #10b981;
+    color: #5a9a5a;
     cursor: default;
-    font-size: 12px;
+    font-size: 11px;
     border: none;
-    padding: 6px 8px;
+    padding: 5px 6px;
 }
 
 /* Delete (X) button */
 .pm-delete-btn {
-    color: #cbd5e1;
-    transition: color 0.2s;
+    color: #d0d0d8;
+    transition: color 0.15s;
 }
 .pm-delete-btn:hover {
-    color: #ef4444;
+    color: #9a3a3a;
 }
 
-/* Footer — soft dark blue to match header */
+/* Footer — light, minimal */
 .pm-footer {
-    padding: 14px 28px;
-    border-top: none;
+    padding: 12px 24px;
+    border-top: 1px solid #ebebf0;
     display: flex;
-    gap: 8px;
+    gap: 6px;
     justify-content: space-between;
     align-items: center;
-    background: #1e3a5f;
+    background: #fafafa;
 }
 .pm-footer-btn {
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.12);
-    color: rgba(255,255,255,0.75);
-    border-radius: 8px;
-    padding: 7px 14px;
+    background: #ffffff;
+    border: 1px solid #d8d8e0;
+    color: #5a5a6a;
+    border-radius: 6px;
+    padding: 6px 12px;
     font-family: 'Heebo', sans-serif;
     font-size: 12px;
     cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s;
+    font-weight: 500;
+    transition: all 0.15s;
 }
 .pm-footer-btn:hover {
-    background: rgba(255,255,255,0.14);
-    color: #ffffff;
+    background: #f0f0f4;
+    border-color: #c0c0cc;
 }
 .pm-footer-btn.danger {
-    border-color: rgba(239,68,68,0.4);
-    color: #fca5a5;
+    color: #9a4a4a;
+    border-color: #e0d0d0;
 }
 .pm-footer-btn.danger:hover {
-    background: rgba(239,68,68,0.15);
-    color: #fecaca;
+    background: #faf5f5;
 }
 .pm-footer-btn.success {
-    background: rgba(16,185,129,0.2);
-    color: #6ee7b7;
-    border-color: rgba(16,185,129,0.3);
+    color: #4a7a4a;
+    border-color: #c8dcc8;
 }
 .pm-footer-btn.success:hover {
-    background: rgba(16,185,129,0.3);
-    color: #a7f3d0;
+    background: #f5faf5;
 }
 .pm-footer-btn.primary {
-    background: #ffffff;
-    color: #1e3a5f;
-    border-color: #ffffff;
-    font-weight: 700;
+    background: #1a1a2e;
+    color: #e0e0e6;
+    border-color: #1a1a2e;
 }
 .pm-footer-btn.primary:hover {
-    background: #f1f5f9;
+    background: #2a2a40;
 }
 .pm-footer-btn.primary:disabled {
-    opacity: 0.35;
+    opacity: 0.3;
     cursor: not-allowed;
 }
 
 /* Accounting Summary */
 .pm-accounting {
-    margin-top: 20px;
-    padding: 18px 20px;
-    background: #ffffff;
-    border-radius: 10px;
-    border: 1px solid #edf0f4;
-    box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+    margin-top: 16px;
+    padding: 16px;
+    background: #fafafa;
+    border-radius: 8px;
+    border: 1px solid #ebebf0;
 }
 .pm-accounting-title {
-    font-weight: 700;
-    font-size: 14px;
-    color: #1e3a5f;
-    margin-bottom: 12px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #edf0f4;
+    font-weight: 600;
+    font-size: 13px;
+    color: #3a3a4a;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #ebebf0;
 }
 .pm-accounting-row {
     display: flex;
     justify-content: space-between;
-    padding: 7px 0;
+    padding: 5px 0;
     font-size: 13px;
-    color: #64748b;
+    color: #6e6e7a;
 }
 .pm-accounting-row.total {
-    border-top: 2px solid #1e3a5f;
-    margin-top: 10px;
-    padding-top: 12px;
-    font-weight: 700;
-    font-size: 14px;
-    color: #1e293b;
+    border-top: 1px solid #d8d8e0;
+    margin-top: 8px;
+    padding-top: 10px;
+    font-weight: 600;
+    font-size: 13px;
+    color: #1a1a2e;
 }
 
 /* Responsive */
 @media (max-width: 600px) {
     .pm-client-summary { grid-template-columns: repeat(2, 1fr); }
     .pm-list-header,
-    .pm-payment-row { grid-template-columns: 32px 1fr 80px 90px; }
-    .pm-header { padding: 16px 20px; }
-    .pm-body { padding: 18px 20px; }
-    .pm-footer { padding: 12px 20px; flex-wrap: wrap; }
-    .pm-footer-btn { font-size: 11px; padding: 6px 10px; }
+    .pm-payment-row { grid-template-columns: 28px 1fr 76px 86px; }
+    .pm-header { padding: 12px 18px; }
+    .pm-body { padding: 16px 18px; }
+    .pm-footer { padding: 10px 18px; flex-wrap: wrap; }
+    .pm-footer-btn { font-size: 11px; padding: 5px 9px; }
 }
 
 /* Password Popup */
