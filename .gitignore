@@ -38,3 +38,8 @@ firebase-debug.log
 
 # Netlify
 .netlify/
+
+# Design source files
+assets/*.psd
+assets/*.ai
+assets/*.sketch

@@ -1,0 +1,313 @@
+/* === Sales Form: User Selection, Success Screen, Confetti, Split Payment === */
+
+/* User Selection */
+.user-selection {
+    background: var(--white);
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    padding: 32px;
+    text-align: center;
+}
+
+@media (max-width: 768px) {
+    .user-selection {
+        padding: 24px 20px;
+        border-radius: 12px;
+    }
+}
+
+.user-selection h2 {
+    font-size: 20px;
+    margin-bottom: 8px;
+    color: var(--gray-800);
+}
+
+.user-selection p {
+    color: var(--gray-500);
+    margin-bottom: 24px;
+}
+
+.user-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 12px;
+}
+
+@media (max-width: 500px) {
+    .user-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+}
+
+.user-btn {
+    padding: 16px;
+    border: 2px solid var(--gray-200);
+    border-radius: 12px;
+    background: var(--white);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Heebo', sans-serif;
+}
+
+.user-btn:hover {
+    border-color: var(--primary-blue);
+    background: var(--light-blue);
+}
+
+.user-avatar {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--primary-blue) 0%, #60a5fa 100%);
+    border-radius: 50%;
+    margin: 0 auto 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.user-name {
+    font-weight: 500;
+    color: var(--gray-700);
+}
+
+/* Success Message */
+.success-screen {
+    display: none;
+    text-align: center;
+    padding: 40px 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.success-screen.show {
+    display: block;
+    animation: fadeIn 0.4s ease;
+}
+
+.success-icon {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+    border-radius: 50%;
+    margin: 0 auto 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: successPop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    box-shadow: 0 10px 40px rgba(16, 185, 129, 0.3);
+}
+
+@keyframes successPop {
+    0% {
+        transform: scale(0) rotate(-180deg);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2) rotate(10deg);
+    }
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+.success-icon svg {
+    width: 50px;
+    height: 50px;
+    color: var(--white);
+    stroke-width: 3;
+}
+
+.celebration-emoji {
+    font-size: 48px;
+    margin-bottom: 16px;
+    animation: bounce 0.8s ease infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.success-screen h2 {
+    font-size: 28px;
+    color: var(--gray-800);
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.success-screen .subtitle {
+    color: var(--success);
+    margin-bottom: 24px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.sale-summary {
+    background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%);
+    border: 2px solid #10b981;
+    border-radius: 16px;
+    padding: 24px;
+    margin: 24px 0;
+    text-align: right;
+}
+
+.sale-summary-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.sale-detail {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.sale-detail:last-child {
+    border-bottom: none;
+}
+
+.sale-detail-label {
+    color: var(--gray-600);
+    font-size: 14px;
+}
+
+.sale-detail-value {
+    color: var(--gray-800);
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.sale-amount {
+    background: var(--success);
+    color: white;
+    padding: 16px;
+    border-radius: 12px;
+    margin-top: 16px;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+/* Confetti Animation */
+.confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #f0f;
+    animation: confetti-fall 3s linear infinite;
+}
+
+@keyframes confetti-fall {
+    0% {
+        transform: translateY(-100%) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+.confetti:nth-child(1) { left: 10%; background: #ff6b6b; animation-delay: 0s; }
+.confetti:nth-child(2) { left: 20%; background: #4ecdc4; animation-delay: 0.2s; }
+.confetti:nth-child(3) { left: 30%; background: #ffe66d; animation-delay: 0.4s; }
+.confetti:nth-child(4) { left: 40%; background: #a8e6cf; animation-delay: 0.6s; }
+.confetti:nth-child(5) { left: 50%; background: #ff8b94; animation-delay: 0.8s; }
+.confetti:nth-child(6) { left: 60%; background: #b4e7ce; animation-delay: 1s; }
+.confetti:nth-child(7) { left: 70%; background: #ffd3b6; animation-delay: 1.2s; }
+.confetti:nth-child(8) { left: 80%; background: #dcedc1; animation-delay: 1.4s; }
+.confetti:nth-child(9) { left: 90%; background: #a8dadc; animation-delay: 1.6s; }
+.confetti:nth-child(10) { left: 95%; background: #e4c1f9; animation-delay: 1.8s; }
+
+/* Split Payment Rows */
+.split-payment-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 12px;
+    padding: 16px;
+    background: var(--gray-50);
+    border-radius: 10px;
+    border: 1px solid var(--gray-200);
+}
+
+@media (max-width: 500px) {
+    .split-payment-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.split-payment-row .form-group {
+    margin-bottom: 0;
+}
+
+.split-payment-remove {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid var(--error);
+    background: var(--white);
+    color: var(--error);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.split-payment-remove:hover {
+    background: var(--error);
+    color: var(--white);
+}
+
+.split-payment-remove svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Split Payment Method Details */
+.split-method-details {
+    grid-column: 1 / -1;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--gray-300);
+}
+
+.split-cc-details,
+.split-checks-details {
+    background: var(--white);
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--gray-200);
+}
+
+.conditional-subfield {
+    display: none;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--gray-300);
+}
+
+.split-row-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 12px;
+    align-items: end;
+}
+
+@media (max-width: 500px) {
+    .split-row-header {
+        grid-template-columns: 1fr;
+    }
+}
