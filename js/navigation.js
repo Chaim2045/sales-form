@@ -16,16 +16,6 @@ function navHome() {
     setActiveNav('navHomeBtn');
 }
 
-function navNewSale() {
-    hideBillingManagement();
-    document.getElementById('mainContainer').style.display = '';
-    if (!currentUser) {
-        document.getElementById('userSelection').classList.remove('hidden');
-        document.getElementById('mainForm').classList.add('hidden');
-    }
-    setActiveNav('navNewSaleBtn');
-}
-
 function navAddBilling() {
     openBillingModal();
     setActiveNav('navAddBillingBtn');
@@ -34,11 +24,6 @@ function navAddBilling() {
 function navBillingMgmt() {
     showBillingManagement();
     setActiveNav('navBillingMgmtBtn');
-}
-
-function navInvoices() {
-    showInvoicesManagement();
-    setActiveNav('navInvoicesBtn');
 }
 
 function navLogout() {
