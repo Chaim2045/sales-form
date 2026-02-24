@@ -7996,166 +7996,107 @@
             var nowStr = new Date().toLocaleString('he-IL');
 
             var gold = '#c5a14e';
-            var darkBg = '#2d2d2d';
 
-            // Build line items rows
             var linesHtml = '';
-            (inv.lineItems || []).forEach(function(item, idx) {
+            (inv.lineItems || []).forEach(function(item) {
                 linesHtml +=
-                    '<tr style="border-bottom:1px solid #e8e8e8;">' +
-                        '<td style="padding:14px 12px;text-align:center;font-size:13px;color:#555;width:50px;">' + (idx + 1) + '</td>' +
-                        '<td style="padding:14px 12px;text-align:right;font-size:13px;color:#333;">' + (item.description || '') + '</td>' +
-                        '<td style="padding:14px 12px;text-align:center;font-size:13px;color:#555;width:90px;">' + Number(item.unitPrice || 0).toLocaleString('he-IL') + ' &#8362;</td>' +
-                        '<td style="padding:14px 12px;text-align:center;font-size:13px;color:#555;width:60px;">' + (item.quantity || 0) + '</td>' +
-                        '<td style="padding:14px 12px;text-align:left;font-size:13px;font-weight:600;color:#333;width:100px;">' + Number(item.total || 0).toLocaleString('he-IL') + ' &#8362;</td>' +
+                    '<tr>' +
+                        '<td style="padding:12px 16px;border-bottom:1px solid #eee;text-align:right;font-size:14px;">' + (item.description || '') + '</td>' +
+                        '<td style="padding:12px 16px;border-bottom:1px solid #eee;text-align:center;font-size:14px;">' + (item.quantity || 0) + '</td>' +
+                        '<td style="padding:12px 16px;border-bottom:1px solid #eee;text-align:center;font-size:14px;">' + Number(item.unitPrice || 0).toLocaleString('he-IL') + ' &#8362;</td>' +
+                        '<td style="padding:12px 16px;border-bottom:1px solid #eee;text-align:center;font-size:14px;font-weight:600;">' + Number(item.total || 0).toLocaleString('he-IL') + ' &#8362;</td>' +
                     '</tr>';
             });
 
-            // Add empty rows to fill space (minimum 6 rows like the template)
-            var itemCount = (inv.lineItems || []).length;
-            for (var i = itemCount; i < 6; i++) {
-                linesHtml +=
-                    '<tr style="border-bottom:1px solid #e8e8e8;">' +
-                        '<td style="padding:14px 12px;">&nbsp;</td>' +
-                        '<td style="padding:14px 12px;">&nbsp;</td>' +
-                        '<td style="padding:14px 12px;">&nbsp;</td>' +
-                        '<td style="padding:14px 12px;">&nbsp;</td>' +
-                        '<td style="padding:14px 12px;">&nbsp;</td>' +
-                    '</tr>';
-            }
-
             var html =
-            '<div style="font-family:Heebo,Arial,sans-serif;direction:rtl;width:760px;background:#fff;overflow:hidden;min-height:1070px;position:relative;">' +
+            '<div style="font-family:Heebo,Arial,sans-serif;direction:rtl;width:760px;background:#fff;overflow:hidden;">' +
 
-                // ===== TOP SECTION: Logo + Company Name + Invoice title =====
-                '<div style="padding:32px 40px 20px;">' +
+                // Header
+                '<div style="padding:36px 36px 24px;">' +
                     '<table style="width:100%;border-collapse:collapse;"><tr>' +
-                        '<td style="vertical-align:top;text-align:right;width:50%;">' +
-                            '<img src="' + INV_LOGO_BASE64 + '" style="width:70px;margin-bottom:8px;display:block;">' +
-                            '<div style="font-size:18px;font-weight:700;color:#222;letter-spacing:1px;">גיא הרשקוביץ</div>' +
-                            '<div style="font-size:13px;color:#888;margin-top:2px;">חברת עורכי דין</div>' +
+                        '<td style="width:110px;vertical-align:top;">' +
+                            '<img src="' + INV_LOGO_BASE64 + '" style="width:95px;">' +
                         '</td>' +
-                        '<td style="vertical-align:top;text-align:left;width:50%;">' +
-                            '<div style="font-size:36px;font-weight:800;color:' + darkBg + ';letter-spacing:2px;">חשבון עסקה</div>' +
-                            '<div style="font-size:15px;color:#888;margin-top:4px;">מספר ' + inv.invoiceNumber + '</div>' +
+                        '<td style="vertical-align:top;text-align:center;padding:0 12px;">' +
+                            '<div style="font-size:17px;font-weight:700;color:#222;margin-bottom:8px;">גיא הרשקוביץ חברת עורכי דין</div>' +
+                            '<div style="font-size:11px;color:#888;line-height:1.9;">' +
+                                'עוסק מורשה (ח.פ): 515577161<br>' +
+                                'מנחם בגין 144, מגדל מידטאון, תל אביב - יפו<br>' +
+                                'טל: 03-685-55-58 | פקס: 03-620-77-71<br>' +
+                                'ACC@ghlawoffice.co.il | ghlawoffice.co.il' +
+                            '</div>' +
+                        '</td>' +
+                        '<td style="width:180px;vertical-align:top;text-align:right;">' +
+                            '<div style="font-size:10px;color:#999;margin-bottom:8px;">לכבוד</div>' +
+                            '<div style="font-size:16px;font-weight:700;color:#222;margin-bottom:4px;">' + (inv.clientName || '') + '</div>' +
+                            (inv.clientIdNumber ? '<div style="font-size:12px;color:#888;margin-bottom:2px;">ח.פ/ת.ז: ' + inv.clientIdNumber + '</div>' : '') +
+                            (inv.clientPhone ? '<div style="font-size:12px;color:#888;">טלפון: ' + inv.clientPhone + '</div>' : '') +
                         '</td>' +
                     '</tr></table>' +
                 '</div>' +
 
-                // ===== GOLD SEPARATOR LINE =====
-                '<div style="height:3px;background:' + gold + ';margin:0 40px;"></div>' +
+                // Thin gold line
+                '<div style="height:2px;background:' + gold + ';margin:0 36px;"></div>' +
 
-                // ===== INFO SECTION: Invoice details + Client details =====
-                '<div style="padding:24px 40px 20px;">' +
+                // Title + date
+                '<div style="padding:22px 36px;">' +
                     '<table style="width:100%;border-collapse:collapse;"><tr>' +
-                        '<td style="vertical-align:top;text-align:right;width:50%;">' +
-                            '<div style="margin-bottom:10px;">' +
-                                '<span style="font-size:12px;color:#999;display:inline-block;width:100px;">מספר חשבון:</span>' +
-                                '<span style="font-size:13px;color:#333;font-weight:600;">' + inv.invoiceNumber + '</span>' +
-                            '</div>' +
-                            '<div style="margin-bottom:10px;">' +
-                                '<span style="font-size:12px;color:#999;display:inline-block;width:100px;">תאריך:</span>' +
-                                '<span style="font-size:13px;color:#333;">' + dateStr + '</span>' +
-                            '</div>' +
-                            (dueDateStr ? '<div style="margin-bottom:10px;">' +
-                                '<span style="font-size:12px;color:#999;display:inline-block;width:100px;">לתשלום עד:</span>' +
-                                '<span style="font-size:13px;color:#333;">' + dueDateStr + '</span>' +
-                            '</div>' : '') +
-                            (inv.subject ? '<div style="margin-bottom:10px;">' +
-                                '<span style="font-size:12px;color:#999;display:inline-block;width:100px;">נושא:</span>' +
-                                '<span style="font-size:13px;color:#333;">' + inv.subject + '</span>' +
-                            '</div>' : '') +
+                        '<td style="text-align:right;">' +
+                            '<span style="font-size:24px;font-weight:700;color:#222;">חשבון עסקה ' + inv.invoiceNumber + '</span>' +
+                            '<span style="font-size:12px;color:#aaa;margin-right:14px;">מקור</span>' +
                         '</td>' +
-                        '<td style="vertical-align:top;text-align:left;width:50%;">' +
-                            '<div style="font-size:11px;color:' + gold + ';font-weight:600;letter-spacing:1px;margin-bottom:10px;">לכבוד</div>' +
-                            '<div style="font-size:18px;font-weight:700;color:#222;margin-bottom:8px;">' + (inv.clientName || '') + '</div>' +
-                            (inv.clientIdNumber ? '<div style="font-size:12px;color:#666;margin-bottom:4px;">ח.פ/ת.ז: ' + inv.clientIdNumber + '</div>' : '') +
-                            (inv.clientPhone ? '<div style="font-size:12px;color:#666;margin-bottom:4px;">טלפון: ' + inv.clientPhone + '</div>' : '') +
-                            (inv.clientEmail ? '<div style="font-size:12px;color:#666;">דוא"ל: ' + inv.clientEmail + '</div>' : '') +
+                        '<td style="text-align:left;font-size:13px;color:#888;">' +
+                            dateStr +
+                            (dueDateStr ? '<br>לתשלום עד: ' + dueDateStr : '') +
                         '</td>' +
                     '</tr></table>' +
                 '</div>' +
 
-                // ===== ITEMS TABLE =====
-                '<div style="padding:0 40px;margin-top:8px;">' +
+                // Subject
+                (inv.subject ? '<div style="padding:0 36px 20px;font-size:14px;color:#555;">בגין: ' + inv.subject + '</div>' : '') +
+
+                // Table - clean, no colored header
+                '<div style="padding:0 36px;">' +
                     '<table style="width:100%;border-collapse:collapse;">' +
-                        '<thead>' +
-                            '<tr style="background:' + darkBg + ';">' +
-                                '<th style="padding:12px;text-align:center;font-size:12px;font-weight:600;color:#fff;width:50px;">מס\'</th>' +
-                                '<th style="padding:12px;text-align:right;font-size:12px;font-weight:600;color:#fff;">פירוט</th>' +
-                                '<th style="padding:12px;text-align:center;font-size:12px;font-weight:600;color:#fff;width:90px;">מחיר</th>' +
-                                '<th style="padding:12px;text-align:center;font-size:12px;font-weight:600;color:#fff;width:60px;">כמות</th>' +
-                                '<th style="padding:12px;text-align:left;font-size:12px;font-weight:600;color:#fff;width:100px;">סה"כ</th>' +
-                            '</tr>' +
-                        '</thead>' +
+                        '<thead><tr style="border-bottom:2px solid #222;">' +
+                            '<th style="padding:12px 16px;text-align:right;font-size:13px;font-weight:600;color:#222;">פירוט</th>' +
+                            '<th style="padding:12px 16px;text-align:center;font-size:13px;font-weight:600;color:#222;width:70px;">כמות</th>' +
+                            '<th style="padding:12px 16px;text-align:center;font-size:13px;font-weight:600;color:#222;width:100px;">מחיר ליחידה</th>' +
+                            '<th style="padding:12px 16px;text-align:center;font-size:13px;font-weight:600;color:#222;width:100px;">סה"כ</th>' +
+                        '</tr></thead>' +
                         '<tbody>' + linesHtml + '</tbody>' +
                     '</table>' +
                 '</div>' +
 
-                // ===== TOTALS SECTION =====
-                '<div style="padding:16px 40px 0;">' +
-                    '<table style="width:240px;border-collapse:collapse;margin-left:0;margin-right:auto;">' +
-                        '<tr>' +
-                            '<td style="padding:8px 0;font-size:13px;color:#888;text-align:right;padding-left:20px;">סה"כ לפני מע"מ</td>' +
-                            '<td style="padding:8px 0;font-size:13px;color:#333;text-align:left;width:110px;">' + Number(inv.subtotal || 0).toLocaleString('he-IL') + ' &#8362;</td>' +
-                        '</tr>' +
-                        '<tr>' +
-                            '<td style="padding:8px 0;font-size:13px;color:#888;text-align:right;padding-left:20px;">מע"מ 18%</td>' +
-                            '<td style="padding:8px 0;font-size:13px;color:#333;text-align:left;">' + Number(inv.vatAmount || 0).toLocaleString('he-IL') + ' &#8362;</td>' +
-                        '</tr>' +
-                        '<tr>' +
-                            '<td colspan="2" style="padding:4px 0;"><div style="border-top:1px solid #ddd;"></div></td>' +
-                        '</tr>' +
-                        '<tr style="background:' + gold + ';">' +
-                            '<td style="padding:12px 12px 12px 20px;font-size:15px;font-weight:700;color:#fff;text-align:right;">סה"כ לתשלום</td>' +
-                            '<td style="padding:12px;font-size:18px;font-weight:800;color:#fff;text-align:left;">' + Number(inv.total || 0).toLocaleString('he-IL') + ' &#8362;</td>' +
-                        '</tr>' +
+                // Totals - LEFT side (for numbers in RTL)
+                '<div style="padding:24px 36px 20px;">' +
+                    '<table style="width:280px;border-collapse:collapse;margin-left:0;margin-right:auto;">' +
+                        '<tr><td style="padding:8px 16px;font-size:14px;color:#888;text-align:right;">סה"כ לפני מע"מ</td><td style="padding:8px 16px;font-size:14px;font-weight:600;text-align:left;width:110px;">' + Number(inv.subtotal || 0).toLocaleString('he-IL') + ' &#8362;</td></tr>' +
+                        '<tr><td style="padding:8px 16px;font-size:14px;color:#888;text-align:right;">מע"מ 18%</td><td style="padding:8px 16px;font-size:14px;text-align:left;">' + Number(inv.vatAmount || 0).toLocaleString('he-IL') + ' &#8362;</td></tr>' +
+                        '<tr><td colspan="2" style="padding:0;"><div style="border-top:1px solid #ddd;margin:6px 0;"></div></td></tr>' +
+                        '<tr><td style="padding:10px 16px;font-size:17px;font-weight:700;color:#222;text-align:right;">סה"כ לתשלום</td><td style="padding:10px 16px;font-size:20px;font-weight:700;color:' + gold + ';text-align:left;">' + Number(inv.total || 0).toLocaleString('he-IL') + ' &#8362;</td></tr>' +
                     '</table>' +
                 '</div>' +
 
-                // ===== BOTTOM SECTION: Signatory + Payment =====
-                '<div style="padding:28px 40px 20px;">' +
-                    '<table style="width:100%;border-collapse:collapse;"><tr>' +
-                        '<td style="vertical-align:top;text-align:right;width:50%;padding-left:20px;">' +
-                            '<div style="font-size:15px;font-weight:700;color:#222;margin-bottom:6px;">גיא הרשקוביץ, עו"ד</div>' +
-                            '<div style="font-size:12px;color:#999;margin-bottom:16px;">מנהל המשרד</div>' +
-                            '<div style="font-size:11px;color:#999;line-height:1.8;">' +
-                                '<div style="font-size:12px;font-weight:600;color:#666;margin-bottom:6px;">תנאים</div>' +
-                                'יש להסדיר את התשלום עד לתאריך הנקוב.<br>' +
-                                'לאחר ביצוע העברה בנקאית, יש להעביר<br>' +
-                                'אסמכתא למשרד לצורך שיוך התשלום.' +
-                            '</div>' +
-                        '</td>' +
-                        '<td style="vertical-align:top;text-align:left;width:50%;">' +
-                            '<div style="font-size:12px;font-weight:600;color:#666;margin-bottom:10px;">אמצעי תשלום</div>' +
-                            '<div style="font-size:12px;color:#555;line-height:2;">' +
-                                '<div style="margin-bottom:8px;">' +
-                                    '<span style="font-weight:600;color:#333;">כרטיס אשראי</span><br>' +
-                                    'עד 4 תשלומים' +
-                                '</div>' +
-                                '<div>' +
-                                    '<span style="font-weight:600;color:#333;">העברה בנקאית</span><br>' +
-                                    'בנק מזרחי טפחות<br>' +
-                                    'סניף 421 | חשבון 333177<br>' +
-                                    'ע"ש: גיא הרשקוביץ חברת עו"ד' +
-                                '</div>' +
-                            '</div>' +
-                        '</td>' +
-                    '</tr></table>' +
+                // Separator
+                '<div style="padding:0 36px;"><div style="border-top:1px solid #eee;margin:10px 0 24px;"></div></div>' +
+
+                // Payment info - plain text, no boxes
+                '<div style="padding:0 36px 30px;font-size:13px;color:#666;line-height:2.2;">' +
+                    '<div style="font-size:15px;font-weight:700;color:#222;margin-bottom:10px;">שלום, ' + (inv.clientName || '').split(' ')[0] + '</div>' +
+                    'מצורף חשבון עסקה בגין ' + (inv.subject || '') + '.<br>' +
+                    'ניתן להסדיר את התשלום באחת מהדרכים הבאות:<br><br>' +
+                    '<b>כרטיס אשראי</b> - עד 4 תשלומים<br>' +
+                    '<b>העברה בנקאית</b> - בנק מזרחי טפחות, סניף 421, חשבון 333177<br>' +
+                    'ע"ש: גיא הרשקוביץ חברת עורכי דין<br><br>' +
+                    '<span style="font-size:11px;color:#bbb;">* לאחר ביצוע העברה בנקאית, יש להעביר אסמכתא למשרד לצורך שיוך התשלום.</span>' +
                 '</div>' +
 
-                // ===== FOOTER BAR =====
-                '<div style="position:absolute;bottom:0;left:0;right:0;background:' + darkBg + ';padding:14px 40px;">' +
+                // Footer
+                '<div style="border-top:1px solid #eee;padding:14px 36px;font-size:10px;color:#ccc;">' +
                     '<table style="width:100%;border-collapse:collapse;"><tr>' +
-                        '<td style="text-align:right;font-size:11px;color:rgba(255,255,255,0.7);">' +
-                            '03-685-55-58' +
-                        '</td>' +
-                        '<td style="text-align:center;font-size:11px;color:rgba(255,255,255,0.7);">' +
-                            'מנחם בגין 144, מגדל מידטאון, תל אביב' +
-                        '</td>' +
-                        '<td style="text-align:left;font-size:11px;color:rgba(255,255,255,0.7);">' +
-                            'ACC@ghlawoffice.co.il' +
-                        '</td>' +
+                        '<td>הופק ב-' + nowStr + ' | חשבון עסקה ' + inv.invoiceNumber + '</td>' +
+                        '<td style="text-align:left;">חתימה דיגיטלית מאובטחת</td>' +
                     '</tr></table>' +
                 '</div>' +
 
