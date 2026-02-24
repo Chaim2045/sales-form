@@ -428,10 +428,10 @@
 .bm-progress-fill {
     height: 100%;
     border-radius: 2px;
-    background: var(--text-tertiary);
+    background: var(--accent);
     transition: width 0.3s;
 }
-.bm-progress-fill.high { background: var(--success); }
+.bm-progress-fill.high { background: var(--accent); }
 .bm-progress-text {
     font-size: 13px;
     font-weight: 500;
@@ -606,10 +606,10 @@
 .bm-card-progress-fill {
     height: 100%;
     border-radius: 2px;
-    background: var(--text-tertiary);
+    background: var(--accent);
     transition: width 0.3s;
 }
-.bm-card-progress-fill.high { background: var(--success); }
+.bm-card-progress-fill.high { background: var(--accent); }
 
 /* Empty State */
 .bm-empty {
