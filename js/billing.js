@@ -895,7 +895,7 @@ function renderTableView(clients) {
                 '<div style="display:flex;gap:6px;align-items:center;">' +
                     '<button class="bm-action-primary" onclick="openPaymentModal(\'' + c.id + '\')">תשלומים</button>' +
                     ((c.status || 'פעיל') === 'פעיל'
-                        ? '<button class="bm-action-primary" onclick="quickMarkPayment(\'' + c.id + '\')" style="background:#16a34a;">סמן תשלום</button>'
+                        ? '<button class="bm-action-primary" onclick="quickMarkPayment(\'' + c.id + '\')" style="background:#16a34a;color:#fff;">סמן תשלום</button>'
                         : '') +
                     '<div class="bm-actions-dropdown">' +
                         '<button class="bm-actions-toggle" onclick="toggleActionsMenu(\'' + uid + '\', event)">\u22EE</button>' +
@@ -1005,7 +1005,7 @@ function renderCardsView(clients) {
             '<div style="display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid #f1f5f9;">' +
                 '<button class="bm-action-primary" onclick="openPaymentModal(\'' + c.id + '\')" style="flex:1;text-align:center;padding:10px;">תשלומים</button>' +
                 ((c.status || 'פעיל') === 'פעיל'
-                    ? '<button class="bm-action-primary" onclick="quickMarkPayment(\'' + c.id + '\')" style="flex:1;text-align:center;padding:10px;background:#16a34a;">סמן תשלום</button>'
+                    ? '<button class="bm-action-primary" onclick="quickMarkPayment(\'' + c.id + '\')" style="flex:1;text-align:center;padding:10px;background:#16a34a;color:#fff;">סמן תשלום</button>'
                     : '') +
             '</div>' +
             '<div style="display:flex;gap:8px;margin-top:8px;">' +
