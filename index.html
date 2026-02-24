@@ -718,7 +718,7 @@
                         <tr>
                             <th>לקוח</th>
                             <th>עו"ד מטפל</th>
-                            <th>חיוב הבא <span style="font-weight:400;font-size:10px;color:#94a3b8;">(כולל מע"מ)</span></th>
+                            <th>חיוב הבא <span style="font-weight:400;font-size:10px;color:rgba(0,0,0,0.3);">(כולל מע"מ)</span></th>
                             <th>סה"כ עסקה</th>
                             <th>שולם</th>
                             <th>התקדמות</th>
@@ -815,7 +815,7 @@
                 <div class="form-group">
                     <label>סכום לכל תשלום (מחושב אוטומטית)</label>
                     <input type="number" id="billingAmount" placeholder="יחושב אוטומטית" min="0" step="0.01" readonly
-                        style="background:#f8fafc;color:#64748b;">
+                        style="background:rgba(0,0,0,0.02);color:rgba(0,0,0,0.4);">
                     <div style="font-size:11px;color:var(--gray-400);margin-top:3px;">ניתן לערוך כל תשלום בנפרד בטבלה למטה</div>
                 </div>
 
@@ -839,8 +839,8 @@
                 <!-- טבלת סכומים לכל חודש -->
                 <div id="billingAmountsPreview" style="display:none;margin-top:12px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                        <label style="font-weight:600;font-size:13px;color:var(--gray-700);">פירוט סכומים לכל חודש</label>
-                        <button type="button" onclick="toggleAmountsTable()" id="billingAmountsToggle" style="background:none;border:1px solid var(--primary-blue);color:var(--primary-blue);border-radius:6px;padding:4px 12px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;">ערוך סכומים</button>
+                        <label style="font-weight:500;font-size:13px;color:rgba(0,0,0,0.88);">פירוט סכומים לכל חודש</label>
+                        <button type="button" onclick="toggleAmountsTable()" id="billingAmountsToggle" style="background:none;border:1px solid rgba(0,0,0,0.1);color:rgba(0,0,0,0.55);border-radius:6px;padding:4px 12px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;">ערוך סכומים</button>
                     </div>
                     <div id="billingAmountsTable" style="display:none;max-height:250px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:8px;padding:8px;background:var(--gray-50);"></div>
                     <div id="billingAmountsSummary" style="font-size:12px;color:var(--gray-500);margin-top:4px;"></div>
@@ -946,7 +946,7 @@
             <div class="edit-modal-body" id="editModalBody">
                 <input type="hidden" id="editDocId">
 
-                <div class="billing-section-title" style="background:#dbeafe;color:#1d4ed8;">פרטי לקוח</div>
+                <div class="billing-section-title" >פרטי לקוח</div>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -973,7 +973,7 @@
                     <input type="text" id="editAddress">
                 </div>
 
-                <div class="billing-section-title" style="background:#dbeafe;color:#1d4ed8;">פרטי גבייה</div>
+                <div class="billing-section-title" >פרטי גבייה</div>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -987,15 +987,15 @@
                 </div>
                 <div class="form-group">
                     <label>סכום לכל תשלום (מחושב אוטומטית)</label>
-                    <input type="number" id="editAmount" readonly style="background:#f8fafc;color:#64748b;">
+                    <input type="number" id="editAmount" readonly style="background:rgba(0,0,0,0.02);color:rgba(0,0,0,0.4);">
                 </div>
                 <div id="editAmountsPreview" style="display:none;margin:8px 0;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                        <span style="font-size:12px;font-weight:600;color:#0f172a;">פירוט תשלומים</span>
-                        <button type="button" id="editAmountsToggle" onclick="toggleEditAmountsTable()" style="font-size:11px;padding:3px 10px;border:1px solid #e2e8f0;border-radius:4px;cursor:pointer;background:none;color:var(--primary-blue);font-family:Heebo,sans-serif;">ערוך סכומים</button>
+                        <span style="font-size:12px;font-weight:500;color:rgba(0,0,0,0.88);">פירוט תשלומים</span>
+                        <button type="button" id="editAmountsToggle" onclick="toggleEditAmountsTable()" style="font-size:11px;padding:3px 10px;border:1px solid rgba(0,0,0,0.1);border-radius:6px;cursor:pointer;background:none;color:rgba(0,0,0,0.55);font-family:Heebo,sans-serif;">ערוך סכומים</button>
                     </div>
-                    <div id="editAmountsTable" style="display:none;max-height:200px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;"></div>
-                    <div id="editAmountsSummary" style="font-size:12px;color:#64748b;margin-top:4px;text-align:center;"></div>
+                    <div id="editAmountsTable" style="display:none;max-height:200px;overflow-y:auto;border:1px solid rgba(0,0,0,0.06);border-radius:6px;"></div>
+                    <div id="editAmountsSummary" style="font-size:12px;color:rgba(0,0,0,0.4);margin-top:4px;text-align:center;"></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -1020,7 +1020,7 @@
                     </select>
                 </div>
 
-                <div class="billing-section-title" style="background:#dbeafe;color:#1d4ed8;">פרטי כרטיס אשראי</div>
+                <div class="billing-section-title" >פרטי כרטיס אשראי</div>
                 <div style="font-size: 11px; color: var(--gray-400); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     <span id="editCardStatus">לא הוזן כרטיס</span>
@@ -1052,7 +1052,7 @@
                     </select>
                 </div>
 
-                <div class="billing-section-title" style="background:#dbeafe;color:#1d4ed8;">פרטים נוספים</div>
+                <div class="billing-section-title" >פרטים נוספים</div>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -1120,7 +1120,7 @@
     <div id="pwPopupOverlay" class="pw-popup-overlay">
         <div class="pw-popup">
             <div class="pw-popup-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.4)" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
             </div>
             <h3 id="pwPopupTitle">סיסמת הצפנה</h3>
             <div class="pw-desc" id="pwPopupDesc">

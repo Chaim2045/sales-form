@@ -1,88 +1,131 @@
-/* === Modals: Edit, Payment Details, Password Popup === */
+/* === Modals: Edit, Payment Details, Password Popup — Linear Style === */
 
 /* Edit Modal */
 .edit-modal-overlay {
     display: none;
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0,0,0,0.25);
     z-index: 1500;
     justify-content: center;
     align-items: flex-start;
-    padding: 20px;
+    padding: 24px;
     overflow-y: auto;
 }
 .edit-modal-overlay.show { display: flex; }
 .edit-modal {
-    background: white;
-    border-radius: 16px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
     width: 100%;
     max-width: 520px;
-    margin: 20px auto;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    animation: modalSlideIn 0.3s ease;
+    margin: 40px auto;
+    box-shadow: var(--shadow-lg);
+    animation: modalSlideIn 0.2s ease;
+    overflow: hidden;
 }
 .edit-modal-header {
-    background: var(--primary-blue);
-    color: white;
-    padding: 20px 24px;
-    border-radius: 16px 16px 0 0;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border-default);
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
-.edit-modal-header h3 { margin: 0; font-size: 18px; }
-.edit-modal-close {
-    background: none; border: none; color: white;
-    font-size: 24px; cursor: pointer; padding: 0; line-height: 1; opacity: 0.8;
+.edit-modal-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.1px;
 }
-.edit-modal-close:hover { opacity: 1; }
+.edit-modal-close {
+    background: none;
+    border: none;
+    color: var(--text-quaternary);
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.1s;
+    padding: 0;
+    line-height: 1;
+}
+.edit-modal-close:hover { background: var(--bg-hover); color: var(--text-secondary); }
 .edit-modal-body {
-    padding: 24px;
+    padding: 20px;
     max-height: 70vh;
     overflow-y: auto;
 }
-.edit-modal-body .form-group { margin-bottom: 16px; }
+.edit-modal-body .form-group { margin-bottom: 14px; }
 .edit-modal-body label {
-    display: block; margin-bottom: 6px;
-    font-weight: 500; font-size: 14px; color: #374151;
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 400;
+    font-size: 13px;
+    color: var(--text-secondary);
 }
 .edit-modal-body input,
 .edit-modal-body select,
 .edit-modal-body textarea {
-    width: 100%; padding: 10px 14px;
-    border: 1px solid #d1d5db; border-radius: 8px;
-    font-family: 'Heebo', sans-serif; font-size: 14px;
-    box-sizing: border-box; transition: border-color 0.2s;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-md);
+    font-family: 'Heebo', sans-serif;
+    font-size: 13px;
+    box-sizing: border-box;
+    transition: border-color 0.1s;
+    color: var(--text-primary);
+    background: var(--bg-primary);
 }
 .edit-modal-body input:focus,
 .edit-modal-body select:focus,
 .edit-modal-body textarea:focus {
-    outline: none; border-color: var(--primary-blue);
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-ring);
 }
 .edit-modal-body .form-row {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
 }
 .edit-modal-footer {
-    padding: 16px 24px; border-top: 1px solid #e5e7eb;
-    display: flex; gap: 12px; justify-content: flex-end;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-default);
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
 }
 .edit-modal-footer button {
-    padding: 10px 24px; border-radius: 8px;
-    font-family: 'Heebo', sans-serif; font-size: 14px;
-    font-weight: 600; cursor: pointer; border: none; transition: background 0.2s;
+    padding: 6px 16px;
+    border-radius: var(--radius-md);
+    font-family: 'Heebo', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.1s;
 }
-.edit-btn-cancel { background: #f3f4f6; color: #374151; }
-.edit-btn-cancel:hover { background: #e5e7eb; }
-.edit-btn-save { background: var(--primary-blue); color: white; }
-.edit-btn-save:hover { background: var(--primary-blue-hover); }
-.edit-btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+.edit-btn-cancel {
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-input);
+}
+.edit-btn-cancel:hover { background: var(--bg-hover); border-color: var(--border-hover); }
+.edit-btn-save { background: var(--accent); color: white; }
+.edit-btn-save:hover { background: var(--accent-hover); }
+.edit-btn-save:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* Payment Details Modal — Linear exact style */
 /* Linear palette (light): bg #fbfbfc, surface #fff, border rgba(0,0,0,0.06), */
 /* text-primary rgba(0,0,0,0.88), text-secondary rgba(0,0,0,0.55), text-tertiary rgba(0,0,0,0.36) */
-/* accent: #5e6ad2 (used sparingly). Radius: 8px. Shadows: minimal. */
+/* accent: #1a1a1a (used sparingly). Radius: 8px. Shadows: minimal. */
 .pm-overlay {
     display: none;
     position: fixed;
@@ -254,8 +297,8 @@
 }
 .pm-amount-input:focus {
     outline: none;
-    border-color: #5e6ad2;
-    box-shadow: 0 0 0 2px rgba(94,106,210,0.15);
+    border-color: #1a1a1a;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.12);
 }
 
 /* Mark Payment Buttons */
@@ -332,12 +375,12 @@
     background: rgba(0,0,0,0.03);
 }
 .pm-footer-btn.primary {
-    background: #5e6ad2;
+    background: #1a1a1a;
     color: #ffffff;
-    border-color: #5e6ad2;
+    border-color: #1a1a1a;
 }
 .pm-footer-btn.primary:hover {
-    background: #4f5bc4;
+    background: #333333;
 }
 .pm-footer-btn.primary:disabled {
     opacity: 0.35;
@@ -393,45 +436,50 @@
     display: none;
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.55);
+    background: rgba(0,0,0,0.25);
     z-index: 3000;
     justify-content: center;
     align-items: center;
 }
 .pw-popup-overlay.show { display: flex; }
 .pw-popup {
-    background: var(--white);
-    border-radius: 16px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
     width: 90%;
-    max-width: 380px;
-    padding: 32px 28px 24px;
+    max-width: 360px;
+    padding: 24px 20px 20px;
     text-align: center;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    animation: modalSlideIn 0.3s ease;
+    box-shadow: var(--shadow-popup);
+    animation: modalSlideIn 0.2s ease;
 }
 .pw-popup-icon {
-    width: 56px; height: 56px;
-    background: linear-gradient(135deg, #dbeafe, #eff6ff);
+    width: 40px; height: 40px;
+    background: rgba(0,0,0,0.04);
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 16px;
+    margin: 0 auto 14px;
 }
 .pw-popup h3 {
-    font-size: 18px; font-weight: 700;
-    color: var(--gray-800); margin: 0 0 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 4px;
+    letter-spacing: -0.1px;
 }
 .pw-popup .pw-desc {
-    font-size: 13px; color: var(--gray-500);
-    margin-bottom: 18px; line-height: 1.6;
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-bottom: 16px;
+    line-height: 1.5;
 }
 .pw-popup .pw-warning {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 8px;
-    padding: 10px 14px;
+    background: var(--error-bg);
+    border: 1px solid rgba(239,68,68,0.12);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
     font-size: 12px;
-    color: #991b1b;
-    margin-bottom: 18px;
+    color: var(--error);
+    margin-bottom: 16px;
     text-align: right;
     display: flex;
     align-items: flex-start;
@@ -439,39 +487,52 @@
 }
 .pw-popup input[type="password"] {
     width: 100%;
-    padding: 12px 14px;
-    border: 1px solid var(--gray-300);
-    border-radius: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-md);
     font-family: 'Heebo', sans-serif;
-    font-size: 15px;
+    font-size: 14px;
     text-align: center;
     letter-spacing: 3px;
-    margin-bottom: 14px;
-    transition: border-color 0.2s;
+    margin-bottom: 12px;
+    transition: border-color 0.1s;
+    color: var(--text-primary);
+    background: var(--bg-primary);
 }
 .pw-popup input[type="password"]:focus {
     outline: none;
-    border-color: var(--primary-blue);
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-ring);
 }
 .pw-popup-buttons {
-    display: flex; gap: 10px;
+    display: flex;
+    gap: 8px;
 }
 .pw-popup-buttons button {
-    flex: 1; padding: 10px;
-    border-radius: 8px; font-family: 'Heebo', sans-serif;
-    font-size: 14px; font-weight: 600;
-    cursor: pointer; border: none; transition: background 0.2s;
+    flex: 1;
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+    font-family: 'Heebo', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.1s;
 }
 .pw-popup-cancel {
-    background: var(--gray-100); color: var(--gray-600);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-input);
 }
-.pw-popup-cancel:hover { background: var(--gray-200); }
+.pw-popup-cancel:hover { background: var(--bg-hover); }
 .pw-popup-confirm {
-    background: var(--primary-blue); color: white;
+    background: var(--accent);
+    color: white;
 }
-.pw-popup-confirm:hover { background: var(--primary-blue-hover); }
+.pw-popup-confirm:hover { background: var(--accent-hover); }
 .pw-popup-error {
-    color: var(--error); font-size: 12px;
-    margin-top: 8px; min-height: 16px;
+    color: var(--error);
+    font-size: 12px;
+    margin-top: 6px;
+    min-height: 16px;
 }
