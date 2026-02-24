@@ -1,5 +1,16 @@
 // ========== מודאל גבייה חודשית ==========
 
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function safeChargeDate(year, month, dayOfMonth) {
+    var lastDay = new Date(year, month + 1, 0).getDate();
+    var day = Math.min(dayOfMonth, lastDay);
+    return new Date(year, month, day);
+}
+
 let billingSearchTimeout = null;
 
 function openBillingModal() {
@@ -23,7 +34,6 @@ function openBillingModal() {
     document.getElementById('billingNotes').value = '';
     document.getElementById('billingCardNumber').value = '';
     document.getElementById('billingCardExpiry').value = '';
-    document.getElementById('billingCardCvv').value = '';
     document.getElementById('billingCardHolder').value = '';
     document.getElementById('billingCardType').value = '';
     document.getElementById('billingAutocomplete').classList.remove('show');
@@ -73,8 +83,8 @@ document.getElementById('billingClientSearch').addEventListener('input', functio
 
         dropdown.innerHTML = clients.map(client =>
             `<div class="billing-autocomplete-item" onclick='fillBillingClientData(${JSON.stringify(client).replace(/'/g, "&#39;")})'>
-                <div class="billing-autocomplete-name">${client.clientName}</div>
-                <div class="billing-autocomplete-details">${client.phone || ''} ${client.email ? '| ' + client.email : ''}</div>
+                <div class="billing-autocomplete-name">${escapeHTML(client.clientName)}</div>
+                <div class="billing-autocomplete-details">${escapeHTML(client.phone || '')} ${client.email ? '| ' + escapeHTML(client.email) : ''}</div>
             </div>`
         ).join('');
     }, 300);
@@ -121,14 +131,24 @@ async function submitBillingForm() {
         // הצפנת פרטי כרטיס אשראי
         const cardNumber = (document.getElementById('billingCardNumber').value || '').replace(/\s/g, '');
         const cardExpiry = document.getElementById('billingCardExpiry').value || '';
-        const cardCvv = document.getElementById('billingCardCvv').value || '';
         const cardHolder = document.getElementById('billingCardHolder').value || '';
         const cardType = document.getElementById('billingCardType').value || '';
         let cardEncrypted = '';
-        let cvvEncrypted = '';
         let cardLast4 = '';
 
         if (cardNumber) {
+            if (!validateCardNumber(cardNumber)) {
+                alert('מספר כרטיס אשראי לא תקין');
+                submitBtn.disabled = false;
+                document.getElementById('billingSubmitText').textContent = 'שמור וצור תזכורות';
+                return;
+            }
+            if (cardExpiry && !validateCardExpiry(cardExpiry)) {
+                alert('תוקף כרטיס לא תקין או שפג תוקפו');
+                submitBtn.disabled = false;
+                document.getElementById('billingSubmitText').textContent = 'שמור וצור תזכורות';
+                return;
+            }
             const passphrase = await requestPassword('encrypt');
             if (!passphrase) {
                 submitBtn.disabled = false;
@@ -137,9 +157,6 @@ async function submitBillingForm() {
             }
             cardEncrypted = encryptCardData(cardNumber, passphrase);
             cardLast4 = cardNumber.slice(-4);
-            if (cardCvv) {
-                cvvEncrypted = encryptCardData(cardCvv, passphrase);
-            }
         }
 
         const billingIdPrefix = 'BIL-' + Date.now();
@@ -174,7 +191,6 @@ async function submitBillingForm() {
             paymentMethod: 'כרטיס אשראי',
             status: 'פעיל',
             cardEncrypted: cardEncrypted,
-            cvvEncrypted: cvvEncrypted,
             cardLast4: cardLast4,
             cardExpiry: cardExpiry,
             cardHolder: cardHolder,
@@ -196,7 +212,7 @@ async function submitBillingForm() {
             '<div class="billing-success-msg">' +
                 '<div class="check-icon">&#10004;</div>' +
                 '<h3 style="margin:0 0 8px;color:#1f2937;">הלקוח נוסף לגבייה בהצלחה!</h3>' +
-                '<p style="color:#6b7280;margin:0 0 4px;">' + clientName + '</p>' +
+                '<p style="color:#6b7280;margin:0 0 4px;">' + escapeHTML(clientName) + '</p>' +
                 '<p style="color:#6b7280;margin:0;">סה"כ ₪' + totalDealNum.toLocaleString('he-IL') + ' ב-' + monthsNum + ' תשלומים</p>' +
                 '<p style="color:#9ca3af;font-size:12px;margin-top:12px;">תזכורות יישלחו אוטומטית יום לפני כל חיוב</p>' +
             '</div>';
@@ -348,6 +364,8 @@ async function exportBillingReport() {
         link.download = 'דוח_גבייה_' + today + '.csv';
         link.click();
         URL.revokeObjectURL(link.href);
+
+        logAuditEvent('csv_export', { type: 'billing_report', date: today });
 
     } catch (error) {
         console.error('Export error:', error);
@@ -573,8 +591,8 @@ function renderBillingView() {
     tableView.style.display = billingViewMode === 'table' ? '' : 'none';
     cardsView.style.display = billingViewMode === 'cards' ? '' : 'none';
 
-    renderTableView(filtered);
-    renderCardsView(filtered);
+    if (billingViewMode === 'table') renderTableView(filtered);
+    else renderCardsView(filtered);
 }
 
 function renderTableView(clients) {
@@ -608,10 +626,10 @@ function renderTableView(clients) {
         }
 
         return '<tr>' +
-            '<td><strong style="color:#0f172a;">' + (c.clientName || '') + '</strong>' +
-                (c.caseNumber ? '<br><span style="font-size:11px;color:#94a3b8;">תיק ' + c.caseNumber + '</span>' : '') +
+            '<td><strong style="color:#0f172a;">' + escapeHTML(c.clientName || '') + '</strong>' +
+                (c.caseNumber ? '<br><span style="font-size:11px;color:#94a3b8;">תיק ' + escapeHTML(c.caseNumber) + '</span>' : '') +
             '</td>' +
-            '<td style="color:#64748b;">' + (c.attorney || '—') + '</td>' +
+            '<td style="color:#64748b;">' + escapeHTML(c.attorney || '—') + '</td>' +
             '<td class="bm-amount">' + nextPayDisplay + '</td>' +
             '<td class="bm-amount" style="color:#0f172a;">₪' + totalDeal.toLocaleString('he-IL') + '</td>' +
             '<td class="bm-amount" style="color:' + paidColor + ';">₪' + paidAmount.toLocaleString('he-IL') + '</td>' +
@@ -690,8 +708,8 @@ function renderCardsView(clients) {
         return '<div class="bm-card">' +
             '<div class="bm-card-top">' +
                 '<div>' +
-                    '<div class="bm-card-name">' + (c.clientName || '') + '</div>' +
-                    '<div class="bm-card-case">' + (c.caseNumber ? 'תיק ' + c.caseNumber : '') + (c.attorney ? ' | ' + c.attorney : '') + '</div>' +
+                    '<div class="bm-card-name">' + escapeHTML(c.clientName || '') + '</div>' +
+                    '<div class="bm-card-case">' + (c.caseNumber ? 'תיק ' + escapeHTML(c.caseNumber) : '') + (c.attorney ? ' | ' + escapeHTML(c.attorney) : '') + '</div>' +
                 '</div>' +
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                     getStatusBadge(c.status) +
@@ -718,9 +736,9 @@ function renderCardsView(clients) {
             '</div>' +
             (c.cardLast4 ?
                 '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #f1f5f9;margin-bottom:6px;">' +
-                    '<span style="font-size:12px;color:#64748b;font-variant-numeric:tabular-nums;">\u2022\u2022\u2022\u2022 ' + c.cardLast4 +
-                        (c.cardType ? ' <span style="color:#94a3b8;">(' + c.cardType + ')</span>' : '') +
-                        (c.cardExpiry ? ' <span style="color:#94a3b8;">' + c.cardExpiry + '</span>' : '') +
+                    '<span style="font-size:12px;color:#64748b;font-variant-numeric:tabular-nums;">\u2022\u2022\u2022\u2022 ' + escapeHTML(c.cardLast4) +
+                        (c.cardType ? ' <span style="color:#94a3b8;">(' + escapeHTML(c.cardType) + ')</span>' : '') +
+                        (c.cardExpiry ? ' <span style="color:#94a3b8;">' + escapeHTML(c.cardExpiry) + '</span>' : '') +
                     '</span>' +
                     '<button class="bm-action-secondary" onclick="revealCard(\'' + c.id + '\')" style="padding:3px 10px;">הצג מספר</button>' +
                 '</div>' : '') +
@@ -767,18 +785,13 @@ async function revealCard(docId) {
 
         const decrypted = decryptCardData(data.cardEncrypted, passphrase);
         if (!decrypted) {
+            logAuditEvent('decrypt_failed', { docId: docId, clientName: data.clientName || '' });
             alert('סיסמה שגויה');
             return;
         }
 
         // רישום לוג צפייה
         logCardView(docId, data.clientName);
-
-        // פענוח CVV אם קיים
-        var cvvDecrypted = '';
-        if (data.cvvEncrypted) {
-            cvvDecrypted = decryptCardData(data.cvvEncrypted, passphrase) || '';
-        }
 
         // הצגת המספר בחלון מעוצב שנסגר אוטומטית
         var formatted = decrypted.replace(/(\d{4})(?=\d)/g, '$1 ');
@@ -789,13 +802,12 @@ async function revealCard(docId) {
                 '<div style="margin-bottom:16px;">' +
                     '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>' +
                 '</div>' +
-                '<div style="font-size:13px;color:#6b7280;margin-bottom:8px;">' + (data.cardHolder || data.clientName || '') + '</div>' +
+                '<div style="font-size:13px;color:#6b7280;margin-bottom:8px;">' + escapeHTML(data.cardHolder || data.clientName || '') + '</div>' +
                 '<div style="font-size:22px;font-weight:700;letter-spacing:3px;direction:ltr;font-variant-numeric:tabular-nums;color:#1f2937;margin-bottom:6px;">' + formatted + '</div>' +
                 '<div style="display:flex;justify-content:center;gap:20px;margin-top:10px;">' +
-                    (data.cardExpiry ? '<div><div style="font-size:11px;color:#9ca3af;">תוקף</div><div style="font-size:15px;font-weight:600;color:#374151;direction:ltr;">' + data.cardExpiry + '</div></div>' : '') +
-                    (cvvDecrypted ? '<div><div style="font-size:11px;color:#9ca3af;">CVV</div><div style="font-size:15px;font-weight:600;color:#374151;direction:ltr;">' + cvvDecrypted + '</div></div>' : '') +
+                    (data.cardExpiry ? '<div><div style="font-size:11px;color:#9ca3af;">תוקף</div><div style="font-size:15px;font-weight:600;color:#374151;direction:ltr;">' + escapeHTML(data.cardExpiry) + '</div></div>' : '') +
                 '</div>' +
-                (data.cardType ? '<div style="font-size:12px;color:#9ca3af;margin-top:8px;">' + data.cardType + '</div>' : '') +
+                (data.cardType ? '<div style="font-size:12px;color:#9ca3af;margin-top:8px;">' + escapeHTML(data.cardType) + '</div>' : '') +
                 '<div style="font-size:11px;color:#ef4444;margin-top:14px;">החלון ייסגר אוטומטית בעוד 30 שניות</div>' +
                 '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="margin-top:14px;background:#2563eb;color:white;border:none;padding:8px 28px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">סגור</button>' +
             '</div>';
@@ -825,11 +837,14 @@ async function revealAndCopy(docId) {
         if (!data.cardEncrypted) { alert('אין פרטי כרטיס לרשומה זו'); return; }
 
         const decrypted = decryptCardData(data.cardEncrypted, passphrase);
-        if (!decrypted) { alert('סיסמה שגויה'); return; }
+        if (!decrypted) {
+            logAuditEvent('decrypt_failed', { docId: docId, clientName: data.clientName || '' });
+            alert('סיסמה שגויה');
+            return;
+        }
 
-        logCardView(docId, data.clientName);
+        logAuditEvent('card_copy', { docId: docId, clientName: data.clientName || '' });
 
-        var cvvDecrypted = data.cvvEncrypted ? (decryptCardData(data.cvvEncrypted, passphrase) || '') : '';
         var formatted = decrypted.replace(/(\d{4})(?=\d)/g, '$1 ');
 
         var overlay = document.createElement('div');
@@ -838,7 +853,7 @@ async function revealAndCopy(docId) {
             '<div style="background:white;border-radius:16px;padding:28px;max-width:400px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
                 '<div style="text-align:center;margin-bottom:18px;">' +
                     '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>' +
-                    '<div style="font-size:15px;font-weight:700;color:#1f2937;margin-top:8px;">' + (data.clientName || '') + '</div>' +
+                    '<div style="font-size:15px;font-weight:700;color:#1f2937;margin-top:8px;">' + escapeHTML(data.clientName || '') + '</div>' +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:8px;">' +
                     '<div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;">' +
@@ -848,10 +863,6 @@ async function revealAndCopy(docId) {
                     (data.cardExpiry ? '<div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;">' +
                         '<div><div style="font-size:10px;color:#9ca3af;">תוקף</div><div style="font-size:15px;font-weight:600;direction:ltr;color:#1f2937;">' + data.cardExpiry + '</div></div>' +
                         '<button onclick="copyToClipboard(\'' + data.cardExpiry + '\', this)" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">העתק</button>' +
-                    '</div>' : '') +
-                    (cvvDecrypted ? '<div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;">' +
-                        '<div><div style="font-size:10px;color:#9ca3af;">CVV</div><div style="font-size:15px;font-weight:600;direction:ltr;color:#1f2937;">' + cvvDecrypted + '</div></div>' +
-                        '<button onclick="copyToClipboard(\'' + cvvDecrypted + '\', this)" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">העתק</button>' +
                     '</div>' : '') +
                     (data.cardHolder ? '<div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;">' +
                         '<div><div style="font-size:10px;color:#9ca3af;">שם בעל הכרטיס</div><div style="font-size:14px;font-weight:600;color:#1f2937;">' + data.cardHolder + '</div></div>' +
@@ -952,12 +963,11 @@ async function openEditModal(docId) {
 
         // Card fields
         document.getElementById('editCardNumber').value = '';
-        document.getElementById('editCardCvv').value = '';
         document.getElementById('editCardExpiry').value = d.cardExpiry || '';
         document.getElementById('editCardHolder').value = d.cardHolder || '';
         document.getElementById('editCardType').value = d.cardType || '';
         document.getElementById('editCardStatus').textContent = d.cardLast4
-            ? 'כרטיס קיים: \u2022\u2022\u2022\u2022 ' + d.cardLast4 + (d.cardType ? ' (' + d.cardType + ')' : '')
+            ? 'כרטיס קיים: \u2022\u2022\u2022\u2022 ' + escapeHTML(d.cardLast4) + (d.cardType ? ' (' + escapeHTML(d.cardType) + ')' : '')
             : 'לא הוזן כרטיס';
 
         // טעינת תשלומים מ-subcollection להצגה בטבלת עריכה
@@ -1022,6 +1032,19 @@ async function saveEditBilling() {
         // הצפנת כרטיס חדש אם הוזן
         const newCardNumber = (document.getElementById('editCardNumber').value || '').replace(/\s/g, '');
         if (newCardNumber && newCardNumber.length >= 13) {
+            if (!validateCardNumber(newCardNumber)) {
+                alert('מספר כרטיס אשראי לא תקין');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'שמור שינויים';
+                return;
+            }
+            var editExpiry = document.getElementById('editCardExpiry').value || '';
+            if (editExpiry && !validateCardExpiry(editExpiry)) {
+                alert('תוקף כרטיס לא תקין או שפג תוקפו');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'שמור שינויים';
+                return;
+            }
             const passphrase = await requestPassword('encrypt');
             if (!passphrase) {
                 saveBtn.disabled = false;
@@ -1030,10 +1053,6 @@ async function saveEditBilling() {
             }
             updateData.cardEncrypted = encryptCardData(newCardNumber, passphrase);
             updateData.cardLast4 = newCardNumber.slice(-4);
-            const newCvv = document.getElementById('editCardCvv').value || '';
-            if (newCvv) {
-                updateData.cvvEncrypted = encryptCardData(newCvv, passphrase);
-            }
         }
 
         // קריאת נתוני הלקוח הישנים לפני העדכון (לצורך השוואה בסנכרון)
@@ -1082,7 +1101,6 @@ async function syncPaymentsAfterEdit(docId, oldData, newData) {
 
         var oldAmount = parseFloat(oldData.recurringMonthlyAmount) || 0;
         var newAmount = parseFloat(newData.recurringMonthlyAmount) || 0;
-        var oldMonths = parseInt(oldData.recurringMonthsCount) || 0;
         var newMonths = parseInt(newData.recurringMonthsCount) || 0;
         var oldStartDate = oldData.recurringStartDate || '';
         var newStartDate = newData.recurringStartDate || oldStartDate;
@@ -1109,10 +1127,7 @@ async function syncPaymentsAfterEdit(docId, oldData, newData) {
             existingPayments.forEach(function(p) {
                 if (p.data.status !== 'בוצע' && p.data.status !== 'בוטל') {
                     var monthIdx = p.data.monthNumber - 1;
-                    var newChargeDate = new Date(start.getFullYear(), start.getMonth() + monthIdx, newDayOfMonth);
-                    if (newChargeDate.getDate() !== newDayOfMonth) {
-                        newChargeDate.setDate(0); // סוף חודש קודם אם היום לא קיים
-                    }
+                    var newChargeDate = safeChargeDate(start.getFullYear(), start.getMonth() + monthIdx, newDayOfMonth);
                     var newDateStr = newChargeDate.toISOString().split('T')[0];
                     if (newDateStr !== p.data.plannedDate) {
                         var ref = db.collection('recurring_billing').doc(docId)
@@ -1185,10 +1200,7 @@ async function syncPaymentsAfterEdit(docId, oldData, newData) {
         // 5. הוספת חודשים חדשים אם מספר החודשים גדל
         if (newMonths > existingPayments.length) {
             for (var i = existingPayments.length; i < newMonths; i++) {
-                var chargeDate = new Date(start.getFullYear(), start.getMonth() + i, newDayOfMonth);
-                if (chargeDate.getDate() !== newDayOfMonth) {
-                    chargeDate.setDate(0);
-                }
+                var chargeDate = safeChargeDate(start.getFullYear(), start.getMonth() + i, newDayOfMonth);
                 var payRef = db.collection('recurring_billing').doc(docId)
                     .collection('payments').doc();
                 batch.set(payRef, {

@@ -35,18 +35,22 @@ auth.onAuthStateChanged(function(user) {
 
 // ========== Audit Log ==========
 
-function logCardView(docId, clientName) {
+function logAuditEvent(action, details) {
     try {
         db.collection('audit_log').add({
-            action: 'card_view',
-            billingDocId: docId,
-            clientName: clientName || '',
-            viewedBy: authUser ? authUser.email : (currentUser || 'unknown'),
+            action: action,
+            details: details || {},
+            performedBy: authUser ? authUser.email : (currentUser || 'unknown'),
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
     } catch (e) {
         console.error('Audit log error:', e);
     }
+}
+
+// Backwards-compatible wrapper
+function logCardView(docId, clientName) {
+    logAuditEvent('card_view', { docId: docId, clientName: clientName || '' });
 }
 
 // Global Variables

@@ -842,10 +842,6 @@
                         <label>תוקף</label>
                         <input type="text" id="billingCardExpiry" placeholder="MM/YY" maxlength="5" dir="ltr" style="text-align: left;" autocomplete="off">
                     </div>
-                    <div class="form-group">
-                        <label>CVV (3 ספרות)</label>
-                        <input type="password" id="billingCardCvv" placeholder="•••" maxlength="4" dir="ltr" style="text-align: center; letter-spacing: 4px;" autocomplete="off">
-                    </div>
                 </div>
 
                 <div class="form-row">
@@ -1018,10 +1014,6 @@
                         <label>תוקף</label>
                         <input type="text" id="editCardExpiry" placeholder="MM/YY" maxlength="5" dir="ltr" style="text-align:left;" autocomplete="off">
                     </div>
-                    <div class="form-group">
-                        <label>CVV (3 ספרות)</label>
-                        <input type="password" id="editCardCvv" placeholder="•••" maxlength="4" dir="ltr" style="text-align:center;letter-spacing:4px;" autocomplete="off">
-                    </div>
                 </div>
                 <div class="form-group">
                     <label>שם בעל הכרטיס</label>
@@ -1124,6 +1116,20 @@
                 <button class="pw-popup-confirm" id="pwPopupConfirm">אישור</button>
             </div>
             <div class="pw-popup-error" id="pwPopupError"></div>
+        </div>
+    </div>
+
+    <!-- Input Modal (replacement for prompt()) -->
+    <div id="inputModalOverlay" class="pw-popup-overlay">
+        <div class="pw-popup">
+            <h3 id="inputModalTitle">הזנת ערך</h3>
+            <div class="pw-desc" id="inputModalDesc"></div>
+            <input id="inputModalInput" autocomplete="off">
+            <div class="pw-popup-buttons">
+                <button class="pw-popup-cancel" id="inputModalCancel">ביטול</button>
+                <button class="pw-popup-confirm" id="inputModalConfirm">אישור</button>
+            </div>
+            <div class="pw-popup-error" id="inputModalError"></div>
         </div>
     </div>
 

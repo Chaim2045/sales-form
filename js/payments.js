@@ -1,5 +1,64 @@
 // ========== מודאל פירוט תשלומים ==========
 
+function safeChargeDate(year, month, dayOfMonth) {
+    var lastDay = new Date(year, month + 1, 0).getDate();
+    var day = Math.min(dayOfMonth, lastDay);
+    return new Date(year, month, day);
+}
+
+function showInputModal(title, defaultValue, type, validate) {
+    return new Promise(function(resolve) {
+        var overlay = document.getElementById('inputModalOverlay');
+        var input = document.getElementById('inputModalInput');
+        var errorEl = document.getElementById('inputModalError');
+        var titleEl = document.getElementById('inputModalTitle');
+        var descEl = document.getElementById('inputModalDesc');
+
+        titleEl.textContent = title;
+        descEl.textContent = '';
+        errorEl.textContent = '';
+        input.value = defaultValue || '';
+        input.type = type === 'date' ? 'date' : (type === 'number' ? 'number' : 'text');
+        if (type === 'number') { input.min = '0'; input.step = '0.01'; }
+        else { input.removeAttribute('min'); input.removeAttribute('step'); }
+
+        overlay.classList.add('show');
+        setTimeout(function() { input.focus(); input.select(); }, 100);
+
+        function cleanup() {
+            overlay.classList.remove('show');
+            document.getElementById('inputModalConfirm').removeEventListener('click', onConfirm);
+            document.getElementById('inputModalCancel').removeEventListener('click', onCancel);
+            input.removeEventListener('keydown', onKeydown);
+        }
+
+        function onConfirm() {
+            var val = input.value;
+            if (!val && val !== '0') { errorEl.textContent = 'נא להזין ערך'; return; }
+            if (type === 'number') {
+                val = parseFloat(val);
+                if (isNaN(val)) { errorEl.textContent = 'נא להזין מספר תקין'; return; }
+            }
+            if (type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                errorEl.textContent = 'נא להזין תאריך תקין'; return;
+            }
+            if (validate && !validate(val)) { errorEl.textContent = 'ערך לא תקין'; return; }
+            cleanup();
+            resolve(type === 'number' ? val : input.value);
+        }
+
+        function onCancel() { cleanup(); resolve(null); }
+        function onKeydown(e) {
+            if (e.key === 'Enter') onConfirm();
+            if (e.key === 'Escape') onCancel();
+        }
+
+        document.getElementById('inputModalConfirm').addEventListener('click', onConfirm);
+        document.getElementById('inputModalCancel').addEventListener('click', onCancel);
+        input.addEventListener('keydown', onKeydown);
+    });
+}
+
 let currentPaymentDocId = null;
 let currentPayments = [];
 
@@ -30,6 +89,30 @@ async function openPaymentModal(docId) {
         } else {
             currentPayments = [];
             paymentsSnap.forEach(function(d) { currentPayments.push({ id: d.id, ...d.data() }); });
+        }
+
+        // Auto-update overdue status in DB
+        var overdueIds = [];
+        var today = new Date(); today.setHours(0,0,0,0);
+        currentPayments.forEach(function(p) {
+            if (p.status === 'ממתין' && p.plannedDate) {
+                var pDate = new Date(p.plannedDate + 'T00:00:00');
+                if (pDate < today) overdueIds.push(p.id);
+            }
+        });
+        if (overdueIds.length > 0) {
+            var overdueBatch = db.batch();
+            overdueIds.forEach(function(id) {
+                overdueBatch.update(
+                    db.collection('recurring_billing').doc(docId).collection('payments').doc(id),
+                    { status: 'באיחור' }
+                );
+            });
+            await overdueBatch.commit();
+            // Refresh payments after update
+            currentPayments.forEach(function(p) {
+                if (overdueIds.indexOf(p.id) !== -1) p.status = 'באיחור';
+            });
         }
 
         renderPaymentModal(client, currentPayments);
@@ -63,10 +146,7 @@ async function generatePaymentDocs(docId, client) {
     const batch = db.batch();
 
     for (let i = 0; i < totalMonths; i++) {
-        const chargeDate = new Date(start.getFullYear(), start.getMonth() + i, dayOfMonth);
-        if (chargeDate.getDate() !== dayOfMonth) {
-            chargeDate.setDate(0);
-        }
+        const chargeDate = safeChargeDate(start.getFullYear(), start.getMonth() + i, dayOfMonth);
 
         const thisMonthAmount = (monthlyAmounts && monthlyAmounts[i] !== undefined)
             ? parseFloat(monthlyAmounts[i]) : amount;
@@ -263,19 +343,17 @@ async function markSinglePayment(clientDocId, paymentDocId) {
     var payData = currentPayments.find(function(p) { return p.id === paymentDocId; });
     var plannedAmount = amountInput ? parseFloat(amountInput.value) : (payData ? parseFloat(payData.plannedAmount) : 0);
 
-    // prompt לסכום בפועל
-    var actualAmountStr = prompt('סכום ששולם בפועל:', plannedAmount ? plannedAmount.toString() : '');
-    if (actualAmountStr === null) return;
+    // modal לסכום בפועל
+    var actualAmount = await showInputModal('סכום ששולם בפועל', plannedAmount ? plannedAmount.toString() : '', 'number', function(v) { return v >= 0; });
+    if (actualAmount === null) return;
 
-    var actualAmount = parseFloat(actualAmountStr);
-    if (isNaN(actualAmount) || actualAmount < 0) {
-        alert('סכום לא תקין');
-        return;
+    if (plannedAmount && actualAmount > plannedAmount * 1.1) {
+        if (!confirm('הסכום גבוה ב-' + Math.round((actualAmount / plannedAmount - 1) * 100) + '% מהסכום המתוכנן. להמשיך?')) return;
     }
 
-    // prompt לתאריך תשלום
+    // modal לתאריך תשלום
     var today = new Date().toISOString().split('T')[0];
-    var actualDate = prompt('תאריך תשלום (YYYY-MM-DD):', today);
+    var actualDate = await showInputModal('תאריך תשלום', today, 'date');
     if (actualDate === null) return;
 
     try {
@@ -365,42 +443,40 @@ async function editCompletedPayment(clientDocId, paymentDocId) {
     if (!payData) return;
 
     var currentDate = payData.actualPaymentDate || payData.plannedDate || '';
-    var newDate = prompt('תאריך תשלום בפועל (YYYY-MM-DD):', currentDate);
-    if (newDate === null) return; // ביטול
-
-    // אפשרות לביטול סימון
-    if (newDate === '' && confirm('האם לבטל סימון תשלום זה כבוצע?')) {
-        try {
-            var payRef = db.collection('recurring_billing').doc(clientDocId)
-                .collection('payments').doc(paymentDocId);
-            await payRef.update({
-                status: 'ממתין',
-                actualAmountPaid: null,
-                actualPaymentDate: null,
-                completedBy: null,
-                completedAt: null
-            });
-            await recalcClientSummary(clientDocId);
-            await openPaymentModal(clientDocId);
-        } catch (error) {
-            console.error('Error reverting payment:', error);
-            alert('שגיאה בביטול: ' + error.message);
+    var newDate = await showInputModal('תאריך תשלום בפועל', currentDate, 'date');
+    if (newDate === null) {
+        // ביטול — אפשרות לבטל סימון
+        if (confirm('האם לבטל סימון תשלום זה כבוצע?')) {
+            try {
+                var payRef = db.collection('recurring_billing').doc(clientDocId)
+                    .collection('payments').doc(paymentDocId);
+                await payRef.update({
+                    status: 'ממתין',
+                    actualAmountPaid: null,
+                    actualPaymentDate: null,
+                    completedBy: null,
+                    completedAt: null
+                });
+                await recalcClientSummary(clientDocId);
+                await openPaymentModal(clientDocId);
+            } catch (error) {
+                console.error('Error reverting payment:', error);
+                alert('שגיאה בביטול: ' + error.message);
+            }
         }
         return;
     }
 
     // עדכון תאריך
-    if (newDate) {
-        try {
-            var payRef = db.collection('recurring_billing').doc(clientDocId)
-                .collection('payments').doc(paymentDocId);
-            await payRef.update({ actualPaymentDate: newDate });
-            await recalcClientSummary(clientDocId);
-            await openPaymentModal(clientDocId);
-        } catch (error) {
-            console.error('Error updating payment date:', error);
-            alert('שגיאה בעדכון: ' + error.message);
-        }
+    try {
+        var payRef = db.collection('recurring_billing').doc(clientDocId)
+            .collection('payments').doc(paymentDocId);
+        await payRef.update({ actualPaymentDate: newDate });
+        await recalcClientSummary(clientDocId);
+        await openPaymentModal(clientDocId);
+    } catch (error) {
+        console.error('Error updating payment date:', error);
+        alert('שגיאה בעדכון: ' + error.message);
     }
 }
 
@@ -431,7 +507,7 @@ async function recalcClientSummary(docId) {
         totalActualPaid: totalPaid,
         totalPlannedAmount: totalPlanned,
         completedPaymentsCount: paidCount,
-        recurringMonthsCount: activeCount.toString(),
+        activePaymentsCount: activeCount,
         lastPaymentDate: lastDate || ''
     });
 }
@@ -547,17 +623,16 @@ async function cancelBillingSeriesUI() {
 async function extendBillingSeriesUI() {
     if (!currentPaymentDocId) return;
 
-    var additionalMonths = prompt('כמה חודשים להוסיף?', '');
-    if (!additionalMonths || isNaN(parseInt(additionalMonths))) return;
-    additionalMonths = parseInt(additionalMonths);
+    var additionalMonths = await showInputModal('כמה חודשים להוסיף?', '', 'number', function(v) { return v > 0 && v <= 60 && v === Math.floor(v); });
+    if (additionalMonths === null) return;
+    additionalMonths = Math.floor(additionalMonths);
 
     var clientDoc = await db.collection('recurring_billing').doc(currentPaymentDocId).get();
     var client = clientDoc.data();
     var amount = parseFloat(client.recurringMonthlyAmount) || 0;
 
-    var amountStr = prompt('סכום חודשי לחודשים החדשים:', amount.toString());
-    if (!amountStr || isNaN(parseFloat(amountStr))) return;
-    var monthlyAmount = parseFloat(amountStr);
+    var monthlyAmount = await showInputModal('סכום חודשי לחודשים החדשים', amount.toString(), 'number', function(v) { return v > 0; });
+    if (monthlyAmount === null) return;
 
     try {
         var currentTotal = parseInt(client.recurringMonthsCount) || currentPayments.length;
@@ -578,10 +653,7 @@ async function extendBillingSeriesUI() {
         var batch = db.batch();
         for (var i = 0; i < additionalMonths; i++) {
             var monthIndex = currentTotal + i;
-            var chargeDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + i + 1, dayOfMonth);
-            if (chargeDate.getDate() !== dayOfMonth) {
-                chargeDate.setDate(0);
-            }
+            var chargeDate = safeChargeDate(lastDate.getFullYear(), lastDate.getMonth() + i + 1, dayOfMonth);
 
             var payRef = db.collection('recurring_billing').doc(currentPaymentDocId)
                 .collection('payments').doc();
@@ -662,10 +734,7 @@ function generateAmountsPreview() {
     html += '</tr></thead><tbody>';
 
     for (var i = 0; i < months; i++) {
-        var chargeDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, dayOfMonth);
-        if (chargeDate.getDate() !== dayOfMonth) {
-            chargeDate.setDate(0);
-        }
+        var chargeDate = safeChargeDate(baseDate.getFullYear(), baseDate.getMonth() + i, dayOfMonth);
         var dateStr = chargeDate.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
         var bgColor = i % 2 === 0 ? '#fff' : '#f8fafc';
         html += '<tr style="background:' + bgColor + ';">';
@@ -877,8 +946,7 @@ function generateEditAmountsPreview() {
     html += '</tr></thead><tbody>';
 
     for (var i = 0; i < months; i++) {
-        var chargeDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, dayOfMonth);
-        if (chargeDate.getDate() !== dayOfMonth) chargeDate.setDate(0);
+        var chargeDate = safeChargeDate(baseDate.getFullYear(), baseDate.getMonth() + i, dayOfMonth);
         var dateStr = chargeDate.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
         var bgColor = i % 2 === 0 ? '#fff' : '#f8fafc';
         html += '<tr style="background:' + bgColor + ';">';
