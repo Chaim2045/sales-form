@@ -6,16 +6,16 @@
 }
 
 :root {
-    /* Accent — elegant black, the ONLY accent in the system */
-    --accent: #1a1a1a;
-    --accent-hover: #333333;
-    --accent-subtle: rgba(0,0,0,0.05);
-    --accent-ring: rgba(0,0,0,0.12);
+    /* Accent — soft blue, used sparingly for interactive elements */
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --accent-subtle: rgba(59,130,246,0.06);
+    --accent-ring: rgba(59,130,246,0.15);
 
     /* Legacy aliases (for components not yet migrated) */
-    --primary-blue: #1a1a1a;
-    --primary-blue-hover: #333333;
-    --light-blue: rgba(0,0,0,0.04);
+    --primary-blue: #3b82f6;
+    --primary-blue-hover: #2563eb;
+    --light-blue: rgba(59,130,246,0.06);
 
     /* Text — rgba opacity system */
     --text-primary: rgba(0,0,0,0.88);

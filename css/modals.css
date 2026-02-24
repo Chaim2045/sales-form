@@ -125,7 +125,7 @@
 /* Payment Details Modal — Linear exact style */
 /* Linear palette (light): bg #fbfbfc, surface #fff, border rgba(0,0,0,0.06), */
 /* text-primary rgba(0,0,0,0.88), text-secondary rgba(0,0,0,0.55), text-tertiary rgba(0,0,0,0.36) */
-/* accent: #1a1a1a (used sparingly). Radius: 8px. Shadows: minimal. */
+/* accent: #3b82f6 (used sparingly). Radius: 8px. Shadows: minimal. */
 .pm-overlay {
     display: none;
     position: fixed;
@@ -297,8 +297,8 @@
 }
 .pm-amount-input:focus {
     outline: none;
-    border-color: #1a1a1a;
-    box-shadow: 0 0 0 2px rgba(0,0,0,0.12);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
 }
 
 /* Mark Payment Buttons */
@@ -375,12 +375,12 @@
     background: rgba(0,0,0,0.03);
 }
 .pm-footer-btn.primary {
-    background: #1a1a1a;
+    background: #3b82f6;
     color: #ffffff;
-    border-color: #1a1a1a;
+    border-color: #3b82f6;
 }
 .pm-footer-btn.primary:hover {
-    background: #333333;
+    background: #2563eb;
 }
 .pm-footer-btn.primary:disabled {
     opacity: 0.35;
