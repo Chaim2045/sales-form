@@ -66,3 +66,30 @@
     --gray-800: rgba(0,0,0,0.88);
     --white: #ffffff;
 }
+
+/* ──── Global Scrollbar — thin, subtle, Linear style ──── */
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,0,0,0.15) transparent;
+}
+
+/* Chrome / Safari / Edge */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.12);
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0,0,0,0.22);
+}
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
