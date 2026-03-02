@@ -382,6 +382,8 @@ async function markSinglePayment(clientDocId, paymentDocId) {
         // 2. חישוב מחדש של כל הסיכומים מ-subcollection (מקור אמת יחיד)
         await recalcClientSummary(clientDocId);
 
+        logAuditEvent('payment_marked', { clientDocId: clientDocId, paymentDocId: paymentDocId, amount: actualAmount, date: actualDate });
+
         // 3. רענון המודאל
         await openPaymentModal(clientDocId);
 
@@ -544,6 +546,7 @@ async function deletePayment(clientDocId, paymentDocId, monthNumber) {
         await db.collection('recurring_billing').doc(clientDocId)
             .collection('payments').doc(paymentDocId).delete();
         await recalcClientSummary(clientDocId);
+        logAuditEvent('payment_deleted', { clientDocId: clientDocId, paymentDocId: paymentDocId, monthNumber: monthNumber });
         await openPaymentModal(clientDocId);
     } catch (error) {
         console.error('Error deleting payment:', error);
@@ -681,12 +684,14 @@ async function cancelBillingSeriesUI() {
                 status: 'בוטל'
             });
             await recalcClientSummary(currentPaymentDocId);
+            logAuditEvent('billing_cancelled', { docId: currentPaymentDocId, cancelledPayments: pendingCount });
             alert('הסדרה בוטלה בהצלחה');
         } else {
             // השהיה — התשלומים נשארים, הסטטוס משתנה למושהה
             await db.collection('recurring_billing').doc(currentPaymentDocId).update({
                 status: 'מושהה'
             });
+            logAuditEvent('billing_paused', { docId: currentPaymentDocId });
             alert('הסדרה הושהתה. ניתן לחדש אותה בכל עת דרך עריכת הלקוח.');
         }
         await openPaymentModal(currentPaymentDocId);

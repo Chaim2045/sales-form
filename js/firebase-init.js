@@ -16,20 +16,109 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
 
-// ========== Firebase Authentication ==========
+// ========== Global Variables ==========
 
 let authUser = null;
+let currentStep = 1;
+let currentUser = '';
+let currentUserPermissions = {};
+let currentUserRole = '';
+const totalSteps = 4;
+let searchTimeout = null;
 
-auth.onAuthStateChanged(function(user) {
+// ========== Firebase Authentication ==========
+
+auth.onAuthStateChanged(async function(user) {
     if (user) {
         authUser = user;
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('mainContainer').style.display = '';
+
+        try {
+            // Load user data from Firestore
+            var userDoc = await db.collection('users').doc(user.uid).get();
+
+            if (!userDoc.exists || !userDoc.data().isActive) {
+                // User doc missing or deactivated
+                auth.signOut();
+                return;
+            }
+
+            var userData = userDoc.data();
+            currentUser = userData.displayName || '';
+            currentUserPermissions = userData.permissions || {};
+            currentUserRole = userData.role || '';
+
+            // Save to sessionStorage for page reloads
+            sessionStorage.setItem('currentUser', currentUser);
+            sessionStorage.setItem('permissions', JSON.stringify(currentUserPermissions));
+            sessionStorage.setItem('userRole', currentUserRole);
+
+            // Show main UI
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainContainer').style.display = '';
+
+            // Show mainForm only if user has salesForm permission
+            if (currentUserPermissions.salesForm) {
+                document.getElementById('mainForm').classList.remove('hidden');
+                // Auto-select attorney
+                var attSelect = document.getElementById('attorney');
+                if (attSelect) {
+                    for (var i = 0; i < attSelect.options.length; i++) {
+                        if (attSelect.options[i].value === currentUser) {
+                            attSelect.value = currentUser;
+                            break;
+                        }
+                    }
+                }
+                if (typeof prefillFromLocalStorage === 'function') prefillFromLocalStorage();
+            } else {
+                document.getElementById('mainForm').classList.add('hidden');
+            }
+
+            // Update navigation visibility based on permissions
+            if (typeof updateNavVisibility === 'function') {
+                updateNavVisibility();
+            }
+
+            logAuditEvent('login_success', { user: currentUser, role: currentUserRole });
+
+        } catch (err) {
+            console.error('Error loading user data:', err);
+            // Fallback: try restoring from sessionStorage
+            var savedUser = sessionStorage.getItem('currentUser');
+            var savedPerms = sessionStorage.getItem('permissions');
+            var savedRole = sessionStorage.getItem('userRole');
+            if (savedUser && savedPerms) {
+                currentUser = savedUser;
+                currentUserPermissions = JSON.parse(savedPerms);
+                currentUserRole = savedRole || '';
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('mainContainer').style.display = '';
+                if (currentUserPermissions.salesForm) {
+                    document.getElementById('mainForm').classList.remove('hidden');
+                }
+                if (typeof updateNavVisibility === 'function') updateNavVisibility();
+            }
+        }
     } else {
         authUser = null;
+        currentUser = '';
+        currentUserPermissions = {};
+        currentUserRole = '';
+        sessionStorage.removeItem('currentUser');
+        sessionStorage.removeItem('permissions');
+        sessionStorage.removeItem('userRole');
         document.getElementById('loginScreen').style.display = '';
         document.getElementById('mainContainer').style.display = 'none';
         document.getElementById('billingManagement').classList.remove('active');
+        if (document.getElementById('salesManagement')) {
+            document.getElementById('salesManagement').classList.remove('active');
+        }
+        if (document.getElementById('activityLogManagement')) {
+            document.getElementById('activityLogManagement').classList.remove('active');
+        }
+        if (document.getElementById('userManagement')) {
+            document.getElementById('userManagement').classList.remove('active');
+        }
     }
 });
 
@@ -42,6 +131,7 @@ function resetSessionTimeout() {
     if (_sessionTimeoutId) clearTimeout(_sessionTimeoutId);
     if (authUser) {
         _sessionTimeoutId = setTimeout(function() {
+            logAuditEvent('session_timeout', { user: currentUser });
             auth.signOut();
             alert('פג תוקף ההתחברות עקב חוסר פעילות. נא להתחבר מחדש.');
         }, SESSION_TIMEOUT_MS);
@@ -52,7 +142,6 @@ function resetSessionTimeout() {
     document.addEventListener(evt, resetSessionTimeout, { passive: true });
 });
 
-// Start/stop timeout on auth state change
 auth.onAuthStateChanged(function(user) {
     if (user) {
         resetSessionTimeout();
@@ -63,26 +152,33 @@ auth.onAuthStateChanged(function(user) {
 
 // ========== Audit Log ==========
 
+var _lastAuditAction = '';
+var _lastAuditTime = 0;
+var AUDIT_DEDUP_MS = 5000;
+
 function logAuditEvent(action, details) {
     try {
+        var now = Date.now();
+        if (action === _lastAuditAction && (now - _lastAuditTime) < AUDIT_DEDUP_MS) {
+            return;
+        }
+        _lastAuditAction = action;
+        _lastAuditTime = now;
+
         db.collection('audit_log').add({
             action: action,
             details: details || {},
-            performedBy: authUser ? authUser.email : 'unauthenticated',
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            performedBy: currentUser || 'unknown',
+            authEmail: authUser ? authUser.email : null,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            clientTimestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent
         });
     } catch (e) {
         console.error('Audit log error:', e);
     }
 }
 
-// Backwards-compatible wrapper
 function logCardView(docId, clientName) {
     logAuditEvent('card_view', { docId: docId, clientName: clientName || '' });
 }
-
-// Global Variables
-let currentStep = 1;
-let currentUser = '';
-const totalSteps = 4;
-let searchTimeout = null;

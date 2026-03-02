@@ -217,6 +217,11 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
 
         // Save to Firestore
         await db.collection('sales_records').add(formData);
+        logAuditEvent('sale_submitted', { clientName: formData.clientName, amount: formData.amountBeforeVat, type: formData.transactionType });
+
+        // Remember last used attorney and branch for next time
+        if (formData.attorney) localStorage.setItem('tofes_lastAttorney', formData.attorney);
+        if (formData.branch) localStorage.setItem('tofes_lastBranch', formData.branch);
 
         // Sync to Google Sheets
         await syncToSheets(formData);

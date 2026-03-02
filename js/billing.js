@@ -278,6 +278,7 @@ async function submitBillingForm() {
 
         // שמירה ב-Firestore (מקור אמת יחיד לגבייה)
         await db.collection('recurring_billing').add(billingData);
+        logAuditEvent('billing_created', { clientName: clientName, totalDeal: totalDealNum, months: monthsNum });
 
         // הצגת הודעת הצלחה
         document.getElementById('billingModalBody').innerHTML =
@@ -307,13 +308,14 @@ let billingViewMode = 'table';
 
 function showBillingManagement() {
     document.getElementById('mainContainer').style.display = 'none';
+    hideSalesManagement();
+    if (typeof hideActivityLog === 'function') hideActivityLog();
     document.getElementById('billingManagement').classList.add('active');
     loadBillingData();
 }
 
 function hideBillingManagement() {
     document.getElementById('billingManagement').classList.remove('active');
-    document.getElementById('mainContainer').style.display = '';
 }
 
 // ייצוא דוח גבייה ל-CSV
@@ -1559,6 +1561,7 @@ async function saveEditBilling() {
         // חישוב מחדש של כל הסיכומים מ-subcollection
         await recalcClientSummary(docId);
 
+        logAuditEvent('billing_updated', { docId: docId, clientName: updateData.clientName || '' });
         closeEditModal();
         loadBillingData(); // רענון התצוגה
     } catch (error) {

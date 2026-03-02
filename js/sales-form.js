@@ -1,8 +1,37 @@
-// User Selection
+// User Selection (legacy — kept for compatibility, login now sets currentUser)
 function selectUser(userName) {
     currentUser = userName;
-    document.getElementById('userSelection').classList.add('hidden');
+    var userSel = document.getElementById('userSelection');
+    if (userSel) userSel.classList.add('hidden');
     document.getElementById('mainForm').classList.remove('hidden');
+
+    // Auto-select attorney if user name matches
+    var attorneySelect = document.getElementById('attorney');
+    if (attorneySelect) {
+        for (var i = 0; i < attorneySelect.options.length; i++) {
+            if (attorneySelect.options[i].value === userName) {
+                attorneySelect.value = userName;
+                break;
+            }
+        }
+    }
+
+    // Pre-fill from localStorage
+    prefillFromLocalStorage();
+}
+
+function prefillFromLocalStorage() {
+    var lastAttorney = localStorage.getItem('tofes_lastAttorney');
+    var lastBranch = localStorage.getItem('tofes_lastBranch');
+
+    var attEl = document.getElementById('attorney');
+    if (lastAttorney && attEl && !attEl.value) {
+        attEl.value = lastAttorney;
+    }
+    var branchEl = document.getElementById('branch');
+    if (lastBranch && branchEl && !branchEl.value) {
+        branchEl.value = lastBranch;
+    }
 }
 
 // Step Navigation
@@ -34,6 +63,7 @@ function showStep(step) {
     document.querySelector(`.form-step[data-step="${step}"]`).classList.add('active');
     currentStep = step;
     updateProgress();
+    logAuditEvent('form_step_change', { step: step });
 }
 
 function validateStep(step) {
@@ -715,6 +745,28 @@ document.querySelectorAll('input[name="checkWillChange"]').forEach(radio => {
             checkReplacementText.removeAttribute('required');
             checkReplacementText.value = '';
         }
+    });
+});
+
+// ========== Transaction Type Quick-Select Chips ==========
+document.addEventListener('DOMContentLoaded', function() {
+    var chipsContainer = document.getElementById('transactionChips');
+    if (!chipsContainer) return;
+
+    chipsContainer.addEventListener('click', function(e) {
+        var chip = e.target.closest('.qs-chip');
+        if (!chip) return;
+
+        // Update active state
+        chipsContainer.querySelectorAll('.qs-chip').forEach(function(c) {
+            c.classList.remove('active');
+        });
+        chip.classList.add('active');
+
+        // Update the hidden select and trigger change
+        var select = document.getElementById('transactionType');
+        select.value = chip.dataset.value;
+        select.dispatchEvent(new Event('change'));
     });
 });
 

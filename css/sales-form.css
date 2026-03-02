@@ -311,3 +311,36 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ──── Quick-Select Chips (Transaction Type) ──── */
+.quick-select-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.qs-chip {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border-input);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-family: 'Heebo', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+.qs-chip:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+.qs-chip.active {
+    background: rgba(59,130,246,0.08);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 500;
+}
+@media (max-width: 500px) {
+    .qs-chip { padding: 6px 12px; font-size: 12px; }
+}

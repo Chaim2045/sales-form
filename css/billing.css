@@ -898,3 +898,477 @@
     border-bottom: none;
     color: var(--text-primary);
 }
+
+/* ──── Sales Management View ──── */
+#salesManagement {
+    display: none;
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 28px 24px 100px;
+}
+#salesManagement.active { display: block; }
+
+/* Header — larger, with blue accent line */
+#salesManagement .bm-header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--accent);
+}
+#salesManagement .bm-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent-hover);
+}
+
+/* Summary stats — blue accent for key cards */
+#salesManagement .bm-summary {
+    margin-bottom: 24px;
+}
+#salesManagement .bm-stat {
+    padding: 18px 16px;
+}
+#salesManagement .bm-stat-value {
+    font-size: 22px;
+    font-weight: 600;
+}
+#salesManagement .bm-stat-label {
+    font-size: 12px;
+    margin-top: 4px;
+}
+#salesManagement .bm-stat.blue .bm-stat-value {
+    color: var(--accent);
+}
+#salesManagement .bm-stat.green .bm-stat-value {
+    color: #059669;
+}
+
+/* Toolbar — single row layout */
+#salesManagement .bm-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+#salesManagement .bm-search {
+    min-width: 200px;
+    max-width: 240px;
+    padding: 8px 14px;
+    font-size: 13px;
+}
+
+/* Filter bar — horizontal row */
+.sm-filters-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+.sm-filter-select {
+    padding: 8px 12px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-md);
+    font-family: 'Heebo', sans-serif;
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    min-width: 0;
+    flex: 1;
+    max-width: 160px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sm-filter-select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.1);
+}
+
+/* Table — larger, more readable */
+#salesManagement .bm-table th {
+    padding: 12px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-hover);
+    background: rgba(59,130,246,0.04);
+}
+#salesManagement .bm-table td {
+    padding: 12px 14px;
+    font-size: 13px;
+}
+#salesManagement .bm-table tr:hover {
+    background: rgba(59,130,246,0.03);
+}
+
+/* File attachment indicator in table */
+.sm-file-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 4px;
+    color: #2563eb;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+}
+.sm-file-badge:hover {
+    background: #dbeafe;
+}
+
+/* Cards — slightly larger */
+#salesManagement .bm-card {
+    padding: 18px;
+}
+
+/* Export / Back buttons — blue accent */
+#salesManagement .bm-sync-btn {
+    padding: 7px 16px;
+    font-size: 13px;
+    border-color: var(--accent);
+    color: var(--accent);
+}
+#salesManagement .bm-sync-btn:hover {
+    background: rgba(59,130,246,0.06);
+}
+
+@media (max-width: 1024px) {
+    #salesManagement .bm-toolbar {
+        flex-wrap: wrap;
+    }
+    .sm-filters-row {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    .sm-filter-select {
+        max-width: none;
+        flex: 1 1 120px;
+    }
+}
+@media (max-width: 768px) {
+    #salesManagement { padding: 16px 12px 100px; }
+    #salesManagement .bm-header h2 { font-size: 18px; }
+    .sm-filter-select { font-size: 12px; padding: 6px 8px; }
+    #salesManagement .bm-stat-value { font-size: 18px; }
+}
+
+/* Invoice status badges */
+.sm-invoice-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'Heebo', sans-serif;
+}
+.sm-invoice-badge.issued {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+.sm-invoice-btn {
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'Heebo', sans-serif;
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.sm-invoice-btn:hover {
+    background: #fee2e2;
+}
+
+/* File icon — clean, no background */
+.sm-file-icon {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+}
+.sm-file-icon:hover {
+    opacity: 1;
+}
+
+/* Copy button in detail modal */
+.sm-copy-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 3px 5px;
+    border-radius: 4px;
+    color: #94a3b8;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.15s, background 0.15s;
+}
+.sm-copy-btn:hover {
+    color: #2563eb;
+    background: rgba(59,130,246,0.08);
+}
+
+/* Pagination */
+.sm-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 16px 0;
+    flex-wrap: wrap;
+}
+.sm-page-btn {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #475569;
+    font-size: 13px;
+    font-family: 'Heebo', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+.sm-page-btn:hover:not(:disabled):not(.active) {
+    border-color: #2563eb;
+    color: #2563eb;
+    background: rgba(59,130,246,0.04);
+}
+.sm-page-btn.active {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+.sm-page-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+.sm-page-dots {
+    color: #94a3b8;
+    font-size: 13px;
+    padding: 0 2px;
+}
+.sm-page-info {
+    color: #94a3b8;
+    font-size: 12px;
+    margin-right: 8px;
+}
+.sm-load-more {
+    padding: 0 14px;
+    color: #2563eb;
+    border-color: #2563eb;
+    font-weight: 600;
+}
+
+/* ========== Activity Log ========== */
+#activityLogManagement {
+    display: none;
+    padding: 20px 24px 100px;
+    max-width: 1100px;
+    margin: 0 auto;
+    overflow-y: auto;
+    max-height: 100vh;
+}
+#activityLogManagement.active { display: block; }
+
+#activityLogManagement .bm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* Action badges */
+.al-action-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.al-badge-blue {
+    background: rgba(59,130,246,0.1);
+    color: #2563eb;
+}
+.al-badge-green {
+    background: rgba(34,197,94,0.1);
+    color: #16a34a;
+}
+.al-badge-orange {
+    background: rgba(245,158,11,0.1);
+    color: #d97706;
+}
+.al-badge-red {
+    background: rgba(239,68,68,0.1);
+    color: #dc2626;
+}
+.al-badge-purple {
+    background: rgba(139,92,246,0.1);
+    color: #7c3aed;
+}
+.al-badge-gray {
+    background: rgba(100,116,139,0.08);
+    color: #64748b;
+}
+.al-grouped-row {
+    opacity: 0.7;
+}
+.al-grouped-row td {
+    font-style: italic;
+}
+
+@media (max-width: 768px) {
+    #activityLogManagement { padding: 16px 12px 100px; }
+    #activityLogManagement .bm-header { flex-direction: column; gap: 10px; align-items: stretch; }
+}
+
+/* ──── User Management ──── */
+#userManagement {
+    display: none;
+    padding: 20px 16px 100px;
+    max-width: 960px;
+    margin: 0 auto;
+}
+#userManagement.active { display: block; }
+#userManagement .bm-header {
+    margin-bottom: 16px;
+}
+#userManagement .bm-table th {
+    font-size: 12px;
+    white-space: nowrap;
+}
+#userManagement .bm-table td {
+    vertical-align: middle;
+}
+.um-inactive-row td {
+    opacity: 0.45;
+}
+
+/* Toggle switch */
+.um-toggle {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    cursor: pointer;
+}
+.um-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.um-toggle-slider {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg-tertiary, #334155);
+    border-radius: 10px;
+    transition: background 0.2s;
+}
+.um-toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 2px;
+    bottom: 2px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+.um-toggle input:checked + .um-toggle-slider {
+    background: #3b82f6;
+}
+.um-toggle input:checked + .um-toggle-slider::before {
+    transform: translateX(16px);
+}
+
+/* Role select dropdown */
+.um-role-select {
+    background: var(--bg-secondary, #1e293b);
+    color: var(--text-primary, #f1f5f9);
+    border: 1px solid var(--border-subtle, #334155);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 6px center;
+    padding-left: 20px;
+}
+.um-role-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+/* Action buttons */
+.um-action-btn {
+    background: none;
+    border: 1px solid var(--border-subtle, #334155);
+    color: var(--text-secondary, #94a3b8);
+    border-radius: 6px;
+    padding: 5px 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.um-action-btn:hover {
+    background: var(--bg-hover, rgba(255,255,255,0.05));
+    color: var(--text-primary, #f1f5f9);
+    border-color: var(--border-strong, #475569);
+}
+
+/* Add user button */
+#umAddUserBtn {
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s;
+}
+#umAddUserBtn:hover {
+    background: #2563eb;
+}
+#umAddUserBtn svg {
+    stroke: #fff;
+}
+
+@media (max-width: 768px) {
+    #userManagement { padding: 16px 12px 100px; }
+    #userManagement .bm-header { flex-direction: column; gap: 10px; align-items: stretch; }
+    #userManagement .bm-table { font-size: 12px; }
+    .um-toggle { width: 30px; height: 17px; }
+    .um-toggle-slider::before { width: 13px; height: 13px; }
+    .um-toggle input:checked + .um-toggle-slider::before { transform: translateX(13px); }
+    .um-role-select { font-size: 11px; padding: 3px 6px; padding-left: 18px; }
+}

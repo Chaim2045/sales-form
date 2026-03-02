@@ -35,7 +35,10 @@ async function searchClients(searchTerm) {
                         phone: data.phone,
                         email: data.email,
                         idNumber: data.idNumber,
-                        address: data.address || ''
+                        address: data.address || '',
+                        attorney: data.attorney || '',
+                        branch: data.branch || '',
+                        caseNumber: data.caseNumber || ''
                     });
                 }
             }
@@ -54,7 +57,10 @@ async function searchClients(searchTerm) {
                         phone: data.phone || '',
                         email: data.email || '',
                         idNumber: data.idNumber || '',
-                        address: data.address || ''
+                        address: data.address || '',
+                        attorney: data.attorney || '',
+                        branch: data.branch || '',
+                        caseNumber: data.caseNumber || ''
                     });
                 }
             }
@@ -68,15 +74,55 @@ async function searchClients(searchTerm) {
 }
 
 window.fillClientData = function(client) {
+    // Step 1 fields
     document.getElementById('clientName').value = client.clientName;
     document.getElementById('phone').value = client.phone;
     document.getElementById('email').value = client.email;
     document.getElementById('idNumber').value = client.idNumber;
     document.getElementById('address').value = client.address;
 
+    // Auto-set "existing client"
+    var existingRadio = document.getElementById('existingClient');
+    if (existingRadio) existingRadio.checked = true;
+
+    // Step 4 fields — auto-fill if available
+    if (client.attorney) {
+        var attEl = document.getElementById('attorney');
+        if (attEl) attEl.value = client.attorney;
+    }
+    if (client.branch) {
+        var branchEl = document.getElementById('branch');
+        if (branchEl) branchEl.value = client.branch;
+    }
+    if (client.caseNumber) {
+        var caseEl = document.getElementById('caseNumber');
+        if (caseEl) caseEl.value = client.caseNumber;
+    }
+
     // Hide dropdown
     document.getElementById('clientAutocomplete').classList.remove('show');
+
+    logAuditEvent('client_autocomplete_used', { clientName: client.clientName });
+
+    // Show feedback
+    showAutoFillFeedback();
 };
+
+function showAutoFillFeedback() {
+    var existing = document.getElementById('autoFillToast');
+    if (existing) existing.remove();
+
+    var toast = document.createElement('div');
+    toast.id = 'autoFillToast';
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#059669;color:white;padding:8px 20px;border-radius:8px;font-size:13px;font-family:Heebo,sans-serif;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;';
+    toast.textContent = 'הנתונים הושלמו אוטומטית';
+    document.body.appendChild(toast);
+
+    setTimeout(function() {
+        toast.style.opacity = '0';
+        setTimeout(function() { toast.remove(); }, 300);
+    }, 2500);
+}
 
 function displayAutocompleteResults(clients) {
     const dropdown = document.getElementById('clientAutocomplete');
