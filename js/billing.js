@@ -913,6 +913,7 @@ function renderTableView(clients) {
                             '<a href="https://merchant.sensepass.com/apps/transactions/list" target="_blank" onclick="closeAllMenus()">סליקת אשראי</a>' +
                             (c.cardLast4 ? '<button onclick="revealCard(\'' + escapeHTML(c.id) + '\');closeAllMenus()">הצג כרטיס</button>' : '') +
                             (c.cardEncrypted ? '<button onclick="revealAndCopy(\'' + escapeHTML(c.id) + '\');closeAllMenus()">העתק כרטיס</button>' : '') +
+                            (currentUserRole === 'master' ? '<button onclick="confirmDeleteBilling(\'' + escapeHTML(c.id) + '\', \'' + escapeHTML(c.clientName || '').replace(/'/g, "\\'") + '\');closeAllMenus()" style="color:#ef4444;">מחיקה</button>' : '') +
                         '</div>' +
                     '</div>' +
                 '</div>' +
@@ -1021,6 +1022,7 @@ function renderCardsView(clients) {
                 '<a class="bm-action-secondary" href="https://merchant.sensepass.com/apps/transactions/list" target="_blank" style="flex:1;justify-content:center;padding:7px;">סליקת אשראי</a>' +
                 (c.cardEncrypted ? '<button class="bm-action-secondary" onclick="revealAndCopy(\'' + escapeHTML(c.id) + '\')" style="flex:1;justify-content:center;padding:7px;">העתק כרטיס</button>' : '') +
             '</div>' +
+            (currentUserRole === 'master' ? '<div style="margin-top:8px;text-align:center;"><button class="bm-action-secondary" onclick="confirmDeleteBilling(\'' + escapeHTML(c.id) + '\', \'' + escapeHTML(c.clientName || '').replace(/'/g, "\\'") + '\')" style="color:#ef4444;border-color:#fecaca;padding:6px 16px;">מחיקת לקוח</button></div>' : '') +
         '</div>';
     }).join('');
 }
@@ -1725,5 +1727,60 @@ async function syncPaymentsAfterEdit(docId, oldData, newData) {
         }
     } catch (error) {
         console.error('Error syncing payments after edit:', error);
+    }
+}
+
+// ─── Delete Billing Record (Master Only) ───
+
+async function confirmDeleteBilling(docId, clientName) {
+    if (currentUserRole !== 'master') {
+        alert('רק מנהל ראשי יכול למחוק רשומות');
+        return;
+    }
+
+    var confirmed = confirm('האם אתה בטוח שברצונך למחוק את לקוח הגבייה "' + clientName + '"?\n\nכל התשלומים של לקוח זה יימחקו.\nפעולה זו אינה ניתנת לביטול.');
+    if (!confirmed) return;
+
+    try {
+        // First delete all payments in subcollection
+        var paymentsSnapshot = await db.collection('recurring_billing').doc(docId).collection('payments').get();
+        if (!paymentsSnapshot.empty) {
+            var batch = db.batch();
+            var count = 0;
+            paymentsSnapshot.forEach(function(payDoc) {
+                batch.delete(payDoc.ref);
+                count++;
+                // Firestore batch limit is 500
+                if (count >= 400) {
+                    batch.commit();
+                    batch = db.batch();
+                    count = 0;
+                }
+            });
+            if (count > 0) {
+                await batch.commit();
+            }
+        }
+
+        // Then delete the main document
+        await db.collection('recurring_billing').doc(docId).delete();
+
+        logAuditEvent('billing_deleted', { docId: docId, clientName: clientName });
+
+        // Close any open modal/overlay
+        closeAllMenus();
+
+        // Reload billing data
+        loadBillingData();
+
+        var toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#ef4444;color:white;padding:10px 24px;border-radius:8px;font-size:14px;font-family:Heebo,sans-serif;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+        toast.textContent = 'לקוח הגבייה נמחק';
+        document.body.appendChild(toast);
+        setTimeout(function() { toast.remove(); }, 3000);
+
+    } catch (err) {
+        console.error('Error deleting billing record:', err);
+        alert('שגיאה במחיקת הרשומה: ' + (err.message || ''));
     }
 }

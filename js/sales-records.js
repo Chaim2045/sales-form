@@ -501,9 +501,12 @@ function openSaleDetailModal(saleId) {
         html += '</div>';
     }
 
-    // כפתור עריכה
-    html += '<div style="text-align:center;margin-top:18px;">';
+    // כפתור עריכה + מחיקה
+    html += '<div style="text-align:center;margin-top:18px;display:flex;justify-content:center;gap:10px;">';
     html += '<button onclick="openSaleEditModal(\'' + escapeHTML(record.id) + '\')" style="background:#2563eb;color:white;border:none;padding:10px 28px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">עריכת רשומה</button>';
+    if (currentUserRole === 'master') {
+        html += '<button onclick="confirmDeleteSale(\'' + escapeHTML(record.id) + '\', \'' + escapeHTML(record.clientName || '').replace(/'/g, "\\'") + '\')" style="background:#ef4444;color:white;border:none;padding:10px 20px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">מחיקה</button>';
+    }
     html += '</div>';
 
     body.innerHTML = html;
@@ -790,4 +793,35 @@ function copyAllClientDetails(record) {
 
     copyToClipboard(lines.join('\n'), 'כל הפרטים');
     logAuditEvent('client_details_copied', { clientName: record.clientName || '' });
+}
+
+// ========== מחיקת רשומת מכירה (מנהל ראשי בלבד) ==========
+
+async function confirmDeleteSale(saleId, clientName) {
+    if (currentUserRole !== 'master') {
+        alert('רק מנהל ראשי יכול למחוק רשומות');
+        return;
+    }
+
+    var confirmed = confirm('האם אתה בטוח שברצונך למחוק את הרשומה של "' + clientName + '"?\n\nפעולה זו אינה ניתנת לביטול.');
+    if (!confirmed) return;
+
+    try {
+        await db.collection('sales_records').doc(saleId).delete();
+
+        logAuditEvent('sale_deleted', { saleId: saleId, clientName: clientName });
+
+        closeSaleDetailModal();
+        loadSalesData();
+
+        var toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#ef4444;color:white;padding:10px 24px;border-radius:8px;font-size:14px;font-family:Heebo,sans-serif;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+        toast.textContent = 'הרשומה נמחקה';
+        document.body.appendChild(toast);
+        setTimeout(function() { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(function() { toast.remove(); }, 300); }, 2500);
+
+    } catch (error) {
+        console.error('Error deleting sale:', error);
+        alert('שגיאה במחיקה: ' + error.message);
+    }
 }

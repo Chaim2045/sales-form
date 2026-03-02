@@ -334,28 +334,25 @@ async function confirmResetPassword() {
     btn.textContent = 'משנה סיסמה...';
 
     try {
-        // Get admin's ID token for the REST API call
         var idToken = await authUser.getIdToken();
 
-        // Use Firebase Auth REST API to update user's password
-        var response = await fetch(
-            'https://identitytoolkit.googleapis.com/v1/accounts:update?key=' + window.ENV_CONFIG.FIREBASE_API_KEY,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    idToken: idToken,
-                    localId: _resetPwUid,
-                    password: newPassword
-                })
-            }
-        );
+        // Call Netlify Function to reset password (server-side with admin privileges)
+        var response = await fetch('/api/reset-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + idToken
+            },
+            body: JSON.stringify({
+                targetUid: _resetPwUid,
+                newPassword: newPassword
+            })
+        });
 
         var data = await response.json();
 
-        if (data.error) {
-            // If direct update fails, try via sign-in approach with secondary app
-            throw new Error(data.error.message || 'API error');
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'שגיאה בשרת');
         }
 
         var u = umUsers.find(function(x) { return x._uid === _resetPwUid; });
@@ -369,22 +366,8 @@ async function confirmResetPassword() {
 
     } catch (err) {
         console.error('Error resetting password:', err);
-
-        // Fallback: send password reset email
-        try {
-            var u2 = umUsers.find(function(x) { return x._uid === _resetPwUid; });
-            if (u2 && u2.email) {
-                await auth.sendPasswordResetEmail(u2.email);
-                logAuditEvent('password_reset_email_sent', { targetUser: u2.displayName, email: u2.email });
-                closeResetPasswordModal();
-                alert('לא ניתן לשנות ישירות. נשלח מייל איפוס סיסמה אל ' + u2.email);
-            } else {
-                throw err;
-            }
-        } catch (err2) {
-            errorEl.textContent = 'שגיאה באיפוס סיסמה';
-            errorEl.style.display = '';
-        }
+        errorEl.textContent = 'שגיאה באיפוס סיסמה: ' + (err.message || '');
+        errorEl.style.display = '';
     }
 
     btn.disabled = false;

@@ -43,7 +43,7 @@ service cloud.firestore {
       allow read: if isActive();
       allow create: if hasPermission('salesForm');
       allow update: if hasPermission('salesForm');
-      allow delete: if false;
+      allow delete: if isMaster();
     }
 
     // ─── Recurring Billing ───
@@ -51,7 +51,7 @@ service cloud.firestore {
       allow read: if isActive();
       allow create: if hasPermission('billingManagement');
       allow update: if hasPermission('billingManagement');
-      allow delete: if false;
+      allow delete: if isMaster();
 
       match /payments/{paymentId} {
         allow read: if isActive();
