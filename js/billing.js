@@ -1784,3 +1784,153 @@ async function confirmDeleteBilling(docId, clientName) {
         alert('שגיאה במחיקת הרשומה: ' + (err.message || ''));
     }
 }
+
+// ─── Duplicates Report ───
+
+function closeDuplicatesReport() {
+    document.getElementById('duplicatesReportModal').classList.remove('show');
+}
+
+async function showDuplicatesReport() {
+    document.getElementById('duplicatesReportModal').classList.add('show');
+    var loading = document.getElementById('dupLoading');
+    var results = document.getElementById('dupResults');
+    loading.style.display = '';
+    results.innerHTML = '';
+
+    try {
+        // Load billing data
+        var billingSnap = await db.collection('recurring_billing').get();
+        var billingItems = [];
+        billingSnap.forEach(function(doc) {
+            var d = doc.data();
+            billingItems.push({
+                id: doc.id,
+                source: 'גבייה',
+                clientName: d.clientName || '',
+                phone: (d.phone || '').replace(/\D/g, ''),
+                idNumber: (d.idNumber || '').replace(/\D/g, ''),
+                status: d.status || 'פעיל'
+            });
+        });
+
+        // Load sales data
+        var salesSnap = await db.collection('sales_records').get();
+        var salesItems = [];
+        salesSnap.forEach(function(doc) {
+            var d = doc.data();
+            salesItems.push({
+                id: doc.id,
+                source: 'מכירות',
+                clientName: d.clientName || '',
+                phone: (d.phone || '').replace(/\D/g, ''),
+                idNumber: (d.idNumber || '').replace(/\D/g, ''),
+                status: ''
+            });
+        });
+
+        var allItems = billingItems.concat(salesItems);
+        var groups = [];
+
+        // --- Check by normalized name ---
+        var nameMap = {};
+        allItems.forEach(function(item) {
+            var norm = item.clientName.trim().replace(/\s+/g, ' ');
+            if (!norm) return;
+            if (!nameMap[norm]) nameMap[norm] = [];
+            nameMap[norm].push(item);
+        });
+        Object.keys(nameMap).forEach(function(name) {
+            if (nameMap[name].length > 1) {
+                groups.push({ type: 'שם זהה', key: name, items: nameMap[name] });
+            }
+        });
+
+        // --- Check by idNumber ---
+        var idMap = {};
+        allItems.forEach(function(item) {
+            if (!item.idNumber || item.idNumber.length < 5) return;
+            if (!idMap[item.idNumber]) idMap[item.idNumber] = [];
+            idMap[item.idNumber].push(item);
+        });
+        Object.keys(idMap).forEach(function(id) {
+            if (idMap[id].length > 1) {
+                // Avoid duplicate group if already caught by name
+                var alreadyCaught = groups.some(function(g) {
+                    var gIds = g.items.map(function(i) { return i.id; }).sort().join(',');
+                    var thisIds = idMap[id].map(function(i) { return i.id; }).sort().join(',');
+                    return gIds === thisIds;
+                });
+                if (!alreadyCaught) {
+                    groups.push({ type: 'ת.ז. זהה', key: id, items: idMap[id] });
+                }
+            }
+        });
+
+        // --- Check by phone ---
+        var phoneMap = {};
+        allItems.forEach(function(item) {
+            if (!item.phone || item.phone.length < 9) return;
+            if (!phoneMap[item.phone]) phoneMap[item.phone] = [];
+            phoneMap[item.phone].push(item);
+        });
+        Object.keys(phoneMap).forEach(function(ph) {
+            if (phoneMap[ph].length > 1) {
+                var alreadyCaught = groups.some(function(g) {
+                    var gIds = g.items.map(function(i) { return i.id; }).sort().join(',');
+                    var thisIds = phoneMap[ph].map(function(i) { return i.id; }).sort().join(',');
+                    return gIds === thisIds;
+                });
+                if (!alreadyCaught) {
+                    groups.push({ type: 'טלפון זהה', key: ph, items: phoneMap[ph] });
+                }
+            }
+        });
+
+        loading.style.display = 'none';
+
+        if (groups.length === 0) {
+            results.innerHTML = '<div style="text-align:center;padding:30px;">' +
+                '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" style="margin-bottom:12px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' +
+                '<p style="color:#059669;font-size:16px;font-weight:600;">הכל נקי!</p>' +
+                '<p style="color:var(--text-secondary);font-size:13px;">לא נמצאו כפילויות במערכת</p>' +
+                '</div>';
+            return;
+        }
+
+        var html = '<p style="margin-bottom:16px;font-size:14px;color:var(--text-secondary);">נמצאו <strong style="color:#ef4444;">' + groups.length + '</strong> קבוצות כפולות</p>';
+
+        groups.forEach(function(g, idx) {
+            html += '<div style="border:1px solid rgba(0,0,0,0.08);border-radius:10px;padding:14px;margin-bottom:12px;background:rgba(0,0,0,0.02);">';
+            html += '<div style="font-size:13px;font-weight:600;color:#6b7280;margin-bottom:10px;">';
+            html += '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">' + escapeHTML(g.type) + '</span> ';
+            html += escapeHTML(g.key);
+            html += '</div>';
+
+            g.items.forEach(function(item) {
+                var badge = item.source === 'גבייה'
+                    ? '<span style="background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:3px;font-size:11px;">גבייה</span>'
+                    : '<span style="background:#fce7f3;color:#9d174d;padding:1px 6px;border-radius:3px;font-size:11px;">מכירות</span>';
+                var statusBadge = item.status ? ' <span style="font-size:11px;color:#94a3b8;">(' + escapeHTML(item.status) + ')</span>' : '';
+                var phone = item.phone ? item.phone.replace(/(\d{3})(\d{3,4})(\d{4})/, '$1-$2-$3') : '—';
+                html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(0,0,0,0.04);font-size:13px;">';
+                html += badge + ' ';
+                html += '<strong>' + escapeHTML(item.clientName) + '</strong>' + statusBadge;
+                html += '<span style="margin-right:auto;color:#6b7280;font-size:12px;direction:ltr;">' + escapeHTML(phone) + '</span>';
+                if (item.idNumber) {
+                    html += '<span style="color:#94a3b8;font-size:11px;direction:ltr;">' + escapeHTML(item.idNumber) + '</span>';
+                }
+                html += '</div>';
+            });
+
+            html += '</div>';
+        });
+
+        results.innerHTML = html;
+
+    } catch (err) {
+        console.error('Error loading duplicates:', err);
+        loading.style.display = 'none';
+        results.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444;">שגיאה בטעינת נתונים</div>';
+    }
+}

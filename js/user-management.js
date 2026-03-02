@@ -217,7 +217,9 @@ function openAddUserModal() {
     document.getElementById('umNewName').value = '';
     document.getElementById('umNewEmail').value = '';
     document.getElementById('umNewPassword').value = '';
+    document.getElementById('umNewPhone').value = '';
     document.getElementById('umNewRole').value = 'salesperson';
+    document.getElementById('umSendSms').checked = true;
     document.getElementById('umNewError').style.display = 'none';
     document.getElementById('umCreateBtn').disabled = false;
     document.getElementById('umCreateBtn').textContent = 'צור משתמש';
@@ -232,7 +234,9 @@ async function createNewUser() {
     var name = document.getElementById('umNewName').value.trim();
     var email = document.getElementById('umNewEmail').value.trim();
     var password = document.getElementById('umNewPassword').value;
+    var phone = document.getElementById('umNewPhone').value.trim();
     var role = document.getElementById('umNewRole').value;
+    var sendSms = document.getElementById('umSendSms').checked;
     var errorEl = document.getElementById('umNewError');
     var btn = document.getElementById('umCreateBtn');
 
@@ -241,6 +245,7 @@ async function createNewUser() {
     if (!name) { errorEl.textContent = 'נא להזין שם תצוגה'; errorEl.style.display = ''; return; }
     if (!email) { errorEl.textContent = 'נא להזין אימייל'; errorEl.style.display = ''; return; }
     if (!password || password.length < 6) { errorEl.textContent = 'סיסמה חייבת להכיל לפחות 6 תווים'; errorEl.style.display = ''; return; }
+    if (sendSms && !phone) { errorEl.textContent = 'נא להזין טלפון לשליחת SMS'; errorEl.style.display = ''; return; }
 
     btn.disabled = true;
     btn.textContent = 'יוצר משתמש...';
@@ -266,6 +271,7 @@ async function createNewUser() {
         await db.collection('users').doc(uid).set({
             displayName: name,
             email: email,
+            phone: phone || '',
             role: role,
             permissions: perms,
             isActive: true,
@@ -280,6 +286,36 @@ async function createNewUser() {
         });
 
         logAuditEvent('user_created', { name: name, email: email, role: role });
+
+        // Send SMS with access details (non-blocking)
+        if (sendSms && phone) {
+            try {
+                var idToken = await authUser.getIdToken();
+                var smsRes = await fetch('/api/send-sms', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + idToken
+                    },
+                    body: JSON.stringify({
+                        phone: phone,
+                        displayName: name,
+                        password: password,
+                        appUrl: window.location.origin
+                    })
+                });
+                var smsData = await smsRes.json();
+                if (smsData.success) {
+                    logAuditEvent('sms_sent', { targetUser: name, phone: phone });
+                } else {
+                    console.warn('SMS send failed:', smsData.error);
+                    showToast('המשתמש נוצר אך SMS לא נשלח', '#f59e0b');
+                }
+            } catch (smsErr) {
+                console.warn('SMS send error:', smsErr);
+                showToast('המשתמש נוצר אך SMS לא נשלח', '#f59e0b');
+            }
+        }
 
         closeAddUserModal();
         loadUsersForManagement();
@@ -296,6 +332,14 @@ async function createNewUser() {
 
     btn.disabled = false;
     btn.textContent = 'צור משתמש';
+}
+
+function showToast(message, color) {
+    var toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:' + (color || '#059669') + ';color:white;padding:10px 24px;border-radius:8px;font-size:14px;font-family:Heebo,sans-serif;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 3000);
 }
 
 // ─── Reset Password Modal ───
