@@ -83,21 +83,8 @@ auth.onAuthStateChanged(async function(user) {
 
         } catch (err) {
             console.error('Error loading user data:', err);
-            // Fallback: try restoring from sessionStorage
-            var savedUser = sessionStorage.getItem('currentUser');
-            var savedPerms = sessionStorage.getItem('permissions');
-            var savedRole = sessionStorage.getItem('userRole');
-            if (savedUser && savedPerms) {
-                currentUser = savedUser;
-                currentUserPermissions = JSON.parse(savedPerms);
-                currentUserRole = savedRole || '';
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('mainContainer').style.display = '';
-                if (currentUserPermissions.salesForm) {
-                    document.getElementById('mainForm').classList.remove('hidden');
-                }
-                if (typeof updateNavVisibility === 'function') updateNavVisibility();
-            }
+            // Security: do not fallback to sessionStorage — sign out
+            auth.signOut();
         }
     } else {
         authUser = null;

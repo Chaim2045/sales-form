@@ -71,10 +71,21 @@ async function verifyMaster(idToken) {
     return { uid, accessToken };
 }
 
+function getCorsOrigin(event) {
+    const origin = event.headers.origin || event.headers.Origin || '';
+    // Allow same-site requests (Netlify) and localhost for dev
+    if (origin.endsWith('.netlify.app') || origin.startsWith('http://localhost')) {
+        return origin;
+    }
+    return '';
+}
+
 exports.handler = async (event) => {
+    const allowedOrigin = getCorsOrigin(event);
+
     // CORS
     if (event.httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'POST' } };
+        return { statusCode: 200, headers: { 'Access-Control-Allow-Origin': allowedOrigin, 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'POST' } };
     }
 
     if (event.httpMethod !== 'POST') {
@@ -91,7 +102,7 @@ exports.handler = async (event) => {
 
         // Parse body
         const { targetUid, newPassword } = JSON.parse(event.body);
-        if (!targetUid || !newPassword || newPassword.length < 6) {
+        if (!targetUid || !newPassword || newPassword.length < 6 || newPassword.length > 128) {
             return { statusCode: 400, body: JSON.stringify({ error: 'Invalid parameters' }) };
         }
 
@@ -118,22 +129,22 @@ exports.handler = async (event) => {
         if (updateRes.status === 200) {
             return {
                 statusCode: 200,
-                headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
+                headers: { 'Access-Control-Allow-Origin': allowedOrigin, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ success: true })
             };
         } else {
             return {
                 statusCode: 500,
-                headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
-                body: JSON.stringify({ error: 'Failed to update password', details: updateRes.data })
+                headers: { 'Access-Control-Allow-Origin': allowedOrigin, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: 'שגיאה בעדכון סיסמה' })
             };
         }
 
     } catch (err) {
         return {
             statusCode: err.message === 'Not authorized' ? 403 : 500,
-            headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ error: err.message })
+            headers: { 'Access-Control-Allow-Origin': allowedOrigin, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: err.message === 'Not authorized' ? 'Not authorized' : 'שגיאה בשרת' })
         };
     }
 };

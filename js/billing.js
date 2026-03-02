@@ -1747,16 +1747,16 @@ async function confirmDeleteBilling(docId, clientName) {
         if (!paymentsSnapshot.empty) {
             var batch = db.batch();
             var count = 0;
-            paymentsSnapshot.forEach(function(payDoc) {
-                batch.delete(payDoc.ref);
+            var docs = paymentsSnapshot.docs;
+            for (var i = 0; i < docs.length; i++) {
+                batch.delete(docs[i].ref);
                 count++;
-                // Firestore batch limit is 500
                 if (count >= 400) {
-                    batch.commit();
+                    await batch.commit();
                     batch = db.batch();
                     count = 0;
                 }
-            });
+            }
             if (count > 0) {
                 await batch.commit();
             }
