@@ -129,9 +129,10 @@ function handleLogout() {
         document.getElementById('userManagement').classList.remove('active');
     }
     // Reset login form
-    document.getElementById('loginUser').value = '';
     document.getElementById('loginPassword').value = '';
     document.getElementById('loginError').textContent = '';
+    // Reload users list (in case first load failed)
+    loadUsersList();
     // Show quick login button if credentials are saved
     checkQuickLoginAvailable();
     auth.signOut();
