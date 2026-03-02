@@ -23,7 +23,10 @@ function httpRequest(options, data) {
 
 // Exchange Google OAuth2 refresh token for access token
 async function getAccessToken(refreshToken) {
-    const postData = `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}&client_id=563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com&client_secret=j9iVZfS8kkCEFUPaAeJV0sAi`;
+    const clientId = process.env.GOOGLE_CLIENT_ID || '563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com';
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    if (!clientSecret) throw new Error('Server configuration error');
+    const postData = `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`;
     const res = await httpRequest({
         hostname: 'oauth2.googleapis.com',
         path: '/token',
