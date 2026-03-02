@@ -1,5 +1,5 @@
 // Firebase Configuration - Using environment variables
-const firebaseConfig = {
+var firebaseConfig = {
     apiKey: window.ENV_CONFIG.FIREBASE_API_KEY,
     authDomain: window.ENV_CONFIG.FIREBASE_AUTH_DOMAIN,
     databaseURL: window.ENV_CONFIG.FIREBASE_DATABASE_URL,
@@ -12,19 +12,19 @@ const firebaseConfig = {
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
+var auth = firebase.auth();
+var db = firebase.firestore();
+var storage = firebase.storage();
 
 // ========== Global Variables ==========
 
-let authUser = null;
-let currentStep = 1;
-let currentUser = '';
-let currentUserPermissions = {};
-let currentUserRole = '';
-const totalSteps = 4;
-let searchTimeout = null;
+var authUser = null;
+var currentStep = 1;
+var currentUser = '';
+var currentUserPermissions = {};
+var currentUserRole = '';
+var totalSteps = 4;
+var searchTimeout = null;
 
 // ========== Firebase Authentication ==========
 
