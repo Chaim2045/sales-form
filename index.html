@@ -1541,6 +1541,31 @@
         </div>
     </div>
 
+    <!-- Send WhatsApp Modal -->
+    <div class="billing-modal-overlay" id="sendWhatsAppModal">
+        <div class="billing-modal" style="max-width:400px;">
+            <div class="billing-modal-header">
+                <h3>שליחת פרטי גישה ב-WhatsApp</h3>
+                <button class="billing-modal-close" onclick="closeSendWhatsAppModal()">&times;</button>
+            </div>
+            <div class="billing-modal-body" style="padding:20px;">
+                <p style="margin-bottom:14px;color:var(--text-secondary);">שליחה עבור: <strong id="waUserName"></strong></p>
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label class="form-label">מספר טלפון</label>
+                    <input type="tel" id="waPhone" class="form-control" placeholder="050-0000000" dir="ltr" autocomplete="off">
+                </div>
+                <div class="form-group" style="margin-bottom:18px;">
+                    <label class="form-label">סיסמה לשליחה</label>
+                    <input type="text" id="waPassword" class="form-control" placeholder="הסיסמה שתישלח למשתמש" dir="ltr" autocomplete="off">
+                </div>
+                <div id="waError" style="color:#ef4444;font-size:13px;margin-bottom:10px;display:none;"></div>
+                <button class="btn-primary" onclick="confirmSendWhatsApp()" style="width:100%;padding:10px;font-size:15px;">
+                    שלח ב-WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Duplicates Report Modal -->
     <div class="billing-modal-overlay" id="duplicatesReportModal">
         <div class="billing-modal" style="max-width:600px;">
