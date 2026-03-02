@@ -241,13 +241,13 @@ async function submitBillingForm() {
 
         const billingData = {
             clientName: clientName,
-            phone: document.getElementById('billingPhone').value || '',
+            phone: (document.getElementById('billingPhone').value || '').replace(/\D/g, ''),
             email: document.getElementById('billingEmail').value || '',
             idNumber: document.getElementById('billingIdNumber').value || '',
             address: document.getElementById('billingAddress').value || '',
             totalPlannedAmount: totalDealNum,
             recurringMonthlyAmount: perPayment,
-            recurringMonthsCount: months,
+            recurringMonthsCount: monthsNum,
             recurringStartDate: startDate,
             recurringDayOfMonth: document.getElementById('billingDayOfMonth').value || '1',
             paidMonthsAlready: parseInt(document.getElementById('billingPaidMonths').value) || 0,
@@ -1479,13 +1479,13 @@ async function saveEditBilling() {
 
         const updateData = {
             clientName: clientName,
-            phone: document.getElementById('editPhone').value || '',
+            phone: (document.getElementById('editPhone').value || '').replace(/\D/g, ''),
             email: document.getElementById('editEmail').value || '',
             idNumber: document.getElementById('editIdNumber').value || '',
             address: document.getElementById('editAddress').value || '',
             totalPlannedAmount: editTotalDealNum,
             recurringMonthlyAmount: editPerPayment,
-            recurringMonthsCount: months,
+            recurringMonthsCount: editMonthsNum,
             recurringStartDate: document.getElementById('editStartDate').value || '',
             recurringDayOfMonth: document.getElementById('editDayOfMonth').value || '1',
             paidMonthsAlready: parseInt(document.getElementById('editPaidMonths').value) || 0,

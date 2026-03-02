@@ -167,6 +167,7 @@ async function generatePaymentDocs(docId, client) {
             actualPaymentDate: isAlreadyPaid ? chargeDate.toISOString().split('T')[0] : null,
             completedBy: isAlreadyPaid ? 'מיגרציה' : null,
             completedAt: isAlreadyPaid ? firebase.firestore.FieldValue.serverTimestamp() : null,
+            receiptNumber: '',
             notes: ''
         });
     }
@@ -195,7 +196,7 @@ async function generatePaymentDocs(docId, client) {
 function formatDateHebrew(dateStr) {
     if (!dateStr) return '';
     try {
-        const d = new Date(dateStr);
+        const d = new Date(dateStr + (dateStr.length === 10 ? 'T00:00:00' : ''));
         if (isNaN(d.getTime())) return dateStr;
         const day = String(d.getDate()).padStart(2, '0');
         const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -247,7 +248,7 @@ function renderPaymentModal(client, payments) {
 
         // בדיקה אם תאריך חלף (לסימון אוטומטי כבאיחור)
         if (!isCompleted && !isCancelled && !isOverdue && p.plannedDate) {
-            var pDate = new Date(p.plannedDate);
+            var pDate = new Date(p.plannedDate + 'T00:00:00');
             var today = new Date();
             today.setHours(0,0,0,0);
             if (pDate < today) {
@@ -438,29 +439,8 @@ async function updateActualAmount(paymentDocId, newValue) {
         var payRef = db.collection('recurring_billing').doc(currentPaymentDocId)
             .collection('payments').doc(paymentDocId);
         await payRef.update({ actualAmountPaid: newAmount });
-
-        // עדכון סיכומי הלקוח
         await recalcClientSummary(currentPaymentDocId);
-
-        // רענון סיכום חשבונאי במודאל
-        var clientDoc = await db.collection('recurring_billing').doc(currentPaymentDocId).get();
-        var refreshSnap = await db.collection('recurring_billing').doc(currentPaymentDocId)
-            .collection('payments').orderBy('monthNumber').get();
-        var refreshPayments = [];
-        refreshSnap.forEach(function(d) { refreshPayments.push({ id: d.id, ...d.data() }); });
-        currentPayments = refreshPayments;
-        renderAccountingSummary({ id: currentPaymentDocId, ...clientDoc.data() }, refreshPayments);
-
-        // עדכון סרגל סיכום
-        var completedP = refreshPayments.filter(function(p) { return p.status === 'בוצע'; });
-        var totalActual = completedP.reduce(function(s, p) { return s + (parseFloat(p.actualAmountPaid) || 0); }, 0);
-        var totalPlanned = refreshPayments.reduce(function(s, p) { return s + (parseFloat(p.plannedAmount) || 0); }, 0);
-        var remaining = totalPlanned - totalActual;
-        var summaryItems = document.querySelectorAll('.pm-summary-value');
-        if (summaryItems.length >= 3) {
-            summaryItems[1].innerHTML = '₪' + totalActual.toLocaleString('he-IL');
-            summaryItems[2].innerHTML = '₪' + Math.max(0, remaining).toLocaleString('he-IL');
-        }
+        await openPaymentModal(currentPaymentDocId);
     } catch (error) {
         console.error('Error updating actual amount:', error);
     } finally {
@@ -500,6 +480,7 @@ async function editCompletedPayment(clientDocId, paymentDocId) {
                     status: 'ממתין',
                     actualAmountPaid: null,
                     actualPaymentDate: null,
+                    receiptNumber: null,
                     completedBy: null,
                     completedAt: null
                 });
@@ -665,8 +646,8 @@ async function quickMarkPayment(docId) {
         currentPaymentDocId = docId;
         currentPayments = payments;
         await markSinglePayment(docId, next.id);
-        currentPaymentDocId = null;
-        currentPayments = [];
+        // Note: markSinglePayment calls openPaymentModal which sets currentPaymentDocId,
+        // so we do NOT clear it here — the modal stays open for the user.
 
     } catch (error) {
         console.error('Error in quick mark:', error);
@@ -780,6 +761,7 @@ async function extendBillingSeriesUI() {
                 actualPaymentDate: null,
                 completedBy: null,
                 completedAt: null,
+                receiptNumber: '',
                 notes: ''
             });
         }
