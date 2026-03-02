@@ -4,16 +4,10 @@ var usersList = []; // [{displayName, email}] loaded from public_users
 var _quickLoginAvailable = false; // true if saved credentials exist
 
 // Load users list for login dropdown (public — no auth needed)
+var _usersLoadRetries = 0;
 async function loadUsersList() {
     try {
-        // Timeout after 10 seconds to prevent infinite hang on slow connections
-        var timeoutPromise = new Promise(function(_, reject) {
-            setTimeout(function() { reject(new Error('timeout')); }, 10000);
-        });
-        var snapshot = await Promise.race([
-            db.collection('public_users').get(),
-            timeoutPromise
-        ]);
+        var snapshot = await db.collection('public_users').get();
         usersList = [];
         snapshot.forEach(function(doc) {
             var d = doc.data();
@@ -33,8 +27,17 @@ async function loadUsersList() {
             });
             select.innerHTML = html;
         }
+        _usersLoadRetries = 0;
     } catch (e) {
         console.error('Failed to load users list:', e);
+        // Auto-retry up to 3 times (Firebase cold start can be slow)
+        _usersLoadRetries++;
+        if (_usersLoadRetries <= 3) {
+            setTimeout(loadUsersList, 2000);
+            return;
+        }
+        // After 3 retries, show manual retry option
+        _usersLoadRetries = 0;
         var select = document.getElementById('loginUser');
         if (select) {
             select.innerHTML = '<option value="">שגיאה בטעינה — לחץ לנסות שוב</option>';
