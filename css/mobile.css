@@ -1,0 +1,571 @@
+/* ================================================================
+   MOBILE OPTIMIZATION — TOFES OFFICE PWA
+   All mobile-specific overrides in one file.
+   Loaded AFTER all other CSS files.
+   ================================================================ */
+
+/* ──── 1. Safe Areas (iPhone X+ notch) ──── */
+body {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+.bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ──── 2. Touch Feedback ──── */
+@media (hover: none) and (pointer: coarse) {
+    /* Remove hover effects on touch devices — use active instead */
+    .btn:hover,
+    .bm-action-primary:hover,
+    .bm-action-secondary:hover,
+    .pm-mark-btn:hover,
+    .pm-footer-btn:hover,
+    .bm-filter-btn:hover,
+    .bm-quick-mark:hover,
+    .bm-payments-btn:hover,
+    .um-action-btn:hover,
+    .al-back-btn:hover,
+    .bottom-nav-item:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    /* Active tap state */
+    .btn:active,
+    .bm-action-primary:active,
+    .bm-action-secondary:active,
+    .pm-mark-btn:active,
+    .pm-footer-btn:active,
+    .bm-filter-btn:active,
+    .bm-quick-mark:active,
+    .bm-payments-btn:active,
+    .um-action-btn:active,
+    .al-back-btn:active,
+    .bottom-nav-item:active,
+    .bm-card:active,
+    .al-user-card:active,
+    .user-btn:active,
+    .radio-option label:active,
+    .qs-chip:active {
+        opacity: 0.7;
+        transition: opacity 0.05s;
+    }
+
+    /* Prevent text selection on interactive elements */
+    button, .btn, .bm-card, .al-user-card, .bottom-nav-item,
+    .radio-option label, .qs-chip {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+}
+
+/* ──── 3. Tablets (max-width: 768px) ──── */
+@media (max-width: 768px) {
+    /* Increase button tap targets */
+    .bm-action-primary {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+    .bm-action-secondary {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    .pm-mark-btn {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+    .pm-mark-btn.already-done {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    .pm-footer-btn {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+    .um-action-btn {
+        padding: 8px 12px;
+    }
+    .bm-quick-mark {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    .bm-payments-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    .bm-filter-btn {
+        padding: 6px 14px;
+        font-size: 13px;
+    }
+
+    /* Billing toolbar — wrap nicely */
+    .bm-toolbar {
+        gap: 8px;
+    }
+    .bm-search {
+        min-width: 0;
+        max-width: none;
+        flex: 1 1 100%;
+        order: -1;
+    }
+
+    /* Billing management padding */
+    #billingManagement {
+        padding: 20px 12px 0;
+    }
+}
+
+/* ──── 4. Mobile phones (max-width: 600px) ──── */
+@media (max-width: 600px) {
+    /* iOS font zoom prevention — inputs must be 16px */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+    .edit-modal-body input,
+    .edit-modal-body select,
+    .edit-modal-body textarea,
+    .billing-modal-body input,
+    .billing-modal-body select,
+    .billing-modal-body textarea {
+        font-size: 16px !important;
+        padding: 10px 12px;
+    }
+
+    /* Modals — full width on mobile */
+    .edit-modal,
+    .billing-modal {
+        max-width: 95vw;
+        margin: 16px auto;
+    }
+    .pm-modal {
+        max-width: 98vw;
+        margin: 8px auto;
+    }
+    .edit-modal-overlay,
+    .billing-modal-overlay,
+    .pm-overlay {
+        padding: 8px;
+    }
+
+    /* Modal body max height */
+    .edit-modal-body,
+    .billing-modal-body {
+        max-height: 65vh;
+    }
+    .pm-body {
+        max-height: 68vh;
+        padding: 12px;
+    }
+
+    /* Payment rows — compact mobile layout */
+    .pm-list-header {
+        display: none;
+    }
+    .pm-payment-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        padding: 12px;
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 8px;
+        margin-bottom: 8px;
+        position: relative;
+    }
+    .pm-payment-row > span,
+    .pm-payment-row > div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .pm-month-num {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+    }
+    .pm-amount-input {
+        width: 100%;
+        padding: 8px 12px;
+        font-size: 16px !important;
+    }
+
+    /* Payment summary cards — stack on mobile */
+    .pm-client-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Payment footer — stack buttons */
+    .pm-footer {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .pm-footer-btn {
+        flex: 1 1 auto;
+        min-width: 44%;
+        text-align: center;
+        justify-content: center;
+    }
+
+    /* Billing table → card conversion */
+    .bm-table-wrap {
+        border: none;
+        border-radius: 0;
+        overflow: visible;
+    }
+    .bm-table {
+        display: block;
+    }
+    .bm-table thead {
+        display: none;
+    }
+    .bm-table tbody {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .bm-table tr {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        padding: 14px;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        background: var(--bg-primary);
+        align-items: center;
+    }
+    .bm-table td {
+        border-bottom: none;
+        padding: 0;
+        font-size: 13px;
+    }
+    /* First cell (checkbox) */
+    .bm-table td:first-child {
+        order: -1;
+    }
+
+    /* Billing summary — 2 columns */
+    .bm-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Filter buttons — scrollable horizontal strip */
+    .bm-filters {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+    }
+    .bm-filters::-webkit-scrollbar {
+        display: none;
+    }
+    .bm-filter-btn {
+        flex-shrink: 0;
+    }
+
+    /* User management table → cards */
+    #userManagement .bm-table {
+        display: block;
+    }
+    #userManagement .bm-table thead {
+        display: none;
+    }
+    #userManagement .bm-table tbody {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    #userManagement .bm-table tr {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        padding: 14px;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        background: var(--bg-primary);
+        align-items: center;
+    }
+    #userManagement .bm-table td {
+        border-bottom: none;
+        padding: 0;
+    }
+    .um-action-btn {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+
+    /* Sales management table → cards */
+    #salesManagement .bm-table {
+        display: block;
+    }
+    #salesManagement .bm-table thead {
+        display: none;
+    }
+    #salesManagement .bm-table tbody {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    #salesManagement .bm-table tr {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        padding: 14px;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        background: var(--bg-primary);
+        align-items: center;
+    }
+    #salesManagement .bm-table td {
+        border-bottom: none;
+        padding: 0;
+    }
+    #salesManagement .bm-toolbar {
+        flex-wrap: wrap;
+    }
+    .sm-filters-row {
+        flex-wrap: wrap;
+    }
+    .sm-filter-select {
+        max-width: none;
+        flex: 1 1 45%;
+    }
+
+    /* Pagination — compact */
+    .sm-pagination {
+        gap: 4px;
+    }
+    .sm-page-btn {
+        min-width: 36px;
+        height: 36px;
+    }
+
+    /* Activity log */
+    #activityLogManagement .bm-table {
+        display: block;
+    }
+    #activityLogManagement .bm-table thead {
+        display: none;
+    }
+    #activityLogManagement .bm-table tbody {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    #activityLogManagement .bm-table tr {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        padding: 12px;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        background: var(--bg-primary);
+    }
+    #activityLogManagement .bm-table td {
+        border-bottom: none;
+        padding: 0;
+    }
+
+    /* Notification panel — full width at bottom */
+    .bm-notif-panel {
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        top: auto;
+        bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+        width: auto;
+        max-height: 55vh;
+    }
+
+    /* Form elements — tighter on mobile */
+    .container {
+        padding: 16px 12px;
+    }
+    .form-card {
+        padding: 20px 14px;
+    }
+    .form-group {
+        margin-bottom: 16px;
+    }
+    .buttons-row {
+        margin-top: 24px;
+    }
+    .btn {
+        padding: 14px 20px;
+        font-size: 16px;
+    }
+
+    /* Header */
+    .header {
+        margin-bottom: 24px;
+    }
+    .header h1 {
+        font-size: 22px;
+    }
+
+    /* Login screen */
+    #loginScreen {
+        margin: 40px auto;
+    }
+
+    /* Progress bar — compact */
+    .progress-container {
+        margin-bottom: 24px;
+    }
+    .step-label {
+        font-size: 10px;
+        width: 55px;
+    }
+
+    /* Greeting bar */
+    .user-greeting {
+        margin-bottom: 16px;
+    }
+
+    /* Cards grid — 1 column */
+    .bm-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ──── 5. Small phones (max-width: 380px) ──── */
+@media (max-width: 380px) {
+    .container {
+        padding: 12px 8px;
+    }
+    .form-card {
+        padding: 16px 10px;
+        border-radius: 10px;
+    }
+
+    /* Even tighter modal padding */
+    .pm-body {
+        padding: 10px 8px;
+    }
+    .pm-header {
+        padding: 12px;
+    }
+
+    /* Summary cards — smaller text */
+    .bm-stat-value {
+        font-size: 16px;
+    }
+    .pm-summary-value {
+        font-size: 13px;
+    }
+
+    /* Radio options — smaller */
+    .radio-option {
+        min-width: 100px;
+    }
+    .radio-option label {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+
+    /* Quick-select chips — smaller */
+    .qs-chip {
+        padding: 5px 10px;
+        font-size: 11px;
+    }
+
+    /* Login */
+    .login-card {
+        padding: 24px 16px;
+    }
+
+    /* Step indicators */
+    .step-indicator {
+        width: 30px;
+        height: 30px;
+        font-size: 12px;
+    }
+    .step-label {
+        font-size: 9px;
+        width: 48px;
+    }
+}
+
+/* ──── 6. Landscape phone ──── */
+@media (max-height: 500px) and (orientation: landscape) {
+    .container {
+        padding: 12px 16px;
+    }
+    .header {
+        margin-bottom: 12px;
+    }
+    .header h1 {
+        font-size: 20px;
+    }
+    .progress-container {
+        margin-bottom: 16px;
+    }
+    .form-card {
+        padding: 16px;
+    }
+    .form-group {
+        margin-bottom: 12px;
+    }
+
+    /* Modals — use full height */
+    .edit-modal-body,
+    .billing-modal-body {
+        max-height: 50vh;
+    }
+    .pm-body {
+        max-height: 55vh;
+    }
+
+    /* Bottom nav — slimmer */
+    .bottom-nav-item {
+        padding: 6px 8px 8px;
+    }
+    .bottom-nav-item svg {
+        width: 18px;
+        height: 18px;
+    }
+    .bottom-nav-label {
+        font-size: 10px;
+    }
+}
+
+/* ──── 7. Reduced Motion ──── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ──── 8. PWA Standalone Mode ──── */
+@media (display-mode: standalone) {
+    /* Extra top padding when running as installed PWA (no browser chrome) */
+    body {
+        padding-top: env(safe-area-inset-top, 0px);
+    }
+
+    /* Hide any "install app" prompts */
+    .pwa-install-prompt {
+        display: none !important;
+    }
+}
+
+/* ──── 9. Print ──── */
+@media print {
+    .bottom-nav,
+    .user-greeting,
+    .progress-container,
+    .buttons-row,
+    .bm-toolbar,
+    .pm-footer {
+        display: none !important;
+    }
+    body {
+        padding-bottom: 0;
+        background: white;
+    }
+    .container {
+        max-width: 100%;
+        padding: 0;
+    }
+}

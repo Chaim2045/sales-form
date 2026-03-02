@@ -4,11 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="מערכת ניהול משרד עו״ד גיא הרשקוביץ — טפסים, גבייה ומכירות">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#3b82f6">
     <meta name="robots" content="noindex, nofollow">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="TOFES OFFICE">
     <title>טופס מכר | משרד עו"ד גיא הרשקוביץ</title>
     <link rel="icon" type="image/png" href="assets/logo.png">
     <link rel="apple-touch-icon" href="assets/logo.png">
+    <link rel="manifest" href="manifest.json">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,6 +42,7 @@
     <link rel="stylesheet" href="css/sales-form.css">
     <link rel="stylesheet" href="css/billing.css">
     <link rel="stylesheet" href="css/modals.css">
+    <link rel="stylesheet" href="css/mobile.css">
 </head>
 <body>
     <noscript><div style="text-align:center;padding:40px;font-family:sans-serif;">יש להפעיל JavaScript כדי להשתמש באפליקציה זו.</div></noscript>
@@ -1569,7 +1574,6 @@
     <script src="js/client-search.js"></script>
     <script src="js/sales-form.js"></script>
     <script src="js/file-upload.js"></script>
-    <script src="js/sheets-sync.js"></script>
     <script src="js/encryption.js"></script>
     <script src="js/billing.js"></script>
     <script src="js/payments.js"></script>
@@ -1609,5 +1613,14 @@
             <span class="bottom-nav-label">התנתק</span>
         </button>
     </nav>
+
+    <!-- PWA Service Worker -->
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/service-worker.js').catch(function() {});
+        });
+    }
+    </script>
 </body>
 </html>

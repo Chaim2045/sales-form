@@ -655,14 +655,6 @@ async function saveSaleEdit() {
         // Update Firestore
         await db.collection('sales_records').doc(docId).update(updateData);
 
-        // Sync to Google Sheets (one-way: app → sheets)
-        var record = null;
-        for (var i = 0; i < salesRecords.length; i++) {
-            if (salesRecords[i].id === docId) { record = salesRecords[i]; break; }
-        }
-        var mergedData = Object.assign({}, record || {}, updateData);
-        await syncToSheets(mergedData);
-
         logAuditEvent('sale_edited', { docId: docId, clientName: clientName });
 
         closeSaleEditModal();

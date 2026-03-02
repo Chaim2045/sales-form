@@ -144,7 +144,7 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
             const splitPayments = await getSplitPaymentData();
             paymentBreakdown = JSON.stringify(splitPayments);
 
-            // Create detailed readable text for Google Sheets
+            // Create detailed readable text for payment breakdown
             paymentBreakdownText = splitPayments.map(p => {
                 let text = `${p.method}: \u20AA${p.amount.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
@@ -222,9 +222,6 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
         // Remember last used attorney and branch for next time
         if (formData.attorney) localStorage.setItem('tofes_lastAttorney', formData.attorney);
         if (formData.branch) localStorage.setItem('tofes_lastBranch', formData.branch);
-
-        // Sync to Google Sheets
-        await syncToSheets(formData);
 
         // Update success screen with sale details
         document.getElementById('summaryClientName').textContent = formData.clientName;
