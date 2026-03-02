@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: Is the user authenticated?
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // ========== Sales Records ==========
+    match /sales_records/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if false; // Never delete sales records from client
+    }
+
+    // ========== Recurring Billing ==========
+    match /recurring_billing/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if false; // Never delete billing records from client
+
+      // Payments subcollection
+      match /payments/{paymentId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated();
+        allow delete: if isAuthenticated();
+      }
+    }
+
+    // ========== Audit Log ==========
+    // Write-only: clients can add entries but never read, update, or delete them
+    match /audit_log/{docId} {
+      allow create: if isAuthenticated();
+      allow read: if false;   // Only readable via Firebase Console / Admin SDK
+      allow update: if false; // Immutable
+      allow delete: if false; // Immutable
+    }
+
+    // ========== Decrypt Rate Limiting ==========
+    // Each user can only read/write their own rate limit document
+    match /decrypt_rate_limit/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ========== Deny everything else ==========
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

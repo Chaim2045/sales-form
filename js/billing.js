@@ -54,6 +54,7 @@ function openBillingModal() {
     document.getElementById('billingNotes').value = '';
     document.getElementById('billingCardNumber').value = '';
     document.getElementById('billingCardExpiry').value = '';
+    document.getElementById('billingCardCvv').value = '';
     document.getElementById('billingCardHolder').value = '';
     document.getElementById('billingCardType').value = '';
     document.getElementById('billingAutocomplete').classList.remove('show');
@@ -178,9 +179,11 @@ async function submitBillingForm() {
         // הצפנת פרטי כרטיס אשראי
         const cardNumber = (document.getElementById('billingCardNumber').value || '').replace(/\s/g, '');
         const cardExpiry = document.getElementById('billingCardExpiry').value || '';
+        const cardCvv = document.getElementById('billingCardCvv').value || '';
         const cardHolder = document.getElementById('billingCardHolder').value || '';
         const cardType = document.getElementById('billingCardType').value || '';
         let cardEncrypted = '';
+        let cvvEncrypted = '';
         let cardLast4 = '';
 
         if (cardNumber) {
@@ -204,6 +207,9 @@ async function submitBillingForm() {
             }
             cardEncrypted = encryptCardData(cardNumber, passphrase);
             cardLast4 = cardNumber.slice(-4);
+            if (cardCvv) {
+                cvvEncrypted = encryptCardData(cardCvv, passphrase);
+            }
         }
 
         // מניעת כפילויות — בדיקת טלפון
@@ -256,11 +262,12 @@ async function submitBillingForm() {
             paymentMethod: 'כרטיס אשראי',
             status: 'פעיל',
             cardEncrypted: cardEncrypted,
+            cvvEncrypted: cvvEncrypted,
             cardLast4: cardLast4,
             cardExpiry: cardExpiry,
             cardHolder: cardHolder,
             cardType: cardType,
-            createdBy: currentUser || 'לא ידוע',
+            createdBy: authUser ? authUser.email : 'unauthenticated',
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             billingIdPrefix: billingIdPrefix,
             totalActualPaid: 0,
@@ -821,7 +828,7 @@ function updateNotificationBell() {
         var typeLabel = item.type === 'overdue' ? 'חיוב באיחור' : 'חיוב קרוב';
         var dotClass = item.type === 'overdue' ? 'overdue' : 'upcoming';
         var dateFormatted = formatDate(item.date);
-        return '<div class="bm-notif-item" onclick="openPaymentModal(\'' + item.clientId + '\')">' +
+        return '<div class="bm-notif-item" onclick="openPaymentModal(\'' + escapeHTML(item.clientId) + '\')">' +
             '<div class="bm-notif-dot ' + dotClass + '"></div>' +
             '<div class="bm-notif-content">' +
                 '<div class="bm-notif-title">' + typeLabel + '</div>' +
@@ -893,17 +900,17 @@ function renderTableView(clients) {
             '<td style="font-size:12px;">' + formatDate(nextDate) + '</td>' +
             '<td style="white-space:nowrap;">' +
                 '<div style="display:flex;gap:6px;align-items:center;">' +
-                    '<button class="bm-action-primary" onclick="openPaymentModal(\'' + c.id + '\')">תשלומים</button>' +
+                    '<button class="bm-action-primary" onclick="openPaymentModal(\'' + escapeHTML(c.id) + '\')">תשלומים</button>' +
                     ((c.status || 'פעיל') === 'פעיל'
-                        ? '<button class="bm-action-primary" onclick="quickMarkPayment(\'' + c.id + '\')" style="background:#16a34a;color:#fff;">סמן תשלום</button>'
+                        ? '<button class="bm-action-primary" onclick="quickMarkPayment(\'' + escapeHTML(c.id) + '\')" style="background:#16a34a;color:#fff;">סמן תשלום</button>'
                         : '') +
                     '<div class="bm-actions-dropdown">' +
                         '<button class="bm-actions-toggle" onclick="toggleActionsMenu(\'' + uid + '\', event)">\u22EE</button>' +
                         '<div class="bm-actions-menu" id="' + uid + '">' +
-                            '<button onclick="openEditModal(\'' + c.id + '\');closeAllMenus()">עריכה</button>' +
+                            '<button onclick="openEditModal(\'' + escapeHTML(c.id) + '\');closeAllMenus()">עריכה</button>' +
                             '<a href="https://merchant.sensepass.com/apps/transactions/list" target="_blank" onclick="closeAllMenus()">סליקת אשראי</a>' +
-                            (c.cardLast4 ? '<button onclick="revealCard(\'' + c.id + '\');closeAllMenus()">הצג כרטיס</button>' : '') +
-                            (c.cardEncrypted ? '<button onclick="revealAndCopy(\'' + c.id + '\');closeAllMenus()">העתק כרטיס</button>' : '') +
+                            (c.cardLast4 ? '<button onclick="revealCard(\'' + escapeHTML(c.id) + '\');closeAllMenus()">הצג כרטיס</button>' : '') +
+                            (c.cardEncrypted ? '<button onclick="revealAndCopy(\'' + escapeHTML(c.id) + '\');closeAllMenus()">העתק כרטיס</button>' : '') +
                         '</div>' +
                     '</div>' +
                 '</div>' +
@@ -965,7 +972,7 @@ function renderCardsView(clients) {
                 '</div>' +
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                     getStatusBadge(c.status) +
-                    '<button class="bm-action-secondary" onclick="openEditModal(\'' + c.id + '\')" style="padding:3px 8px;">עריכה</button>' +
+                    '<button class="bm-action-secondary" onclick="openEditModal(\'' + escapeHTML(c.id) + '\')" style="padding:3px 8px;">עריכה</button>' +
                 '</div>' +
             '</div>' +
             '<div class="bm-card-body">' +
@@ -992,7 +999,7 @@ function renderCardsView(clients) {
                         (c.cardType ? ' <span style="color:#94a3b8;">(' + escapeHTML(c.cardType) + ')</span>' : '') +
                         (c.cardExpiry ? ' <span style="color:#94a3b8;">' + escapeHTML(c.cardExpiry) + '</span>' : '') +
                     '</span>' +
-                    '<button class="bm-action-secondary" onclick="revealCard(\'' + c.id + '\')" style="padding:3px 10px;">הצג מספר</button>' +
+                    '<button class="bm-action-secondary" onclick="revealCard(\'' + escapeHTML(c.id) + '\')" style="padding:3px 10px;">הצג מספר</button>' +
                 '</div>' : '') +
             '<div class="bm-card-progress">' +
                 '<div class="bm-card-progress-text">' +
@@ -1003,14 +1010,14 @@ function renderCardsView(clients) {
             '</div>' +
             (nextDate ? '<div style="margin-top:10px;font-size:11px;color:#94a3b8;">חיוב הבא: ' + formatDate(nextDate) + '</div>' : '') +
             '<div style="display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid #f1f5f9;">' +
-                '<button class="bm-action-primary" onclick="openPaymentModal(\'' + c.id + '\')" style="flex:1;text-align:center;padding:10px;">תשלומים</button>' +
+                '<button class="bm-action-primary" onclick="openPaymentModal(\'' + escapeHTML(c.id) + '\')" style="flex:1;text-align:center;padding:10px;">תשלומים</button>' +
                 ((c.status || 'פעיל') === 'פעיל'
-                    ? '<button class="bm-action-primary" onclick="quickMarkPayment(\'' + c.id + '\')" style="flex:1;text-align:center;padding:10px;background:#16a34a;color:#fff;">סמן תשלום</button>'
+                    ? '<button class="bm-action-primary" onclick="quickMarkPayment(\'' + escapeHTML(c.id) + '\')" style="flex:1;text-align:center;padding:10px;background:#16a34a;color:#fff;">סמן תשלום</button>'
                     : '') +
             '</div>' +
             '<div style="display:flex;gap:8px;margin-top:8px;">' +
                 '<a class="bm-action-secondary" href="https://merchant.sensepass.com/apps/transactions/list" target="_blank" style="flex:1;justify-content:center;padding:7px;">סליקת אשראי</a>' +
-                (c.cardEncrypted ? '<button class="bm-action-secondary" onclick="revealAndCopy(\'' + c.id + '\')" style="flex:1;justify-content:center;padding:7px;">העתק כרטיס</button>' : '') +
+                (c.cardEncrypted ? '<button class="bm-action-secondary" onclick="revealAndCopy(\'' + escapeHTML(c.id) + '\')" style="flex:1;justify-content:center;padding:7px;">העתק כרטיס</button>' : '') +
             '</div>' +
         '</div>';
     }).join('');
@@ -1021,6 +1028,10 @@ function renderCardsView(clients) {
 async function revealCard(docId) {
     const passphrase = await requestPassword('decrypt');
     if (!passphrase) return;
+
+    // Server-side rate limit check
+    var allowed = await checkServerRateLimit(docId);
+    if (!allowed) return;
 
     try {
         const doc = await db.collection('recurring_billing').doc(docId).get();
@@ -1037,37 +1048,137 @@ async function revealCard(docId) {
 
         const decrypted = decryptCardData(data.cardEncrypted, passphrase);
         if (!decrypted) {
+            await recordServerDecryptFail(docId);
             logAuditEvent('decrypt_failed', { docId: docId, clientName: data.clientName || '' });
             alert('סיסמה שגויה');
             return;
         }
 
+        // Decrypt CVV if exists
+        var cvvDecrypted = data.cvvEncrypted ? (decryptCardData(data.cvvEncrypted, passphrase) || '') : '';
+
+        await resetServerDecryptFail();
+
+        // Re-encrypt legacy data to v2 format
+        var updateFields = {};
+        if (data.cardEncrypted.indexOf('v2:') !== 0) {
+            var reEncrypted = encryptCardData(decrypted, passphrase);
+            if (reEncrypted) updateFields.cardEncrypted = reEncrypted;
+        }
+        if (data.cvvEncrypted && data.cvvEncrypted.indexOf('v2:') !== 0 && cvvDecrypted) {
+            var reEncryptedCvv = encryptCardData(cvvDecrypted, passphrase);
+            if (reEncryptedCvv) updateFields.cvvEncrypted = reEncryptedCvv;
+        }
+        if (Object.keys(updateFields).length > 0) {
+            db.collection('recurring_billing').doc(docId).update(updateFields);
+        }
+
         // רישום לוג צפייה
         logCardView(docId, data.clientName);
 
-        // הצגת המספר בחלון מעוצב שנסגר אוטומטית
+        // Build modal using safe DOM APIs (no innerHTML with sensitive data)
         var formatted = decrypted.replace(/(\d{4})(?=\d)/g, '$1 ');
         var overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;';
-        overlay.innerHTML =
-            '<div style="background:white;border-radius:16px;padding:28px;max-width:360px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
-                '<div style="margin-bottom:16px;">' +
-                    '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>' +
-                '</div>' +
-                '<div style="font-size:13px;color:#6b7280;margin-bottom:8px;">' + escapeHTML(data.cardHolder || data.clientName || '') + '</div>' +
-                '<div style="font-size:22px;font-weight:700;letter-spacing:3px;direction:ltr;font-variant-numeric:tabular-nums;color:#1f2937;margin-bottom:6px;">' + formatted + '</div>' +
-                '<div style="display:flex;justify-content:center;gap:20px;margin-top:10px;">' +
-                    (data.cardExpiry ? '<div><div style="font-size:11px;color:#9ca3af;">תוקף</div><div style="font-size:15px;font-weight:600;color:#374151;direction:ltr;">' + escapeHTML(data.cardExpiry) + '</div></div>' : '') +
-                '</div>' +
-                (data.cardType ? '<div style="font-size:12px;color:#9ca3af;margin-top:8px;">' + escapeHTML(data.cardType) + '</div>' : '') +
-                '<div style="font-size:11px;color:#ef4444;margin-top:14px;">החלון ייסגר אוטומטית בעוד 30 שניות</div>' +
-                '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="margin-top:14px;background:#2563eb;color:white;border:none;padding:8px 28px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">סגור</button>' +
-            '</div>';
-        document.body.appendChild(overlay);
-        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
 
-        // סגירה אוטומטית אחרי 30 שניות
-        setTimeout(function() { if (overlay.parentNode) overlay.remove(); }, 30000);
+        var modal = document.createElement('div');
+        modal.style.cssText = 'background:white;border-radius:16px;padding:28px;max-width:360px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+
+        // Icon
+        var iconDiv = document.createElement('div');
+        iconDiv.style.cssText = 'margin-bottom:16px;';
+        iconDiv.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>';
+        modal.appendChild(iconDiv);
+
+        // Card holder name (safe: textContent)
+        var holderDiv = document.createElement('div');
+        holderDiv.style.cssText = 'font-size:13px;color:#6b7280;margin-bottom:8px;';
+        holderDiv.textContent = data.cardHolder || data.clientName || '';
+        modal.appendChild(holderDiv);
+
+        // Card number (safe: textContent)
+        var numberDiv = document.createElement('div');
+        numberDiv.style.cssText = 'font-size:22px;font-weight:700;letter-spacing:3px;direction:ltr;font-variant-numeric:tabular-nums;color:#1f2937;margin-bottom:6px;';
+        numberDiv.textContent = formatted;
+        modal.appendChild(numberDiv);
+
+        // Expiry & CVV row (safe: textContent)
+        if (data.cardExpiry || cvvDecrypted) {
+            var detailsWrap = document.createElement('div');
+            detailsWrap.style.cssText = 'display:flex;justify-content:center;gap:30px;margin-top:10px;';
+
+            if (data.cardExpiry) {
+                var expiryInner = document.createElement('div');
+                var expiryLabel = document.createElement('div');
+                expiryLabel.style.cssText = 'font-size:11px;color:#9ca3af;';
+                expiryLabel.textContent = 'תוקף';
+                var expiryValue = document.createElement('div');
+                expiryValue.style.cssText = 'font-size:15px;font-weight:600;color:#374151;direction:ltr;';
+                expiryValue.textContent = data.cardExpiry;
+                expiryInner.appendChild(expiryLabel);
+                expiryInner.appendChild(expiryValue);
+                detailsWrap.appendChild(expiryInner);
+            }
+
+            if (cvvDecrypted) {
+                var cvvInner = document.createElement('div');
+                var cvvLabel = document.createElement('div');
+                cvvLabel.style.cssText = 'font-size:11px;color:#9ca3af;';
+                cvvLabel.textContent = 'CVV';
+                var cvvValue = document.createElement('div');
+                cvvValue.style.cssText = 'font-size:15px;font-weight:600;color:#374151;direction:ltr;letter-spacing:2px;';
+                cvvValue.textContent = cvvDecrypted;
+                cvvInner.appendChild(cvvLabel);
+                cvvInner.appendChild(cvvValue);
+                detailsWrap.appendChild(cvvInner);
+            }
+
+            modal.appendChild(detailsWrap);
+        }
+
+        // Card type (safe: textContent)
+        if (data.cardType) {
+            var typeDiv = document.createElement('div');
+            typeDiv.style.cssText = 'font-size:12px;color:#9ca3af;margin-top:8px;';
+            typeDiv.textContent = data.cardType;
+            modal.appendChild(typeDiv);
+        }
+
+        // Auto-close timer (10 seconds)
+        var timerDiv = document.createElement('div');
+        timerDiv.style.cssText = 'font-size:11px;color:#ef4444;margin-top:14px;';
+        timerDiv.textContent = 'החלון ייסגר אוטומטית בעוד 10 שניות';
+        modal.appendChild(timerDiv);
+
+        var secondsLeft = 10;
+        var countdownInterval = setInterval(function() {
+            secondsLeft--;
+            if (secondsLeft <= 0) {
+                clearInterval(countdownInterval);
+                if (overlay.parentNode) overlay.remove();
+            } else {
+                timerDiv.textContent = 'החלון ייסגר אוטומטית בעוד ' + secondsLeft + ' שניות';
+            }
+        }, 1000);
+
+        // Close button (safe: addEventListener)
+        var closeBtn = document.createElement('button');
+        closeBtn.style.cssText = 'margin-top:14px;background:#2563eb;color:white;border:none;padding:8px 28px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;';
+        closeBtn.textContent = 'סגור';
+        closeBtn.addEventListener('click', function() {
+            clearInterval(countdownInterval);
+            overlay.remove();
+        });
+        modal.appendChild(closeBtn);
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                clearInterval(countdownInterval);
+                overlay.remove();
+            }
+        });
 
     } catch (error) {
         console.error('Error revealing card:', error);
@@ -1081,6 +1192,10 @@ async function revealAndCopy(docId) {
     const passphrase = await requestPassword('decrypt');
     if (!passphrase) return;
 
+    // Server-side rate limit check
+    var allowed = await checkServerRateLimit(docId);
+    if (!allowed) return;
+
     try {
         const doc = await db.collection('recurring_billing').doc(docId).get();
         if (!doc.exists) { alert('הרשומה לא נמצאה'); return; }
@@ -1090,45 +1205,141 @@ async function revealAndCopy(docId) {
 
         const decrypted = decryptCardData(data.cardEncrypted, passphrase);
         if (!decrypted) {
+            await recordServerDecryptFail(docId);
             logAuditEvent('decrypt_failed', { docId: docId, clientName: data.clientName || '' });
             alert('סיסמה שגויה');
             return;
+        }
+
+        // Decrypt CVV if exists
+        var cvvDecrypted = data.cvvEncrypted ? (decryptCardData(data.cvvEncrypted, passphrase) || '') : '';
+
+        await resetServerDecryptFail();
+
+        // Re-encrypt legacy data to v2 format
+        var updateFields = {};
+        if (data.cardEncrypted.indexOf('v2:') !== 0) {
+            var reEncrypted = encryptCardData(decrypted, passphrase);
+            if (reEncrypted) updateFields.cardEncrypted = reEncrypted;
+        }
+        if (data.cvvEncrypted && data.cvvEncrypted.indexOf('v2:') !== 0 && cvvDecrypted) {
+            var reEncryptedCvv = encryptCardData(cvvDecrypted, passphrase);
+            if (reEncryptedCvv) updateFields.cvvEncrypted = reEncryptedCvv;
+        }
+        if (Object.keys(updateFields).length > 0) {
+            db.collection('recurring_billing').doc(docId).update(updateFields);
         }
 
         logAuditEvent('card_copy', { docId: docId, clientName: data.clientName || '' });
 
         var formatted = decrypted.replace(/(\d{4})(?=\d)/g, '$1 ');
 
+        // Build modal using safe DOM APIs (no innerHTML with sensitive data)
         var overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:2000;display:flex;align-items:center;justify-content:center;';
-        overlay.innerHTML =
-            '<div style="background:white;border-radius:16px;padding:28px;max-width:400px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
-                '<div style="text-align:center;margin-bottom:18px;">' +
-                    '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>' +
-                    '<div style="font-size:15px;font-weight:700;color:#1f2937;margin-top:8px;">' + escapeHTML(data.clientName || '') + '</div>' +
-                '</div>' +
-                '<div style="display:flex;flex-direction:column;gap:8px;">' +
-                    '<div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;">' +
-                        '<div><div style="font-size:10px;color:#9ca3af;">מספר כרטיס</div><div style="font-size:16px;font-weight:600;direction:ltr;font-variant-numeric:tabular-nums;color:#1f2937;">' + formatted + '</div></div>' +
-                        '<button onclick="copyToClipboard(\'' + decrypted + '\', this)" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;white-space:nowrap;">העתק</button>' +
-                    '</div>' +
-                    (data.cardExpiry ? '<div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;">' +
-                        '<div><div style="font-size:10px;color:#9ca3af;">תוקף</div><div style="font-size:15px;font-weight:600;direction:ltr;color:#1f2937;">' + data.cardExpiry + '</div></div>' +
-                        '<button onclick="copyToClipboard(\'' + data.cardExpiry + '\', this)" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">העתק</button>' +
-                    '</div>' : '') +
-                    (data.cardHolder ? '<div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;">' +
-                        '<div><div style="font-size:10px;color:#9ca3af;">שם בעל הכרטיס</div><div style="font-size:14px;font-weight:600;color:#1f2937;">' + data.cardHolder + '</div></div>' +
-                        '<button onclick="copyToClipboard(\'' + (data.cardHolder || '').replace(/'/g, "\\'") + '\', this)" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;">העתק</button>' +
-                    '</div>' : '') +
-                '</div>' +
-                '<div style="text-align:center;margin-top:16px;">' +
-                    '<div style="font-size:11px;color:#ef4444;margin-bottom:10px;">החלון ייסגר אוטומטית בעוד 30 שניות</div>' +
-                    '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:#2563eb;color:white;border:none;padding:8px 28px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">סגור</button>' +
-                '</div>' +
-            '</div>';
+
+        var modal = document.createElement('div');
+        modal.style.cssText = 'background:white;border-radius:16px;padding:28px;max-width:400px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+
+        // Header with icon and client name
+        var header = document.createElement('div');
+        header.style.cssText = 'text-align:center;margin-bottom:18px;';
+        header.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>';
+        var clientLabel = document.createElement('div');
+        clientLabel.style.cssText = 'font-size:15px;font-weight:700;color:#1f2937;margin-top:8px;';
+        clientLabel.textContent = data.clientName || '';
+        header.appendChild(clientLabel);
+        modal.appendChild(header);
+
+        // Card fields container
+        var fieldsContainer = document.createElement('div');
+        fieldsContainer.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+
+        // Helper to create a safe copy-row (no innerHTML with sensitive data)
+        function createCopyRow(label, displayText, copyValue) {
+            var row = document.createElement('div');
+            row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;';
+
+            var info = document.createElement('div');
+            var labelEl = document.createElement('div');
+            labelEl.style.cssText = 'font-size:10px;color:#9ca3af;';
+            labelEl.textContent = label;
+            var valueEl = document.createElement('div');
+            valueEl.style.cssText = 'font-size:16px;font-weight:600;direction:ltr;font-variant-numeric:tabular-nums;color:#1f2937;';
+            valueEl.textContent = displayText;
+            info.appendChild(labelEl);
+            info.appendChild(valueEl);
+
+            var btn = document.createElement('button');
+            btn.style.cssText = 'background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-family:Heebo,sans-serif;font-weight:600;cursor:pointer;white-space:nowrap;';
+            btn.textContent = 'העתק';
+            btn.addEventListener('click', function() {
+                copyToClipboard(copyValue, btn);
+            });
+
+            row.appendChild(info);
+            row.appendChild(btn);
+            return row;
+        }
+
+        // Card number row
+        fieldsContainer.appendChild(createCopyRow('מספר כרטיס', formatted, decrypted));
+
+        // Expiry row
+        if (data.cardExpiry) {
+            fieldsContainer.appendChild(createCopyRow('תוקף', data.cardExpiry, data.cardExpiry));
+        }
+
+        // CVV row
+        if (cvvDecrypted) {
+            fieldsContainer.appendChild(createCopyRow('CVV', cvvDecrypted, cvvDecrypted));
+        }
+
+        // Cardholder row
+        if (data.cardHolder) {
+            fieldsContainer.appendChild(createCopyRow('שם בעל הכרטיס', data.cardHolder, data.cardHolder));
+        }
+
+        modal.appendChild(fieldsContainer);
+
+        // Auto-close timer (10 seconds)
+        var timerDiv = document.createElement('div');
+        timerDiv.style.cssText = 'text-align:center;margin-top:16px;';
+        var timerText = document.createElement('div');
+        timerText.style.cssText = 'font-size:11px;color:#ef4444;margin-bottom:10px;';
+        timerText.textContent = 'החלון ייסגר אוטומטית בעוד 10 שניות';
+        timerDiv.appendChild(timerText);
+
+        var secondsLeft = 10;
+        var countdownInterval = setInterval(function() {
+            secondsLeft--;
+            if (secondsLeft <= 0) {
+                clearInterval(countdownInterval);
+                if (overlay.parentNode) overlay.remove();
+            } else {
+                timerText.textContent = 'החלון ייסגר אוטומטית בעוד ' + secondsLeft + ' שניות';
+            }
+        }, 1000);
+
+        // Close button (safe: addEventListener)
+        var closeBtn = document.createElement('button');
+        closeBtn.style.cssText = 'background:#2563eb;color:white;border:none;padding:8px 28px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;';
+        closeBtn.textContent = 'סגור';
+        closeBtn.addEventListener('click', function() {
+            clearInterval(countdownInterval);
+            overlay.remove();
+        });
+        timerDiv.appendChild(closeBtn);
+        modal.appendChild(timerDiv);
+
+        overlay.appendChild(modal);
         document.body.appendChild(overlay);
-        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-        setTimeout(function() { if (overlay.parentNode) overlay.remove(); }, 30000);
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                clearInterval(countdownInterval);
+                overlay.remove();
+            }
+        });
 
     } catch (error) {
         console.error('Error:', error);
@@ -1218,6 +1429,7 @@ async function openEditModal(docId) {
 
         // Card fields
         document.getElementById('editCardNumber').value = '';
+        document.getElementById('editCardCvv').value = '';
         document.getElementById('editCardExpiry').value = d.cardExpiry || '';
         document.getElementById('editCardHolder').value = d.cardHolder || '';
         document.getElementById('editCardType').value = d.cardType || '';
@@ -1281,7 +1493,7 @@ async function saveEditBilling() {
             cardHolder: document.getElementById('editCardHolder').value || '',
             cardType: document.getElementById('editCardType').value || '',
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedBy: authUser ? authUser.email : (currentUser || 'לא ידוע')
+            updatedBy: authUser ? authUser.email : 'unauthenticated'
         };
 
         // הצפנת כרטיס חדש אם הוזן
@@ -1308,6 +1520,10 @@ async function saveEditBilling() {
             }
             updateData.cardEncrypted = encryptCardData(newCardNumber, passphrase);
             updateData.cardLast4 = newCardNumber.slice(-4);
+            var newCvv = document.getElementById('editCardCvv').value || '';
+            if (newCvv) {
+                updateData.cvvEncrypted = encryptCardData(newCvv, passphrase);
+            }
         }
 
         // קריאת נתוני הלקוח הישנים לפני העדכון (לצורך השוואה בסנכרון)

@@ -17,13 +17,13 @@ async function handleLogin() {
         await auth.signInWithEmailAndPassword(email, password);
     } catch (error) {
         const messages = {
-            'auth/user-not-found': 'המייל לא נמצא במערכת',
-            'auth/wrong-password': 'סיסמה שגויה',
+            'auth/user-not-found': 'מייל או סיסמה שגויים',
+            'auth/wrong-password': 'מייל או סיסמה שגויים',
             'auth/invalid-email': 'כתובת מייל לא תקינה',
             'auth/too-many-requests': 'יותר מדי ניסיונות, נסה שוב מאוחר יותר',
             'auth/invalid-credential': 'מייל או סיסמה שגויים'
         };
-        errorEl.textContent = messages[error.code] || 'שגיאת התחברות: ' + error.message;
+        errorEl.textContent = messages[error.code] || 'שגיאת התחברות. נסה שנית.';
     }
 
     btn.disabled = false;

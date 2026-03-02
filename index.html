@@ -10,18 +10,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    <!-- Firebase (with SRI) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" integrity="sha384-lI+CxEx/bCvWP1b0OK13j5HTrTZP7yf1xle8TVOFq2smz6KC1RChTarRV/RHP5PP" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js" integrity="sha384-oze9siCpFoiDBZ37lLp99ZmOMO+je1s/xtvwtbNv3NXQXLpbpfPSzZSpbT3xV9da" crossorigin="anonymous"></script>
 
-    <!-- Encryption -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+    <!-- Encryption (with SRI) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" integrity="sha384-mgWScxWVKP8F7PBbpNp7i/aSb17kN0LcifBpahAplF3Mn0GR4/u1oMpWIm2rD8yY" crossorigin="anonymous"></script>
 
-    <!-- PDF Generation -->
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <!-- PDF Generation (with SRI) -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js" integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
 
     <!-- Environment Configuration -->
     <script src="env-config.js"></script>
@@ -131,11 +131,11 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>טלפון <span class="required">*</span></label>
-                            <input type="text" id="phone" placeholder="050-0000000 או +972-50-0000000" required style="direction: ltr; text-align: right;">
+                            <input type="text" id="phone" placeholder="050-0000000 או +972-50-0000000" required autocomplete="off" style="direction: ltr; text-align: right;">
                         </div>
                         <div class="form-group">
                             <label>ת.ז / ח.פ <span class="required">*</span></label>
-                            <input type="text" id="idNumber" placeholder="מספר זהות או ח.פ" required>
+                            <input type="text" id="idNumber" placeholder="מספר זהות או ח.פ" required autocomplete="off">
                         </div>
                     </div>
 
@@ -146,7 +146,7 @@
 
                     <div class="form-group">
                         <label>כתובת</label>
-                        <input type="text" id="address" placeholder="רחוב, עיר (אופציונלי)">
+                        <input type="text" id="address" placeholder="רחוב, עיר (אופציונלי)" autocomplete="off">
                     </div>
 
                     <div class="form-group">
@@ -862,12 +862,16 @@
                         <label>תוקף</label>
                         <input type="text" id="billingCardExpiry" placeholder="MM/YY" maxlength="5" dir="ltr" style="text-align: left;" autocomplete="off">
                     </div>
+                    <div class="form-group">
+                        <label>CVV (3 ספרות)</label>
+                        <input type="password" id="billingCardCvv" placeholder="•••" maxlength="4" dir="ltr" style="text-align: center; letter-spacing: 4px;" autocomplete="off">
+                    </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label>שם בעל הכרטיס</label>
-                        <input type="text" id="billingCardHolder" placeholder="שם כפי שמופיע על הכרטיס">
+                        <input type="text" id="billingCardHolder" placeholder="שם כפי שמופיע על הכרטיס" autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label>סוג כרטיס</label>
@@ -1034,10 +1038,14 @@
                         <label>תוקף</label>
                         <input type="text" id="editCardExpiry" placeholder="MM/YY" maxlength="5" dir="ltr" style="text-align:left;" autocomplete="off">
                     </div>
+                    <div class="form-group">
+                        <label>CVV (3 ספרות)</label>
+                        <input type="password" id="editCardCvv" placeholder="•••" maxlength="4" dir="ltr" style="text-align:center;letter-spacing:4px;" autocomplete="off">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>שם בעל הכרטיס</label>
-                    <input type="text" id="editCardHolder">
+                    <input type="text" id="editCardHolder" autocomplete="off">
                 </div>
                 <div class="form-group">
                     <label>סוג כרטיס</label>
@@ -1131,7 +1139,7 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <span>שמור את הסיסמה במקום בטוח. <strong>אם הסיסמה תישכח - לא ניתן לשחזר את פרטי הכרטיסים.</strong> אל תשתף אותה בהודעות או במייל.</span>
             </div>
-            <input type="password" id="pwPopupInput" placeholder="הזן סיסמה">
+            <input type="password" id="pwPopupInput" placeholder="הזן סיסמה" autocomplete="new-password">
             <div class="pw-popup-buttons">
                 <button class="pw-popup-cancel" id="pwPopupCancel">ביטול</button>
                 <button class="pw-popup-confirm" id="pwPopupConfirm">אישור</button>

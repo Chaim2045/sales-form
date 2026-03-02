@@ -33,6 +33,34 @@ auth.onAuthStateChanged(function(user) {
     }
 });
 
+// ========== Session Timeout (30 min idle) ==========
+
+var _sessionTimeoutId = null;
+var SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
+function resetSessionTimeout() {
+    if (_sessionTimeoutId) clearTimeout(_sessionTimeoutId);
+    if (authUser) {
+        _sessionTimeoutId = setTimeout(function() {
+            auth.signOut();
+            alert('פג תוקף ההתחברות עקב חוסר פעילות. נא להתחבר מחדש.');
+        }, SESSION_TIMEOUT_MS);
+    }
+}
+
+['click', 'keydown', 'scroll', 'mousemove', 'touchstart'].forEach(function(evt) {
+    document.addEventListener(evt, resetSessionTimeout, { passive: true });
+});
+
+// Start/stop timeout on auth state change
+auth.onAuthStateChanged(function(user) {
+    if (user) {
+        resetSessionTimeout();
+    } else {
+        if (_sessionTimeoutId) clearTimeout(_sessionTimeoutId);
+    }
+});
+
 // ========== Audit Log ==========
 
 function logAuditEvent(action, details) {
@@ -40,7 +68,7 @@ function logAuditEvent(action, details) {
         db.collection('audit_log').add({
             action: action,
             details: details || {},
-            performedBy: authUser ? authUser.email : (currentUser || 'unknown'),
+            performedBy: authUser ? authUser.email : 'unauthenticated',
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
     } catch (e) {

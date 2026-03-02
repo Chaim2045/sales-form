@@ -87,14 +87,28 @@ function displayAutocompleteResults(clients) {
         return;
     }
 
-    dropdown.innerHTML = clients.map(client => `
-        <div class="autocomplete-item" onclick="fillClientData(${JSON.stringify(client).replace(/"/g, '&quot;')})">
-            <div class="autocomplete-item-name">${client.clientName}</div>
-            <div class="autocomplete-item-details">
-                ${client.phone} • ${client.email}
-            </div>
-        </div>
-    `).join('');
+    dropdown.innerHTML = '';
+    clients.forEach(function(client) {
+        var item = document.createElement('div');
+        item.className = 'autocomplete-item';
+
+        var nameDiv = document.createElement('div');
+        nameDiv.className = 'autocomplete-item-name';
+        nameDiv.textContent = client.clientName;
+
+        var detailsDiv = document.createElement('div');
+        detailsDiv.className = 'autocomplete-item-details';
+        detailsDiv.textContent = (client.phone || '') + ' \u2022 ' + (client.email || '');
+
+        item.appendChild(nameDiv);
+        item.appendChild(detailsDiv);
+
+        item.addEventListener('click', function() {
+            fillClientData(client);
+        });
+
+        dropdown.appendChild(item);
+    });
     dropdown.classList.add('show');
 }
 

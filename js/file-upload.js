@@ -1,49 +1,94 @@
 // ========== File Upload Handler ==========
 
-// File Upload Handler
+// Security: allowed file types and size limit
+var ALLOWED_UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'application/pdf'];
+var MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10 MB
+
+// File Upload Preview Handler
 document.getElementById('checksPhoto').addEventListener('change', function(e) {
-    const file = e.target.files[0];
+    var file = e.target.files[0];
     if (file) {
-        const container = document.getElementById('checksUploadContainer');
-        const preview = document.getElementById('checksPreview');
-        const fileName = document.getElementById('checksFileName');
-        const image = document.getElementById('checksImage');
+        // Validate file type before preview
+        if (ALLOWED_UPLOAD_TYPES.indexOf(file.type) === -1) {
+            alert('סוג קובץ לא מורשה. ניתן להעלות תמונות (JPEG, PNG, GIF, WebP, HEIC) ו-PDF בלבד.');
+            e.target.value = '';
+            return;
+        }
+
+        // Validate file size before preview
+        if (file.size > MAX_UPLOAD_SIZE) {
+            alert('הקובץ גדול מדי. גודל מקסימלי: 10MB. גודל הקובץ: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
+            e.target.value = '';
+            return;
+        }
+
+        var container = document.getElementById('checksUploadContainer');
+        var preview = document.getElementById('checksPreview');
+        var fileName = document.getElementById('checksFileName');
+        var image = document.getElementById('checksImage');
 
         container.classList.add('has-file');
         fileName.textContent = '\u2713 ' + file.name;
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            image.src = e.target.result;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+            image.src = ev.target.result;
             preview.classList.add('show');
         };
         reader.readAsDataURL(file);
     }
 });
 
+// Generate UUID for secure filenames
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0;
+        var v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
 // Upload File to Firebase Storage
 async function uploadFile(file, path) {
     if (!file) return null;
 
-    try {
-        const storageRef = storage.ref();
-        const fileRef = storageRef.child(path);
+    // Validate file type
+    if (ALLOWED_UPLOAD_TYPES.indexOf(file.type) === -1) {
+        alert('סוג קובץ לא מורשה. ניתן להעלות תמונות ו-PDF בלבד.');
+        throw new Error('Invalid file type');
+    }
 
-        // Upload file
-        const uploadTask = await fileRef.put(file, {
+    // Validate file size
+    if (file.size > MAX_UPLOAD_SIZE) {
+        alert('הקובץ גדול מדי. גודל מקסימלי: 10MB.');
+        throw new Error('File too large');
+    }
+
+    // Generate secure filename with UUID
+    var uuid = generateUUID();
+    var ext = file.name.split('.').pop().toLowerCase();
+    var safeExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'pdf'];
+    if (safeExtensions.indexOf(ext) === -1) ext = 'bin';
+    var safePath = path.split('/')[0] + '/' + uuid + '.' + ext;
+
+    try {
+        var storageRef = storage.ref();
+        var fileRef = storageRef.child(safePath);
+
+        var uploadTask = await fileRef.put(file, {
             contentType: file.type,
             customMetadata: {
-                'uploadedBy': currentUser,
-                'uploadDate': new Date().toISOString()
+                'uploadedBy': authUser ? authUser.email : 'unauthenticated',
+                'uploadDate': new Date().toISOString(),
+                'originalName': file.name.substring(0, 100)
             }
         });
 
-        // Get download URL
-        const downloadURL = await uploadTask.ref.getDownloadURL();
+        var downloadURL = await uploadTask.ref.getDownloadURL();
         return downloadURL;
     } catch (error) {
         console.error('Error uploading file:', error);
-        alert('\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05D4\u05E2\u05DC\u05D0\u05EA \u05D4\u05EA\u05DE\u05D5\u05E0\u05D4: ' + error.message);
+        alert('שגיאה בהעלאת הקובץ. נסה שנית.');
         throw error;
     }
 }
@@ -84,8 +129,7 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
         if (paymentMethod === '\u05E9\u05D9\u05E7\u05D9\u05DD \u05D3\u05D7\u05D5\u05D9\u05D9\u05DD') {
             const checksPhotoFile = document.getElementById('checksPhoto').files[0];
             if (checksPhotoFile) {
-                const timestamp = Date.now();
-                const fileName = `checks/${timestamp}_${checksPhotoFile.name}`;
+                const fileName = `checks/${checksPhotoFile.name}`;
                 checksPhotoURL = await uploadFile(checksPhotoFile, fileName);
             }
         }

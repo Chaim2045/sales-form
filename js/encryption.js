@@ -1,15 +1,106 @@
 // ========== הצפנת כרטיס אשראי ==========
 
-// Rate limiting for password attempts
+// Client-side rate limiting for password attempts (backup for server-side)
 var _decryptFailedAttempts = 0;
 var _decryptLockoutUntil = 0;
 
+// ========== Server-side rate limiting via Firestore ==========
+
+async function checkServerRateLimit(docId) {
+    if (!authUser) return false;
+
+    var userId = authUser.uid;
+    var rateLimitRef = db.collection('decrypt_rate_limit').doc(userId);
+
+    try {
+        var doc = await rateLimitRef.get();
+        if (doc.exists) {
+            var data = doc.data();
+            var lockedUntil = data.lockedUntil ? data.lockedUntil.toMillis() : 0;
+            if (Date.now() < lockedUntil) {
+                var secondsLeft = Math.ceil((lockedUntil - Date.now()) / 1000);
+                alert('נסיונות רבים מדי. נסה שוב בעוד ' + secondsLeft + ' שניות.');
+                return false;
+            }
+
+            // Reset if lockout has expired
+            if ((data.failedAttempts || 0) >= 5 && Date.now() >= lockedUntil) {
+                await rateLimitRef.set({ failedAttempts: 0, lockedUntil: null }, { merge: true });
+            }
+        }
+        return true;
+    } catch (e) {
+        console.error('Rate limit check error:', e);
+        return true; // Fail open — local rate limit still active
+    }
+}
+
+async function recordServerDecryptFail(docId) {
+    if (!authUser) return;
+    var userId = authUser.uid;
+    var rateLimitRef = db.collection('decrypt_rate_limit').doc(userId);
+
+    try {
+        var doc = await rateLimitRef.get();
+        var failedAttempts = (doc.exists ? (doc.data().failedAttempts || 0) : 0) + 1;
+        var updateData = {
+            failedAttempts: failedAttempts,
+            lastAttempt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (failedAttempts >= 5) {
+            // Lock for 5 minutes (300,000ms) server-side
+            updateData.lockedUntil = new Date(Date.now() + 300000);
+        }
+
+        await rateLimitRef.set(updateData, { merge: true });
+    } catch (e) {
+        console.error('Rate limit record error:', e);
+    }
+}
+
+async function resetServerDecryptFail() {
+    if (!authUser) return;
+    var userId = authUser.uid;
+    try {
+        await db.collection('decrypt_rate_limit').doc(userId).set(
+            { failedAttempts: 0, lockedUntil: null },
+            { merge: true }
+        );
+    } catch (e) {
+        console.error('Rate limit reset error:', e);
+    }
+}
+
+// ========== PBKDF2 + AES-256-CBC Encryption ==========
+
 function encryptCardData(cardNumber, passphrase) {
-    return CryptoJS.AES.encrypt(cardNumber, passphrase).toString();
+    // Generate random 128-bit salt and 128-bit IV
+    var salt = CryptoJS.lib.WordArray.random(16);
+    var iv = CryptoJS.lib.WordArray.random(16);
+
+    // Derive 256-bit key using PBKDF2 with 100,000 iterations and SHA-256
+    var key = CryptoJS.PBKDF2(passphrase, salt, {
+        keySize: 256 / 32,
+        iterations: 100000,
+        hasher: CryptoJS.algo.SHA256
+    });
+
+    // Encrypt with AES-256-CBC
+    var encrypted = CryptoJS.AES.encrypt(cardNumber, key, {
+        iv: iv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+    });
+
+    // Format: "v2:base64(salt):base64(iv):base64(ciphertext)"
+    return 'v2:' + salt.toString(CryptoJS.enc.Base64) +
+           ':' + iv.toString(CryptoJS.enc.Base64) +
+           ':' + encrypted.ciphertext.toString(CryptoJS.enc.Base64);
 }
 
 function decryptCardData(encryptedData, passphrase) {
-    // Rate limiting check
+    // Client-side rate limiting check
     if (_decryptFailedAttempts >= 5 && Date.now() < _decryptLockoutUntil) {
         var secondsLeft = Math.ceil((_decryptLockoutUntil - Date.now()) / 1000);
         alert('נסיונות רבים מדי. נסה שוב בעוד ' + secondsLeft + ' שניות.');
@@ -17,25 +108,70 @@ function decryptCardData(encryptedData, passphrase) {
     }
 
     try {
-        var bytes = CryptoJS.AES.decrypt(encryptedData, passphrase);
-        var decrypted = bytes.toString(CryptoJS.enc.Utf8);
-        if (!decrypted) {
-            _decryptFailedAttempts++;
-            if (_decryptFailedAttempts >= 5) {
-                _decryptLockoutUntil = Date.now() + 60000; // 60 second lockout
+        var decrypted;
+
+        if (encryptedData.indexOf('v2:') === 0) {
+            // New PBKDF2 format: "v2:salt:iv:ciphertext" (all base64)
+            var parts = encryptedData.split(':');
+            if (parts.length !== 4) {
+                _handleDecryptFail();
+                return null;
             }
+
+            var salt = CryptoJS.enc.Base64.parse(parts[1]);
+            var iv = CryptoJS.enc.Base64.parse(parts[2]);
+            var ciphertext = CryptoJS.enc.Base64.parse(parts[3]);
+
+            var key = CryptoJS.PBKDF2(passphrase, salt, {
+                keySize: 256 / 32,
+                iterations: 100000,
+                hasher: CryptoJS.algo.SHA256
+            });
+
+            var decryptedWA = CryptoJS.AES.decrypt(
+                { ciphertext: ciphertext },
+                key,
+                { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
+            );
+
+            decrypted = decryptedWA.toString(CryptoJS.enc.Utf8);
+        } else {
+            // Legacy format: CryptoJS.AES.encrypt(data, passphrase).toString()
+            var bytes = CryptoJS.AES.decrypt(encryptedData, passphrase);
+            decrypted = bytes.toString(CryptoJS.enc.Utf8);
+        }
+
+        if (!decrypted) {
+            _handleDecryptFail();
             return null;
         }
-        _decryptFailedAttempts = 0; // Reset on success
+
+        // Success: reset local counter
+        _decryptFailedAttempts = 0;
         return decrypted;
+
     } catch (e) {
-        _decryptFailedAttempts++;
-        if (_decryptFailedAttempts >= 5) {
-            _decryptLockoutUntil = Date.now() + 60000;
-        }
+        _handleDecryptFail();
         return null;
     }
 }
+
+function _handleDecryptFail() {
+    _decryptFailedAttempts++;
+    if (_decryptFailedAttempts >= 5) {
+        _decryptLockoutUntil = Date.now() + 300000; // 5 minute lockout (matches server)
+    }
+}
+
+// Re-encrypt legacy data to v2 format
+function reEncryptToV2(encryptedData, passphrase) {
+    if (encryptedData.indexOf('v2:') === 0) return encryptedData;
+    var decrypted = decryptCardData(encryptedData, passphrase);
+    if (!decrypted) return null;
+    return encryptCardData(decrypted, passphrase);
+}
+
+// ========== Validation ==========
 
 // Luhn algorithm validation
 function validateCardNumber(num) {
@@ -59,11 +195,12 @@ function validateCardExpiry(expiry) {
     var year = parseInt(parts[1], 10) + 2000;
     if (month < 1 || month > 12) return false;
     var now = new Date();
-    var expiryDate = new Date(year, month); // first day of month AFTER expiry
+    var expiryDate = new Date(year, month);
     return expiryDate > now;
 }
 
-// פופאפ סיסמת הצפנה מעוצב
+// ========== Password Popup ==========
+
 function requestPassword(mode) {
     // Check lockout before showing popup
     if (_decryptFailedAttempts >= 5 && Date.now() < _decryptLockoutUntil) {
@@ -102,6 +239,7 @@ function requestPassword(mode) {
             confirmInput.type = 'password';
             confirmInput.id = 'pwPopupConfirmInput';
             confirmInput.placeholder = 'אישור סיסמה';
+            confirmInput.setAttribute('autocomplete', 'new-password');
             confirmInput.style.cssText = input.style.cssText || '';
             confirmInput.className = input.className;
             input.parentNode.insertBefore(confirmLabel, input.nextSibling);
@@ -123,6 +261,9 @@ function requestPassword(mode) {
         function cleanup() {
             overlay.classList.remove('show');
             input.value = '';
+            // Clear confirm input too
+            var ci = document.getElementById('pwPopupConfirmInput');
+            if (ci) ci.value = '';
             document.getElementById('pwPopupConfirm').removeEventListener('click', onConfirm);
             document.getElementById('pwPopupCancel').removeEventListener('click', onCancel);
             input.removeEventListener('keydown', onKeydown);

@@ -268,24 +268,24 @@ function renderPaymentModal(client, payments) {
                 (isCancelled
                     ? '<span style="font-size:13px;">₪' + plannedAmt.toLocaleString('he-IL') + '</span>'
                     : '<input type="number" class="pm-amount-input" value="' + plannedAmt + '" ' +
-                      'onchange="updatePlannedAmount(\'' + p.id + '\', this.value)" min="0" step="0.01">') +
+                      'onchange="updatePlannedAmount(\'' + escapeHTML(p.id) + '\', this.value)" min="0" step="0.01">') +
             '</div>' +
             '<div style="text-align:center;">' +
                 (isCompleted
                     ? '<input type="number" class="pm-amount-input" value="' + actualAmt + '" ' +
-                      'onchange="updateActualAmount(\'' + p.id + '\', this.value)" min="0" step="0.01" ' +
+                      'onchange="updateActualAmount(\'' + escapeHTML(p.id) + '\', this.value)" min="0" step="0.01" ' +
                       'style="color:#10b981;font-weight:600;">'
                     : '<span style="color:var(--gray-300);font-size:13px;">—</span>') +
             '</div>' +
             '<div style="text-align:center;display:flex;gap:4px;align-items:center;justify-content:center;">' +
                 (isCompleted
                     ? '<button class="pm-mark-btn already-done" onclick="editCompletedPayment(\'' +
-                      currentPaymentDocId + '\',\'' + p.id + '\')" style="cursor:pointer;" title="לחץ לעריכה">&#10004; בוצע</button>'
+                      escapeHTML(currentPaymentDocId) + '\',\'' + escapeHTML(p.id) + '\')" style="cursor:pointer;" title="לחץ לעריכה">&#10004; בוצע</button>'
                     : (isCancelled
                         ? '<span style="color:var(--gray-400);font-size:11px;">בוטל</span>'
                         : '<button class="pm-mark-btn mark-done" onclick="markSinglePayment(\'' +
-                          currentPaymentDocId + '\',\'' + p.id + '\')">סמן כבוצע</button>')) +
-                '<button onclick="deletePayment(\'' + currentPaymentDocId + '\',\'' + p.id + '\',' + p.monthNumber + ')" ' +
+                          escapeHTML(currentPaymentDocId) + '\',\'' + escapeHTML(p.id) + '\')">סמן כבוצע</button>')) +
+                '<button onclick="deletePayment(\'' + escapeHTML(currentPaymentDocId) + '\',\'' + escapeHTML(p.id) + '\',' + p.monthNumber + ')" ' +
                     'style="background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:14px;padding:2px 4px;line-height:1;" ' +
                     'title="הסר תשלום מהסדרה">&#10005;</button>' +
             '</div>' +
@@ -375,7 +375,7 @@ async function markSinglePayment(clientDocId, paymentDocId) {
             status: 'בוצע',
             actualAmountPaid: actualAmount,
             actualPaymentDate: actualDate,
-            completedBy: currentUser || 'webapp',
+            completedBy: authUser ? authUser.email : 'unauthenticated',
             completedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -586,7 +586,7 @@ async function markAllDuePayments() {
                 status: 'בוצע',
                 actualAmountPaid: roundMoney(p.plannedAmount),
                 actualPaymentDate: nowISO,
-                completedBy: currentUser || (authUser ? authUser.email : 'לא ידוע'),
+                completedBy: authUser ? authUser.email : 'unauthenticated',
                 completedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         });
