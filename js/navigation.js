@@ -117,3 +117,35 @@ function updateNavVisibility() {
 var authUnsub = auth.onAuthStateChanged(function(user) {
     updateBottomNav(!!user);
 });
+
+// ========== User Greeting ==========
+
+var _greetingInterval = null;
+
+function showUserGreeting(displayName) {
+    var el = document.getElementById('userGreeting');
+    if (!el) return;
+
+    var greetText = document.getElementById('greetingText');
+    if (greetText) {
+        var hour = new Date().getHours();
+        var timeOfDay = hour < 12 ? 'בוקר טוב' : (hour < 17 ? 'צהריים טובים' : (hour < 21 ? 'ערב טוב' : 'לילה טוב'));
+        greetText.textContent = timeOfDay + ', ' + displayName;
+    }
+
+    updateGreetingTime();
+    el.style.display = '';
+
+    // Update time every minute
+    if (_greetingInterval) clearInterval(_greetingInterval);
+    _greetingInterval = setInterval(updateGreetingTime, 60000);
+}
+
+function updateGreetingTime() {
+    var el = document.getElementById('greetingTime');
+    if (!el) return;
+    var now = new Date();
+    var hours = String(now.getHours()).padStart(2, '0');
+    var minutes = String(now.getMinutes()).padStart(2, '0');
+    el.textContent = hours + ':' + minutes;
+}

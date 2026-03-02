@@ -56,6 +56,11 @@ auth.onAuthStateChanged(async function(user) {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('mainContainer').style.display = '';
 
+            // Show user greeting
+            if (typeof showUserGreeting === 'function') {
+                showUserGreeting(currentUser);
+            }
+
             // Show mainForm only if user has salesForm permission
             if (currentUserPermissions.salesForm) {
                 document.getElementById('mainForm').classList.remove('hidden');
