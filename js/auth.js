@@ -6,7 +6,14 @@ var _quickLoginAvailable = false; // true if saved credentials exist
 // Load users list for login dropdown (public — no auth needed)
 async function loadUsersList() {
     try {
-        var snapshot = await db.collection('public_users').get();
+        // Timeout after 10 seconds to prevent infinite hang on slow connections
+        var timeoutPromise = new Promise(function(_, reject) {
+            setTimeout(function() { reject(new Error('timeout')); }, 10000);
+        });
+        var snapshot = await Promise.race([
+            db.collection('public_users').get(),
+            timeoutPromise
+        ]);
         usersList = [];
         snapshot.forEach(function(doc) {
             var d = doc.data();
@@ -28,6 +35,15 @@ async function loadUsersList() {
         }
     } catch (e) {
         console.error('Failed to load users list:', e);
+        var select = document.getElementById('loginUser');
+        if (select) {
+            select.innerHTML = '<option value="">שגיאה בטעינה — לחץ לנסות שוב</option>';
+            select.addEventListener('click', function retry() {
+                select.removeEventListener('click', retry);
+                select.innerHTML = '<option value="">טוען...</option>';
+                loadUsersList();
+            }, { once: true });
+        }
     }
 }
 
