@@ -1,7 +1,7 @@
 // Service Worker — TOFES OFFICE PWA
 // Network-first strategy: always try network, fallback to cache
 
-var CACHE_NAME = 'tofes-office-v3';
+var CACHE_NAME = 'tofes-office-v4';
 var STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -41,20 +41,14 @@ self.addEventListener('activate', function(event) {
     self.clients.claim();
 });
 
-// Fetch — network first, then cache
+// Fetch — network first, then cache (only for same-origin requests)
 self.addEventListener('fetch', function(event) {
     // Skip non-GET requests
     if (event.request.method !== 'GET') return;
 
-    // Skip Firebase/external API calls — always go to network
-    var url = event.request.url;
-    if (url.includes('firebaseio.com') ||
-        url.includes('googleapis.com') ||
-        url.includes('firestore.googleapis.com') ||
-        url.includes('firebasestorage.app') ||
-        url.includes('identitytoolkit')) {
-        return;
-    }
+    // Only handle same-origin requests — let all external requests go directly to network
+    var url = new URL(event.request.url);
+    if (url.origin !== self.location.origin) return;
 
     event.respondWith(
         fetch(event.request).then(function(response) {
