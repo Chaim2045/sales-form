@@ -263,6 +263,11 @@ function renderPaymentModal(client, payments) {
                 formatDateHebrew(p.plannedDate) +
                 (isCompleted && p.actualPaymentDate ?
                     '<br><span style="font-size:11px;color:var(--gray-400);">שולם: ' + formatDateHebrew(p.actualPaymentDate) + '</span>' : '') +
+                (isCompleted ?
+                    (p.receiptNumber
+                        ? '<br><span style="font-size:11px;color:#10b981;cursor:pointer;" onclick="updateReceiptNumber(\'' + escapeHTML(p.id) + '\',\'' + escapeHTML(p.receiptNumber || '') + '\')" title="לחץ לעריכה">קבלה: ' + escapeHTML(p.receiptNumber) + '</span>'
+                        : '<br><span style="font-size:11px;color:var(--gray-400);cursor:pointer;text-decoration:underline;" onclick="updateReceiptNumber(\'' + escapeHTML(p.id) + '\',\'\')" title="הוסף מספר קבלה">ללא קבלה</span>')
+                    : '') +
             '</div>' +
             '<div style="text-align:center;">' +
                 (isCancelled
@@ -364,6 +369,10 @@ async function markSinglePayment(clientDocId, paymentDocId) {
     var actualDate = await showInputModal('תאריך תשלום', today, 'date');
     if (actualDate === null) return;
 
+    // modal למספר קבלה (אופציונלי — ביטול = ריק)
+    var receiptNumber = await showInputModal('מספר קבלה (אופציונלי)', '', 'text');
+    if (receiptNumber === null) receiptNumber = '';
+
     _markingPayment = true;
     if (markBtn) markBtn.disabled = true;
     try {
@@ -375,6 +384,7 @@ async function markSinglePayment(clientDocId, paymentDocId) {
             status: 'בוצע',
             actualAmountPaid: actualAmount,
             actualPaymentDate: actualDate,
+            receiptNumber: receiptNumber,
             completedBy: authUser ? authUser.email : 'unauthenticated',
             completedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -455,6 +465,21 @@ async function updateActualAmount(paymentDocId, newValue) {
         console.error('Error updating actual amount:', error);
     } finally {
         delete _updatingActual[paymentDocId];
+    }
+}
+
+// עדכון מספר קבלה (בדיעבד)
+async function updateReceiptNumber(paymentDocId, currentValue) {
+    var newReceipt = await showInputModal('מספר קבלה', currentValue || '', 'text');
+    if (newReceipt === null) return;
+    try {
+        var payRef = db.collection('recurring_billing').doc(currentPaymentDocId)
+            .collection('payments').doc(paymentDocId);
+        await payRef.update({ receiptNumber: newReceipt });
+        await openPaymentModal(currentPaymentDocId);
+    } catch (error) {
+        console.error('Error updating receipt:', error);
+        alert('שגיאה בעדכון מספר קבלה');
     }
 }
 
@@ -589,6 +614,7 @@ async function markAllDuePayments() {
                 status: 'בוצע',
                 actualAmountPaid: roundMoney(p.plannedAmount),
                 actualPaymentDate: nowISO,
+                receiptNumber: '',
                 completedBy: authUser ? authUser.email : 'unauthenticated',
                 completedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
