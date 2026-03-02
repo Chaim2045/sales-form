@@ -1,6 +1,7 @@
 // ========== Authentication ==========
 
 var usersList = []; // [{displayName, email}] loaded from public_users
+var _quickLoginAvailable = false; // true if saved credentials exist
 
 // Load users list for login dropdown (public — no auth needed)
 async function loadUsersList() {
@@ -62,6 +63,8 @@ async function handleLogin() {
 
     try {
         await auth.signInWithEmailAndPassword(userEntry.email, password);
+        // Save credentials for quick login (biometric)
+        storeCredentials(userEntry.email, password, selectedName);
         // onAuthStateChanged in firebase-init.js will handle the rest
     } catch (error) {
         var messages = {
@@ -113,5 +116,85 @@ function handleLogout() {
     document.getElementById('loginUser').value = '';
     document.getElementById('loginPassword').value = '';
     document.getElementById('loginError').textContent = '';
+    // Show quick login button if credentials are saved
+    checkQuickLoginAvailable();
     auth.signOut();
 }
+
+// ========== Quick Login (Biometric / Credential Management) ==========
+
+function storeCredentials(email, password, displayName) {
+    if (!window.PasswordCredential) return;
+    try {
+        var cred = new PasswordCredential({
+            id: email,
+            password: password,
+            name: displayName
+        });
+        navigator.credentials.store(cred);
+    } catch (e) {
+        // Silently fail — not all browsers support this
+    }
+}
+
+async function checkQuickLoginAvailable() {
+    var btn = document.getElementById('quickLoginBtn');
+    if (!btn) return;
+    if (!window.PasswordCredential) {
+        btn.style.display = 'none';
+        return;
+    }
+    try {
+        var cred = await navigator.credentials.get({
+            password: true,
+            mediation: 'silent'
+        });
+        if (cred) {
+            _quickLoginAvailable = true;
+            btn.style.display = '';
+            btn.querySelector('.quick-login-name').textContent = cred.name || '';
+        } else {
+            btn.style.display = 'none';
+        }
+    } catch (e) {
+        btn.style.display = 'none';
+    }
+}
+
+async function handleQuickLogin() {
+    if (!window.PasswordCredential) return;
+    var errorEl = document.getElementById('loginError');
+    var btn = document.getElementById('quickLoginBtn');
+
+    try {
+        var cred = await navigator.credentials.get({
+            password: true,
+            mediation: 'optional'
+        });
+        if (!cred || !cred.id || !cred.password) {
+            errorEl.textContent = 'לא נמצאו פרטי כניסה שמורים';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.querySelector('.quick-login-text').textContent = 'מתחבר...';
+
+        await auth.signInWithEmailAndPassword(cred.id, cred.password);
+        // onAuthStateChanged handles the rest
+    } catch (error) {
+        var messages = {
+            'auth/wrong-password': 'סיסמה שגויה — נא להתחבר ידנית',
+            'auth/user-not-found': 'משתמש לא נמצא',
+            'auth/too-many-requests': 'יותר מדי ניסיונות',
+            'auth/invalid-credential': 'פרטי כניסה שגויים — נא להתחבר ידנית',
+            'auth/user-disabled': 'החשבון הושבת'
+        };
+        errorEl.textContent = messages[error.code] || 'שגיאה בכניסה מהירה. נסה ידנית.';
+    }
+
+    btn.disabled = false;
+    btn.querySelector('.quick-login-text').textContent = 'כניסה מהירה';
+}
+
+// Check on page load if quick login is available
+checkQuickLoginAvailable();
