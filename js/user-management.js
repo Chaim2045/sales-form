@@ -287,38 +287,18 @@ async function createNewUser() {
 
         logAuditEvent('user_created', { name: name, email: email, role: role });
 
-        // Send SMS with access details (non-blocking)
-        if (sendSms && phone) {
-            try {
-                var idToken = await authUser.getIdToken();
-                var smsRes = await fetch('/api/send-sms', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + idToken
-                    },
-                    body: JSON.stringify({
-                        phone: phone,
-                        displayName: name,
-                        password: password,
-                        appUrl: window.location.origin
-                    })
-                });
-                var smsData = await smsRes.json();
-                if (smsData.success) {
-                    logAuditEvent('sms_sent', { targetUser: name, phone: phone });
-                } else {
-                    console.warn('SMS send failed:', smsData.error);
-                    showToast('המשתמש נוצר אך SMS לא נשלח', '#f59e0b');
-                }
-            } catch (smsErr) {
-                console.warn('SMS send error:', smsErr);
-                showToast('המשתמש נוצר אך SMS לא נשלח', '#f59e0b');
-            }
-        }
-
         closeAddUserModal();
         loadUsersForManagement();
+
+        // Open WhatsApp with access details
+        if (sendSms && phone) {
+            var waPhone = phone.replace(/\D/g, '');
+            if (waPhone.startsWith('0')) waPhone = '972' + waPhone.substring(1);
+            var waMessage = 'שלום ' + name + ', קיבלת גישה למערכת המשרד.\n' +
+                'סיסמה: ' + password + '\n' +
+                'כניסה: ' + window.location.origin;
+            window.open('https://wa.me/' + waPhone + '?text=' + encodeURIComponent(waMessage), '_blank');
+        }
 
     } catch (err) {
         console.error('Error creating user:', err);

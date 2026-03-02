@@ -1807,9 +1807,12 @@ async function showDuplicatesReport() {
             billingItems.push({
                 id: doc.id,
                 source: 'גבייה',
-                clientName: d.clientName || '',
+                clientName: (d.clientName || '').trim().replace(/\s+/g, ' '),
                 phone: (d.phone || '').replace(/\D/g, ''),
                 idNumber: (d.idNumber || '').replace(/\D/g, ''),
+                date: d.recurringStartDate || '',
+                amount: parseFloat(d.totalPlannedAmount) || parseFloat(d.recurringMonthlyAmount) || 0,
+                serviceType: 'גבייה חודשית',
                 status: d.status || 'פעיל'
             });
         });
@@ -1822,31 +1825,65 @@ async function showDuplicatesReport() {
             salesItems.push({
                 id: doc.id,
                 source: 'מכירות',
-                clientName: d.clientName || '',
+                clientName: (d.clientName || '').trim().replace(/\s+/g, ' '),
                 phone: (d.phone || '').replace(/\D/g, ''),
                 idNumber: (d.idNumber || '').replace(/\D/g, ''),
+                date: d.date || '',
+                amount: parseFloat(d.amountWithVat) || parseFloat(d.dealAmount) || 0,
+                serviceType: d.transactionType || '',
                 status: ''
             });
         });
 
-        var allItems = billingItems.concat(salesItems);
         var groups = [];
 
-        // --- Check by normalized name ---
-        var nameMap = {};
-        allItems.forEach(function(item) {
-            var norm = item.clientName.trim().replace(/\s+/g, ' ');
-            if (!norm) return;
-            if (!nameMap[norm]) nameMap[norm] = [];
-            nameMap[norm].push(item);
+        // ─── 1. Real duplicates within sales_records ───
+        // Same name + same date + same amount + same service type
+        var salesByKey = {};
+        salesItems.forEach(function(item) {
+            if (!item.clientName) return;
+            var key = item.clientName + '|' + item.date + '|' + item.amount + '|' + item.serviceType;
+            if (!salesByKey[key]) salesByKey[key] = [];
+            salesByKey[key].push(item);
         });
-        Object.keys(nameMap).forEach(function(name) {
-            if (nameMap[name].length > 1) {
-                groups.push({ type: 'שם זהה', key: name, items: nameMap[name] });
+        Object.keys(salesByKey).forEach(function(key) {
+            if (salesByKey[key].length > 1) {
+                var first = salesByKey[key][0];
+                groups.push({
+                    type: 'רשומת מכירות כפולה',
+                    key: first.clientName,
+                    detail: (first.date ? formatDate(first.date) : '') +
+                        (first.amount ? ' | ₪' + first.amount.toLocaleString('he-IL') : '') +
+                        (first.serviceType ? ' | ' + first.serviceType : ''),
+                    items: salesByKey[key]
+                });
             }
         });
 
-        // --- Check by idNumber ---
+        // ─── 2. Real duplicates within recurring_billing ───
+        // Same name + same amount (same billing setup entered twice)
+        var billingByKey = {};
+        billingItems.forEach(function(item) {
+            if (!item.clientName) return;
+            var key = item.clientName + '|' + item.amount + '|' + item.date;
+            if (!billingByKey[key]) billingByKey[key] = [];
+            billingByKey[key].push(item);
+        });
+        Object.keys(billingByKey).forEach(function(key) {
+            if (billingByKey[key].length > 1) {
+                var first = billingByKey[key][0];
+                groups.push({
+                    type: 'לקוח גבייה כפול',
+                    key: first.clientName,
+                    detail: (first.date ? formatDate(first.date) : '') +
+                        (first.amount ? ' | ₪' + first.amount.toLocaleString('he-IL') : ''),
+                    items: billingByKey[key]
+                });
+            }
+        });
+
+        // ─── 3. Same ID number across different names ───
+        var allItems = billingItems.concat(salesItems);
         var idMap = {};
         allItems.forEach(function(item) {
             if (!item.idNumber || item.idNumber.length < 5) return;
@@ -1854,20 +1891,22 @@ async function showDuplicatesReport() {
             idMap[item.idNumber].push(item);
         });
         Object.keys(idMap).forEach(function(id) {
-            if (idMap[id].length > 1) {
-                // Avoid duplicate group if already caught by name
-                var alreadyCaught = groups.some(function(g) {
-                    var gIds = g.items.map(function(i) { return i.id; }).sort().join(',');
-                    var thisIds = idMap[id].map(function(i) { return i.id; }).sort().join(',');
-                    return gIds === thisIds;
+            var items = idMap[id];
+            if (items.length < 2) return;
+            // Only flag if there are different names for same ID
+            var names = {};
+            items.forEach(function(i) { names[i.clientName] = true; });
+            if (Object.keys(names).length > 1) {
+                groups.push({
+                    type: 'ת.ז. זהה — שמות שונים',
+                    key: 'ת.ז. ' + id,
+                    detail: Object.keys(names).join(' / '),
+                    items: items
                 });
-                if (!alreadyCaught) {
-                    groups.push({ type: 'ת.ז. זהה', key: id, items: idMap[id] });
-                }
             }
         });
 
-        // --- Check by phone ---
+        // ─── 4. Same phone across different names ───
         var phoneMap = {};
         allItems.forEach(function(item) {
             if (!item.phone || item.phone.length < 9) return;
@@ -1875,15 +1914,17 @@ async function showDuplicatesReport() {
             phoneMap[item.phone].push(item);
         });
         Object.keys(phoneMap).forEach(function(ph) {
-            if (phoneMap[ph].length > 1) {
-                var alreadyCaught = groups.some(function(g) {
-                    var gIds = g.items.map(function(i) { return i.id; }).sort().join(',');
-                    var thisIds = phoneMap[ph].map(function(i) { return i.id; }).sort().join(',');
-                    return gIds === thisIds;
+            var items = phoneMap[ph];
+            if (items.length < 2) return;
+            var names = {};
+            items.forEach(function(i) { names[i.clientName] = true; });
+            if (Object.keys(names).length > 1) {
+                groups.push({
+                    type: 'טלפון זהה — שמות שונים',
+                    key: ph.replace(/(\d{3})(\d{3,4})(\d{4})/, '$1-$2-$3'),
+                    detail: Object.keys(names).join(' / '),
+                    items: items
                 });
-                if (!alreadyCaught) {
-                    groups.push({ type: 'טלפון זהה', key: ph, items: phoneMap[ph] });
-                }
             }
         });
 
@@ -1893,32 +1934,42 @@ async function showDuplicatesReport() {
             results.innerHTML = '<div style="text-align:center;padding:30px;">' +
                 '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" style="margin-bottom:12px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' +
                 '<p style="color:#059669;font-size:16px;font-weight:600;">הכל נקי!</p>' +
-                '<p style="color:var(--text-secondary);font-size:13px;">לא נמצאו כפילויות במערכת</p>' +
+                '<p style="color:var(--text-secondary);font-size:13px;">לא נמצאו כפילויות חשודות במערכת</p>' +
                 '</div>';
             return;
         }
 
-        var html = '<p style="margin-bottom:16px;font-size:14px;color:var(--text-secondary);">נמצאו <strong style="color:#ef4444;">' + groups.length + '</strong> קבוצות כפולות</p>';
+        var html = '<p style="margin-bottom:16px;font-size:14px;color:var(--text-secondary);">נמצאו <strong style="color:#ef4444;">' + groups.length + '</strong> חשדות לכפילויות</p>';
 
-        groups.forEach(function(g, idx) {
+        groups.forEach(function(g) {
             html += '<div style="border:1px solid rgba(0,0,0,0.08);border-radius:10px;padding:14px;margin-bottom:12px;background:rgba(0,0,0,0.02);">';
-            html += '<div style="font-size:13px;font-weight:600;color:#6b7280;margin-bottom:10px;">';
-            html += '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">' + escapeHTML(g.type) + '</span> ';
-            html += escapeHTML(g.key);
+
+            // Header: type badge + client name
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">';
+            html += '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;white-space:nowrap;">' + escapeHTML(g.type) + '</span>';
+            html += '<strong style="font-size:14px;">' + escapeHTML(g.key) + '</strong>';
             html += '</div>';
 
+            // Detail line
+            if (g.detail) {
+                html += '<div style="font-size:12px;color:#6b7280;margin-bottom:8px;padding-right:4px;">' + escapeHTML(g.detail) + '</div>';
+            }
+
+            // Items list
             g.items.forEach(function(item) {
                 var badge = item.source === 'גבייה'
                     ? '<span style="background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:3px;font-size:11px;">גבייה</span>'
                     : '<span style="background:#fce7f3;color:#9d174d;padding:1px 6px;border-radius:3px;font-size:11px;">מכירות</span>';
                 var statusBadge = item.status ? ' <span style="font-size:11px;color:#94a3b8;">(' + escapeHTML(item.status) + ')</span>' : '';
-                var phone = item.phone ? item.phone.replace(/(\d{3})(\d{3,4})(\d{4})/, '$1-$2-$3') : '—';
-                html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(0,0,0,0.04);font-size:13px;">';
-                html += badge + ' ';
-                html += '<strong>' + escapeHTML(item.clientName) + '</strong>' + statusBadge;
-                html += '<span style="margin-right:auto;color:#6b7280;font-size:12px;direction:ltr;">' + escapeHTML(phone) + '</span>';
-                if (item.idNumber) {
-                    html += '<span style="color:#94a3b8;font-size:11px;direction:ltr;">' + escapeHTML(item.idNumber) + '</span>';
+                var dateStr = item.date ? formatDate(item.date) : '';
+                var amountStr = item.amount ? '₪' + item.amount.toLocaleString('he-IL') : '';
+                var details = [dateStr, amountStr, item.serviceType].filter(Boolean).join(' · ');
+
+                html += '<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-top:1px solid rgba(0,0,0,0.04);font-size:13px;flex-wrap:wrap;">';
+                html += badge;
+                html += '<span>' + escapeHTML(item.clientName) + '</span>' + statusBadge;
+                if (details) {
+                    html += '<span style="margin-right:auto;color:#6b7280;font-size:12px;">' + escapeHTML(details) + '</span>';
                 }
                 html += '</div>';
             });
