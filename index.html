@@ -1385,35 +1385,14 @@
             </div>
         </div>
 
-        <!-- Filters -->
-        <div class="sm-filters-row">
-            <select class="sm-filter-select" id="alFilterUser" onchange="filterActivityLog()">
-                <option value="">כל המשתמשים</option>
-            </select>
-            <select class="sm-filter-select" id="alFilterAction" onchange="filterActivityLog()">
-                <option value="">כל הפעולות</option>
-            </select>
-            <input type="date" class="sm-filter-select" id="alFilterDateFrom" onchange="filterActivityLog()" placeholder="מתאריך">
-            <input type="date" class="sm-filter-select" id="alFilterDateTo" onchange="filterActivityLog()" placeholder="עד תאריך">
+        <!-- Date Filters -->
+        <div class="sm-filters-row" style="margin-bottom:16px;">
+            <input type="date" class="sm-filter-select" id="alFilterDateFrom" onchange="filterActivityLog()" title="מתאריך">
+            <input type="date" class="sm-filter-select" id="alFilterDateTo" onchange="filterActivityLog()" title="עד תאריך">
         </div>
 
-        <!-- Table View -->
-        <div id="alTableView" style="display:none;">
-            <div class="bm-table-wrapper">
-                <table class="bm-table">
-                    <thead>
-                        <tr>
-                            <th style="width:40px;">#</th>
-                            <th>תאריך ושעה</th>
-                            <th>משתמש</th>
-                            <th>פעולה</th>
-                            <th>פרטים</th>
-                        </tr>
-                    </thead>
-                    <tbody id="alTableBody"></tbody>
-                </table>
-            </div>
-        </div>
+        <!-- Content (users grid or user actions table — rendered by JS) -->
+        <div id="alContent" style="display:none;"></div>
 
         <!-- Pagination -->
         <div id="alPagination"></div>

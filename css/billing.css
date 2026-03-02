@@ -1237,9 +1237,112 @@
     font-style: italic;
 }
 
+/* User cards grid */
+.al-users-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.al-user-card {
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.al-user-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md);
+}
+
+.al-user-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.al-user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--accent-subtle);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.al-user-info { flex: 1; min-width: 0; }
+.al-user-name { font-weight: 600; font-size: 15px; color: var(--text-primary); }
+.al-user-email { font-size: 12px; color: var(--text-tertiary); direction: ltr; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.al-user-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 10px;
+}
+.al-user-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.al-stat-num { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+.al-stat-label { font-size: 11px; color: var(--text-tertiary); }
+
+.al-user-top-actions {
+    margin-bottom: 10px;
+    line-height: 1.8;
+}
+
+.al-user-last {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    border-top: 1px solid var(--border-default);
+    padding-top: 8px;
+}
+
+/* User detail header (back + name) */
+.al-user-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.al-user-detail-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.al-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    transition: background 0.15s;
+}
+.al-back-btn:hover {
+    background: var(--bg-active);
+}
+
 @media (max-width: 768px) {
     #activityLogManagement { padding: 16px 12px 100px; }
     #activityLogManagement .bm-header { flex-direction: column; gap: 10px; align-items: stretch; }
+    .al-users-grid { grid-template-columns: 1fr; }
+    .al-user-detail-header { flex-direction: column; align-items: flex-start; gap: 8px; }
 }
 
 /* ──── User Management ──── */
