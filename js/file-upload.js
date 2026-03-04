@@ -99,6 +99,37 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
 
     if (!validateStep(4)) return;
 
+    // ולידציה מחדש של כל השלבים
+    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) return;
+
+    // ולידציית טלפון ות.ז
+    var phoneVal = (document.getElementById('phone').value || '').trim();
+    if (phoneVal && !validateIsraeliPhone(phoneVal)) {
+        alert('מספר טלפון לא תקין. נא להזין מספר ישראלי (לדוגמה: 0501234567)');
+        return;
+    }
+    var idVal = (document.getElementById('idNumber').value || '').trim();
+    if (idVal && !validateIsraeliId(idVal)) {
+        alert('מספר ת.ז לא תקין. נא לבדוק את המספר ולנסות שוב.');
+        return;
+    }
+
+    // ולידציית תשלום מפוצל
+    var selectedPayment = document.querySelector('input[name="paymentMethod"]:checked');
+    if (selectedPayment && selectedPayment.value === 'תשלום מפוצל') {
+        var splitRows = document.querySelectorAll('.split-payment-row');
+        var splitTotal = 0;
+        splitRows.forEach(function(row) {
+            splitTotal += parseFloat(row.querySelector('.split-payment-amount').value) || 0;
+        });
+        var amountForCheck = parseFloat(document.getElementById('amount').value) || 0;
+        var totalRequiredForCheck = amountForCheck * (1 + VAT_RATE);
+        if (Math.abs(totalRequiredForCheck - splitTotal) > 1) {
+            alert('סכום התשלומים המפוצלים (₪' + splitTotal.toFixed(2) + ') לא תואם את סה"כ העסקה (₪' + totalRequiredForCheck.toFixed(2) + ')');
+            return;
+        }
+    }
+
     const submitBtn = document.getElementById('submitBtn');
     const submitText = document.getElementById('submitText');
     const submitSpinner = document.getElementById('submitSpinner');
@@ -110,7 +141,7 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
     try {
         const transactionType = document.getElementById('transactionType').value;
         const amountBeforeVat = parseFloat(document.getElementById('amount').value);
-        const vatAmount = amountBeforeVat * 0.18;
+        const vatAmount = amountBeforeVat * VAT_RATE;
         const amountWithVat = amountBeforeVat + vatAmount;
 
         let transactionDescription = document.getElementById('transactionDescription').value;

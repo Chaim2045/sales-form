@@ -251,12 +251,14 @@ function updateVatDisplay() {
     const amountBeforeVat = parseAmount(document.getElementById('amount').value);
 
     if (amountBeforeVat > 0) {
-        const vatAmount = amountBeforeVat * 0.18;
+        const vatAmount = amountBeforeVat * VAT_RATE;
         const amountWithVat = amountBeforeVat + vatAmount;
 
         document.getElementById('amountBeforeVat').textContent = '₪' + amountBeforeVat.toFixed(2);
         document.getElementById('vatAmount').textContent = '₪' + vatAmount.toFixed(2);
         document.getElementById('amountWithVat').textContent = '₪' + amountWithVat.toFixed(2);
+        var vatLabel = document.getElementById('vatRateLabel');
+        if (vatLabel) vatLabel.textContent = 'מע"מ (' + (VAT_RATE * 100) + '%):';
         document.getElementById('vatDisplay').classList.add('show');
     } else {
         document.getElementById('vatDisplay').classList.remove('show');
@@ -367,7 +369,7 @@ function showEncouragementMessage(paymentMethod) {
 function updateAmountReminder(type) {
     const amountBeforeVat = parseFloat(document.getElementById('amount').value) || 0;
     if (amountBeforeVat > 0) {
-        const amountWithVat = amountBeforeVat * 1.18;
+        const amountWithVat = amountBeforeVat * (1 + VAT_RATE);
         const formattedAmount = '₪' + amountWithVat.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
         if (type === 'cc') {
@@ -595,7 +597,7 @@ function updateSplitPaymentSummary() {
     });
 
     const amountBeforeVat = parseFloat(document.getElementById('amount').value) || 0;
-    const totalRequired = amountBeforeVat * 1.18;
+    const totalRequired = amountBeforeVat * (1 + VAT_RATE);
     const remaining = totalRequired - totalEntered;
 
     document.getElementById('splitTotalEntered').textContent = '₪' + totalEntered.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2});

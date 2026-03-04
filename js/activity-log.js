@@ -5,6 +5,9 @@ var alDataLoaded = false;
 var alSelectedUser = null; // null = תצוגת משתמשים, string = תצוגת פעולות של משתמש
 var alCurrentPage = 1;
 var AL_PAGE_SIZE = 25;
+var AL_BATCH_SIZE = 500;
+var _alLastDoc = null; // cursor for pagination
+var _alHasMore = false;
 
 // --- Action labels (Hebrew) ---
 var ACTION_LABELS = {
@@ -91,12 +94,22 @@ async function loadActivityLog() {
     try {
         var snapshot = await db.collection('audit_log')
             .orderBy('timestamp', 'desc')
+            .limit(AL_BATCH_SIZE)
             .get();
 
         activityLogRecords = [];
         snapshot.forEach(function(doc) {
             activityLogRecords.push(Object.assign({ id: doc.id }, doc.data()));
         });
+
+        // Save cursor for "load more"
+        if (snapshot.docs.length >= AL_BATCH_SIZE) {
+            _alLastDoc = snapshot.docs[snapshot.docs.length - 1];
+            _alHasMore = true;
+        } else {
+            _alLastDoc = null;
+            _alHasMore = false;
+        }
 
         alDataLoaded = true;
         loading.style.display = 'none';
@@ -111,6 +124,52 @@ async function loadActivityLog() {
     } catch (error) {
         console.error('Error loading activity log:', error);
         loading.innerHTML = '<p style="color:#ef4444;">שגיאה בטעינת הלוג</p>';
+    }
+}
+
+// טעינת עוד רשומות (pagination)
+async function loadMoreActivityLog() {
+    if (!_alLastDoc || !_alHasMore) return;
+
+    var btn = document.getElementById('alLoadMoreBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'טוען...';
+    }
+
+    try {
+        var snapshot = await db.collection('audit_log')
+            .orderBy('timestamp', 'desc')
+            .startAfter(_alLastDoc)
+            .limit(AL_BATCH_SIZE)
+            .get();
+
+        snapshot.forEach(function(doc) {
+            activityLogRecords.push(Object.assign({ id: doc.id }, doc.data()));
+        });
+
+        if (snapshot.docs.length >= AL_BATCH_SIZE) {
+            _alLastDoc = snapshot.docs[snapshot.docs.length - 1];
+            _alHasMore = true;
+        } else {
+            _alLastDoc = null;
+            _alHasMore = false;
+        }
+
+        // Re-render current view
+        if (alSelectedUser) {
+            renderUserActions();
+        } else {
+            renderUsersView();
+        }
+    } catch (error) {
+        console.error('Error loading more activity log:', error);
+        alert('שגיאה בטעינת נתונים נוספים');
+    }
+
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'טען עוד ' + AL_BATCH_SIZE + ' רשומות';
     }
 }
 
@@ -486,6 +545,15 @@ function renderAlPagination(totalFiltered, totalPages) {
 
     html += '<span class="sm-page-info">' + totalFiltered + ' רשומות | עמוד ' + alCurrentPage + ' מתוך ' + totalPages + '</span>';
     html += '</div>';
+
+    // כפתור "טען עוד" אם יש עוד נתונים בשרת
+    if (_alHasMore) {
+        html += '<div style="text-align:center;margin-top:12px;">';
+        html += '<button id="alLoadMoreBtn" onclick="loadMoreActivityLog()" class="sm-page-btn" style="padding:8px 20px;font-size:13px;">';
+        html += 'טען עוד ' + AL_BATCH_SIZE + ' רשומות';
+        html += '</button>';
+        html += '</div>';
+    }
 
     container.innerHTML = html;
 }

@@ -18,6 +18,39 @@ var storage = firebase.storage();
 
 // ========== Global Variables ==========
 
+var VAT_RATE = 0.18; // שיעור מע"מ — מקום אחד מרכזי
+
+// ========== ולידציית סיסמה חזקה ==========
+
+// 10+ תווים, אות גדולה, אות קטנה, מספר, תו מיוחד
+function validateStrongPassword(password) {
+    if (!password || password.length < 10) return 'סיסמה חייבת להכיל לפחות 10 תווים';
+    if (!/[A-Z]/.test(password)) return 'סיסמה חייבת להכיל אות גדולה באנגלית';
+    if (!/[a-z]/.test(password)) return 'סיסמה חייבת להכיל אות קטנה באנגלית';
+    if (!/[0-9]/.test(password)) return 'סיסמה חייבת להכיל מספר';
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return 'סיסמה חייבת להכיל תו מיוחד (!@#$%...)';
+    return null; // valid
+}
+
+// ========== ולידציות ישראליות (משותף) ==========
+
+function validateIsraeliPhone(phone) {
+    var digits = phone.replace(/\D/g, '');
+    return /^0[2-9]\d{7,8}$/.test(digits);
+}
+
+function validateIsraeliId(id) {
+    var digits = id.replace(/\D/g, '');
+    if (digits.length < 5 || digits.length > 9) return false;
+    digits = digits.padStart(9, '0');
+    var sum = 0;
+    for (var i = 0; i < 9; i++) {
+        var d = parseInt(digits[i], 10) * ((i % 2) + 1);
+        sum += d > 9 ? d - 9 : d;
+    }
+    return sum % 10 === 0;
+}
+
 var authUser = null;
 var currentStep = 1;
 var currentUser = '';
@@ -85,6 +118,11 @@ auth.onAuthStateChanged(async function(user) {
             }
 
             logAuditEvent('login_success', { user: currentUser, role: currentUserRole });
+
+            // עדכון lastLogin ב-user doc
+            db.collection('users').doc(user.uid).update({
+                lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch(function(e) { console.error('lastLogin update error:', e); });
 
         } catch (err) {
             console.error('Error loading user data:', err);

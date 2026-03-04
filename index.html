@@ -54,10 +54,8 @@
             <h2>כניסה למערכת</h2>
             <p>משרד עו"ד גיא הרשקוביץ ושות'</p>
             <div class="form-group">
-                <label>שם משתמש</label>
-                <select id="loginUser" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:10px;font-size:15px;background:#fff;">
-                    <option value="">טוען משתמשים...</option>
-                </select>
+                <label>אימייל</label>
+                <input type="email" id="loginEmail" placeholder="example@ghlawoffice.co.il" autocomplete="username" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:10px;font-size:15px;direction:ltr;text-align:left;">
             </div>
             <div class="form-group">
                 <label>סיסמה</label>
@@ -238,7 +236,7 @@
                             <span class="vat-value" id="amountBeforeVat">₪0</span>
                         </div>
                         <div class="vat-row">
-                            <span class="vat-label">מע"מ (18%):</span>
+                            <span class="vat-label" id="vatRateLabel">מע"מ (18%):</span>
                             <span class="vat-value" id="vatAmount">₪0</span>
                         </div>
                         <div class="vat-row">

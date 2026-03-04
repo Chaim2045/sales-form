@@ -628,7 +628,7 @@ async function saveSaleEdit() {
     }
 
     var amountBefore = parseFloat(document.getElementById('saleEditAmount').value) || 0;
-    var vatAmount = Math.round(amountBefore * 0.18 * 100) / 100;
+    var vatAmount = Math.round(amountBefore * VAT_RATE * 100) / 100;
     var amountWith = Math.round((amountBefore + vatAmount) * 100) / 100;
 
     var updateData = {
@@ -799,6 +799,29 @@ async function confirmDeleteSale(saleId, clientName) {
     if (!confirmed) return;
 
     try {
+        // מחיקת קבצים מ-Storage לפני מחיקת הרשומה
+        var saleDoc = await db.collection('sales_records').doc(saleId).get();
+        if (saleDoc.exists) {
+            var saleData = saleDoc.data();
+            var filesToDelete = [];
+            // צילום צ'ק ראשי
+            if (saleData.checksPhotoURL) filesToDelete.push(saleData.checksPhotoURL);
+            // צילומי צ'קים בתשלום מפוצל
+            if (saleData.splitPayments && Array.isArray(saleData.splitPayments)) {
+                saleData.splitPayments.forEach(function(sp) {
+                    if (sp.checkPhotoURL) filesToDelete.push(sp.checkPhotoURL);
+                });
+            }
+            // מחיקת כל הקבצים (ממשיך גם אם קובץ ספציפי נכשל)
+            for (var i = 0; i < filesToDelete.length; i++) {
+                try {
+                    await storage.refFromURL(filesToDelete[i]).delete();
+                } catch (storageErr) {
+                    console.warn('Could not delete storage file:', filesToDelete[i], storageErr);
+                }
+            }
+        }
+
         await db.collection('sales_records').doc(saleId).delete();
 
         logAuditEvent('sale_deleted', { saleId: saleId, clientName: clientName });

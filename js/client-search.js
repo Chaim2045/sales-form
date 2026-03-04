@@ -14,11 +14,11 @@ async function searchClients(searchTerm) {
         const [salesSnapshot, billingSnapshot] = await Promise.all([
             db.collection('sales_records')
                 .orderBy('timestamp', 'desc')
-                .limit(100)
+                .limit(500)
                 .get(),
             db.collection('recurring_billing')
                 .orderBy('createdAt', 'desc')
-                .limit(100)
+                .limit(500)
                 .get()
         ]);
 

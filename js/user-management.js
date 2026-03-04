@@ -184,19 +184,6 @@ async function toggleUserActive(uid, isActive) {
     try {
         await db.collection('users').doc(uid).update({ isActive: isActive });
 
-        // Update public_users accordingly
-        if (!isActive) {
-            await db.collection('public_users').doc(uid).delete();
-        } else {
-            var u = umUsers.find(function(x) { return x._uid === uid; });
-            if (u) {
-                await db.collection('public_users').doc(uid).set({
-                    displayName: u.displayName,
-                    email: u.email
-                });
-            }
-        }
-
         // Update local cache
         var user = umUsers.find(function(x) { return x._uid === uid; });
         if (user) user.isActive = isActive;
@@ -247,7 +234,8 @@ async function createNewUser() {
 
     if (!name) { errorEl.textContent = 'נא להזין שם תצוגה'; errorEl.style.display = ''; return; }
     if (!email) { errorEl.textContent = 'נא להזין אימייל'; errorEl.style.display = ''; return; }
-    if (!password || password.length < 6) { errorEl.textContent = 'סיסמה חייבת להכיל לפחות 6 תווים'; errorEl.style.display = ''; return; }
+    var pwError = validateStrongPassword(password);
+    if (pwError) { errorEl.textContent = pwError; errorEl.style.display = ''; return; }
     if (sendSms && !phone) { errorEl.textContent = 'נא להזין טלפון לשליחת WhatsApp'; errorEl.style.display = ''; return; }
 
     btn.disabled = true;
@@ -280,12 +268,6 @@ async function createNewUser() {
             isActive: true,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             createdBy: currentUser
-        });
-
-        // Also create public_users entry
-        await db.collection('public_users').doc(uid).set({
-            displayName: name,
-            email: email
         });
 
         logAuditEvent('user_created', { name: name, email: email, role: role });
@@ -396,8 +378,9 @@ async function confirmResetPassword() {
 
     errorEl.style.display = 'none';
 
-    if (!newPassword || newPassword.length < 6) {
-        errorEl.textContent = 'סיסמה חייבת להכיל לפחות 6 תווים';
+    var pwError = validateStrongPassword(newPassword);
+    if (pwError) {
+        errorEl.textContent = pwError;
         errorEl.style.display = '';
         return;
     }

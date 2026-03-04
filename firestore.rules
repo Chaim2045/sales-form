@@ -24,17 +24,14 @@ service cloud.firestore {
       return isActive() && getUserData().role == 'master';
     }
 
-    // ─── Public Users (login dropdown — read-only for everyone) ───
-    match /public_users/{docId} {
-      allow read: if true;
-      allow create, update, delete: if isMaster();
-    }
-
     // ─── Users (full profile — master manages, user reads own) ───
     match /users/{userId} {
       allow read: if isAuth() && (request.auth.uid == userId || isMaster());
       allow create: if isMaster();
-      allow update: if isMaster();
+      allow update: if isAuth() && (
+        request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLogin'])
+        || isMaster()
+      );
       allow delete: if false;
     }
 
@@ -75,7 +72,7 @@ service cloud.firestore {
       allow write: if isAuth() && request.auth.uid == userId;
     }
 
-    // ─── Deny everything else ───
+    // ─── Deny everything else (including deprecated public_users) ───
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1,68 +1,17 @@
 // ========== Authentication ==========
 
-var usersList = []; // [{displayName, email}] loaded from public_users
 var _quickLoginAvailable = false; // true if saved credentials exist
 
-// Load users list for login dropdown (public — no auth needed)
-var _usersLoadRetries = 0;
-async function loadUsersList() {
-    try {
-        var snapshot = await db.collection('public_users').get();
-        usersList = [];
-        snapshot.forEach(function(doc) {
-            var d = doc.data();
-            if (d.displayName && d.email) {
-                usersList.push({ displayName: d.displayName, email: d.email });
-            }
-        });
-        usersList.sort(function(a, b) {
-            return a.displayName.localeCompare(b.displayName, 'he');
-        });
-
-        var select = document.getElementById('loginUser');
-        if (select) {
-            var html = '<option value="">בחר שם...</option>';
-            usersList.forEach(function(u) {
-                html += '<option value="' + escapeHTML(u.displayName) + '">' + escapeHTML(u.displayName) + '</option>';
-            });
-            select.innerHTML = html;
-        }
-        _usersLoadRetries = 0;
-    } catch (e) {
-        console.error('Failed to load users list:', e);
-        // Auto-retry up to 3 times (Firebase cold start can be slow)
-        _usersLoadRetries++;
-        if (_usersLoadRetries <= 3) {
-            setTimeout(loadUsersList, 2000);
-            return;
-        }
-        // After 3 retries, show manual retry option
-        _usersLoadRetries = 0;
-        var select = document.getElementById('loginUser');
-        if (select) {
-            select.innerHTML = '<option value="">שגיאה בטעינה — לחץ לנסות שוב</option>';
-            select.addEventListener('click', function retry() {
-                select.removeEventListener('click', retry);
-                select.innerHTML = '<option value="">טוען...</option>';
-                loadUsersList();
-            }, { once: true });
-        }
-    }
-}
-
-// Run on page load
-loadUsersList();
-
 async function handleLogin() {
-    var selectedName = document.getElementById('loginUser').value;
+    var email = document.getElementById('loginEmail').value.trim();
     var password = document.getElementById('loginPassword').value;
     var errorEl = document.getElementById('loginError');
     var btn = document.getElementById('loginBtn');
 
     errorEl.textContent = '';
 
-    if (!selectedName) {
-        errorEl.textContent = 'נא לבחור שם משתמש';
+    if (!email) {
+        errorEl.textContent = 'נא להזין אימייל';
         return;
     }
     if (!password) {
@@ -70,31 +19,25 @@ async function handleLogin() {
         return;
     }
 
-    // Find email for selected name
-    var userEntry = usersList.find(function(u) { return u.displayName === selectedName; });
-    if (!userEntry) {
-        errorEl.textContent = 'משתמש לא נמצא';
-        return;
-    }
-
     btn.disabled = true;
     btn.textContent = 'מתחבר...';
 
     try {
-        await auth.signInWithEmailAndPassword(userEntry.email, password);
+        await auth.signInWithEmailAndPassword(email, password);
         // Save credentials for quick login (biometric)
-        storeCredentials(userEntry.email, password, selectedName);
+        storeCredentials(email, password);
         // onAuthStateChanged in firebase-init.js will handle the rest
     } catch (error) {
         var messages = {
-            'auth/wrong-password': 'סיסמה שגויה',
-            'auth/user-not-found': 'משתמש לא נמצא במערכת',
+            'auth/wrong-password': 'אימייל או סיסמה שגויים',
+            'auth/user-not-found': 'אימייל או סיסמה שגויים',
             'auth/too-many-requests': 'יותר מדי ניסיונות, נסה שוב מאוחר יותר',
-            'auth/invalid-credential': 'סיסמה שגויה',
-            'auth/user-disabled': 'החשבון הושבת — פנה למנהל'
+            'auth/invalid-credential': 'אימייל או סיסמה שגויים',
+            'auth/user-disabled': 'החשבון הושבת — פנה למנהל',
+            'auth/invalid-email': 'כתובת אימייל לא תקינה'
         };
         errorEl.textContent = messages[error.code] || 'שגיאת התחברות. נסה שנית.';
-        logAuditEvent('login_failed', { user: selectedName, reason: error.code });
+        logAuditEvent('login_failed', { email: email, reason: error.code });
     }
 
     btn.disabled = false;
@@ -105,7 +48,7 @@ async function handleLogin() {
 document.getElementById('loginPassword').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') handleLogin();
 });
-document.getElementById('loginUser').addEventListener('keydown', function(e) {
+document.getElementById('loginEmail').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') document.getElementById('loginPassword').focus();
 });
 
@@ -132,10 +75,9 @@ function handleLogout() {
         document.getElementById('userManagement').classList.remove('active');
     }
     // Reset login form
+    document.getElementById('loginEmail').value = '';
     document.getElementById('loginPassword').value = '';
     document.getElementById('loginError').textContent = '';
-    // Reload users list (in case first load failed)
-    loadUsersList();
     // Show quick login button if credentials are saved
     checkQuickLoginAvailable();
     auth.signOut();
@@ -143,13 +85,13 @@ function handleLogout() {
 
 // ========== Quick Login (Biometric / Credential Management) ==========
 
-function storeCredentials(email, password, displayName) {
+function storeCredentials(email, password) {
     if (!window.PasswordCredential) return;
     try {
         var cred = new PasswordCredential({
             id: email,
             password: password,
-            name: displayName
+            name: email
         });
         navigator.credentials.store(cred);
     } catch (e) {

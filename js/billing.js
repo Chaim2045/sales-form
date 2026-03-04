@@ -7,23 +7,7 @@ function escapeHTML(str) {
 
 function roundMoney(n) { return Math.round((parseFloat(n) || 0) * 100) / 100; }
 
-// ולידציות ישראליות
-function validateIsraeliPhone(phone) {
-    var digits = phone.replace(/\D/g, '');
-    return /^0[2-9]\d{7,8}$/.test(digits);
-}
-
-function validateIsraeliId(id) {
-    var digits = id.replace(/\D/g, '');
-    if (digits.length < 5 || digits.length > 9) return false;
-    digits = digits.padStart(9, '0');
-    var sum = 0;
-    for (var i = 0; i < 9; i++) {
-        var d = parseInt(digits[i], 10) * ((i % 2) + 1);
-        sum += d > 9 ? d - 9 : d;
-    }
-    return sum % 10 === 0;
-}
+// ולידציות ישראליות — מוגדרות ב-firebase-init.js (משותף לכל הסקריפטים)
 
 function safeChargeDate(year, month, dayOfMonth) {
     var lastDay = new Date(year, month + 1, 0).getDate();
@@ -210,6 +194,13 @@ async function submitBillingForm() {
             if (cardCvv) {
                 cvvEncrypted = encryptCardData(cardCvv, passphrase);
             }
+            // הצפנת שדות רגישים נוספים
+            if (cardExpiry) {
+                var expiryEncrypted = encryptCardData(cardExpiry, passphrase);
+            }
+            if (cardHolder) {
+                var holderEncrypted = encryptCardData(cardHolder, passphrase);
+            }
         }
 
         // מניעת כפילויות — בדיקת טלפון
@@ -264,8 +255,8 @@ async function submitBillingForm() {
             cardEncrypted: cardEncrypted,
             cvvEncrypted: cvvEncrypted,
             cardLast4: cardLast4,
-            cardExpiry: cardExpiry,
-            cardHolder: cardHolder,
+            cardExpiryEncrypted: expiryEncrypted || '',
+            cardHolderEncrypted: holderEncrypted || '',
             cardType: cardType,
             createdBy: authUser ? authUser.email : 'unauthenticated',
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1000,7 +991,6 @@ function renderCardsView(clients) {
                 '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #f1f5f9;margin-bottom:6px;">' +
                     '<span style="font-size:12px;color:#64748b;font-variant-numeric:tabular-nums;">\u2022\u2022\u2022\u2022 ' + escapeHTML(c.cardLast4) +
                         (c.cardType ? ' <span style="color:#94a3b8;">(' + escapeHTML(c.cardType) + ')</span>' : '') +
-                        (c.cardExpiry ? ' <span style="color:#94a3b8;">' + escapeHTML(c.cardExpiry) + '</span>' : '') +
                     '</span>' +
                     '<button class="bm-action-secondary" onclick="revealCard(\'' + escapeHTML(c.id) + '\')" style="padding:3px 10px;">הצג מספר</button>' +
                 '</div>' : '') +
@@ -1061,9 +1051,17 @@ async function revealCard(docId) {
         // Decrypt CVV if exists
         var cvvDecrypted = data.cvvEncrypted ? (decryptCardData(data.cvvEncrypted, passphrase) || '') : '';
 
+        // Decrypt expiry & holder (encrypted fields, fallback to legacy plaintext)
+        var expiryDecrypted = data.cardExpiryEncrypted
+            ? (decryptCardData(data.cardExpiryEncrypted, passphrase) || data.cardExpiry || '')
+            : (data.cardExpiry || '');
+        var holderDecrypted = data.cardHolderEncrypted
+            ? (decryptCardData(data.cardHolderEncrypted, passphrase) || data.cardHolder || '')
+            : (data.cardHolder || '');
+
         await resetServerDecryptFail();
 
-        // Re-encrypt legacy data to v2 format
+        // Re-encrypt legacy data to v2 format + migrate plaintext to encrypted
         var updateFields = {};
         if (data.cardEncrypted.indexOf('v2:') !== 0) {
             var reEncrypted = encryptCardData(decrypted, passphrase);
@@ -1072,6 +1070,13 @@ async function revealCard(docId) {
         if (data.cvvEncrypted && data.cvvEncrypted.indexOf('v2:') !== 0 && cvvDecrypted) {
             var reEncryptedCvv = encryptCardData(cvvDecrypted, passphrase);
             if (reEncryptedCvv) updateFields.cvvEncrypted = reEncryptedCvv;
+        }
+        // Migrate plaintext expiry/holder to encrypted
+        if (!data.cardExpiryEncrypted && expiryDecrypted) {
+            updateFields.cardExpiryEncrypted = encryptCardData(expiryDecrypted, passphrase);
+        }
+        if (!data.cardHolderEncrypted && holderDecrypted) {
+            updateFields.cardHolderEncrypted = encryptCardData(holderDecrypted, passphrase);
         }
         if (Object.keys(updateFields).length > 0) {
             db.collection('recurring_billing').doc(docId).update(updateFields);
@@ -1097,7 +1102,7 @@ async function revealCard(docId) {
         // Card holder name (safe: textContent)
         var holderDiv = document.createElement('div');
         holderDiv.style.cssText = 'font-size:13px;color:#6b7280;margin-bottom:8px;';
-        holderDiv.textContent = data.cardHolder || data.clientName || '';
+        holderDiv.textContent = holderDecrypted || data.clientName || '';
         modal.appendChild(holderDiv);
 
         // Card number (safe: textContent)
@@ -1107,18 +1112,18 @@ async function revealCard(docId) {
         modal.appendChild(numberDiv);
 
         // Expiry & CVV row (safe: textContent)
-        if (data.cardExpiry || cvvDecrypted) {
+        if (expiryDecrypted || cvvDecrypted) {
             var detailsWrap = document.createElement('div');
             detailsWrap.style.cssText = 'display:flex;justify-content:center;gap:30px;margin-top:10px;';
 
-            if (data.cardExpiry) {
+            if (expiryDecrypted) {
                 var expiryInner = document.createElement('div');
                 var expiryLabel = document.createElement('div');
                 expiryLabel.style.cssText = 'font-size:11px;color:#9ca3af;';
                 expiryLabel.textContent = 'תוקף';
                 var expiryValue = document.createElement('div');
                 expiryValue.style.cssText = 'font-size:15px;font-weight:600;color:#374151;direction:ltr;';
-                expiryValue.textContent = data.cardExpiry;
+                expiryValue.textContent = expiryDecrypted;
                 expiryInner.appendChild(expiryLabel);
                 expiryInner.appendChild(expiryValue);
                 detailsWrap.appendChild(expiryInner);
@@ -1218,9 +1223,17 @@ async function revealAndCopy(docId) {
         // Decrypt CVV if exists
         var cvvDecrypted = data.cvvEncrypted ? (decryptCardData(data.cvvEncrypted, passphrase) || '') : '';
 
+        // Decrypt expiry & holder (encrypted fields, fallback to legacy plaintext)
+        var expiryDecrypted = data.cardExpiryEncrypted
+            ? (decryptCardData(data.cardExpiryEncrypted, passphrase) || data.cardExpiry || '')
+            : (data.cardExpiry || '');
+        var holderDecrypted = data.cardHolderEncrypted
+            ? (decryptCardData(data.cardHolderEncrypted, passphrase) || data.cardHolder || '')
+            : (data.cardHolder || '');
+
         await resetServerDecryptFail();
 
-        // Re-encrypt legacy data to v2 format
+        // Re-encrypt legacy data to v2 format + migrate plaintext to encrypted
         var updateFields = {};
         if (data.cardEncrypted.indexOf('v2:') !== 0) {
             var reEncrypted = encryptCardData(decrypted, passphrase);
@@ -1229,6 +1242,13 @@ async function revealAndCopy(docId) {
         if (data.cvvEncrypted && data.cvvEncrypted.indexOf('v2:') !== 0 && cvvDecrypted) {
             var reEncryptedCvv = encryptCardData(cvvDecrypted, passphrase);
             if (reEncryptedCvv) updateFields.cvvEncrypted = reEncryptedCvv;
+        }
+        // Migrate plaintext expiry/holder to encrypted
+        if (!data.cardExpiryEncrypted && expiryDecrypted) {
+            updateFields.cardExpiryEncrypted = encryptCardData(expiryDecrypted, passphrase);
+        }
+        if (!data.cardHolderEncrypted && holderDecrypted) {
+            updateFields.cardHolderEncrypted = encryptCardData(holderDecrypted, passphrase);
         }
         if (Object.keys(updateFields).length > 0) {
             db.collection('recurring_billing').doc(docId).update(updateFields);
@@ -1290,8 +1310,8 @@ async function revealAndCopy(docId) {
         fieldsContainer.appendChild(createCopyRow('מספר כרטיס', formatted, decrypted));
 
         // Expiry row
-        if (data.cardExpiry) {
-            fieldsContainer.appendChild(createCopyRow('תוקף', data.cardExpiry, data.cardExpiry));
+        if (expiryDecrypted) {
+            fieldsContainer.appendChild(createCopyRow('תוקף', expiryDecrypted, expiryDecrypted));
         }
 
         // CVV row
@@ -1300,8 +1320,8 @@ async function revealAndCopy(docId) {
         }
 
         // Cardholder row
-        if (data.cardHolder) {
-            fieldsContainer.appendChild(createCopyRow('שם בעל הכרטיס', data.cardHolder, data.cardHolder));
+        if (holderDecrypted) {
+            fieldsContainer.appendChild(createCopyRow('שם בעל הכרטיס', holderDecrypted, holderDecrypted));
         }
 
         modal.appendChild(fieldsContainer);
@@ -1493,8 +1513,6 @@ async function saveEditBilling() {
             attorney: document.getElementById('editAttorney').value || '',
             caseNumber: document.getElementById('editCaseNumber').value || '',
             recurringNotes: document.getElementById('editNotes').value || '',
-            cardExpiry: document.getElementById('editCardExpiry').value || '',
-            cardHolder: document.getElementById('editCardHolder').value || '',
             cardType: document.getElementById('editCardType').value || '',
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             updatedBy: authUser ? authUser.email : 'unauthenticated'
@@ -1527,6 +1545,14 @@ async function saveEditBilling() {
             var newCvv = document.getElementById('editCardCvv').value || '';
             if (newCvv) {
                 updateData.cvvEncrypted = encryptCardData(newCvv, passphrase);
+            }
+            // הצפנת expiry ו-holder יחד עם כרטיס חדש
+            if (editExpiry) {
+                updateData.cardExpiryEncrypted = encryptCardData(editExpiry, passphrase);
+            }
+            var editHolder = document.getElementById('editCardHolder').value || '';
+            if (editHolder) {
+                updateData.cardHolderEncrypted = encryptCardData(editHolder, passphrase);
             }
         }
 
