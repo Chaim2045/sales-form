@@ -250,6 +250,9 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
         await db.collection('sales_records').add(formData);
         logAuditEvent('sale_submitted', { clientName: formData.clientName, amount: formData.amountBeforeVat, type: formData.transactionType });
 
+        // Sync to Google Sheets
+        syncToSheets(formData);
+
         // Remember last used attorney and branch for next time
         if (formData.attorney) localStorage.setItem('tofes_lastAttorney', formData.attorney);
         if (formData.branch) localStorage.setItem('tofes_lastBranch', formData.branch);

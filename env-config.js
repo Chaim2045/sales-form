@@ -14,6 +14,8 @@
         FIREBASE_STORAGE_BUCKET: 'law-office-sales-form.firebasestorage.app',
         FIREBASE_MESSAGING_SENDER_ID: '120096251777',
         FIREBASE_APP_ID: '1:120096251777:web:c88b4d0b3d13a5713f9280',
-        FIREBASE_MEASUREMENT_ID: ''
+        FIREBASE_MEASUREMENT_ID: '',
+        GOOGLE_SHEETS_WEBHOOK: 'https://script.google.com/macros/s/AKfycbxI77_Ods8DkYgymloY-mwFkYjRJJpzWrxST7ivN3-01_P_ZfN8sk6SiUWuHmAZp06h/exec',
+        WEBHOOK_SECRET: 'NETLIFY_WEBHOOK_SECRET_PLACEHOLDER'
     };
 })();
