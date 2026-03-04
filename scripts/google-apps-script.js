@@ -1679,3 +1679,52 @@ function testRecurringBilling() {
   generateBillingDashboard();
   Logger.log('דשבורד עודכן');
 }
+
+
+// ========== נעילת גיליון — רק AA ו-AB פתוחים לעריכה ==========
+
+/**
+ * נועל את גיליון "תגובות לטופס 1" כולו, ומשאיר רק עמודות AA (27) ו-AB (28) פתוחות לעריכה.
+ * הרץ פונקציה זו פעם אחת מ-Apps Script Editor.
+ * הסקריפט עצמו (doPost) ימשיך לכתוב כי הוא רץ כבעלים.
+ */
+function lockSheetExceptAAandAB() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    Logger.log('גיליון "' + SHEET_NAME + '" לא נמצא');
+    return;
+  }
+
+  // הסרת הגנות קיימות (אם יש) כדי למנוע כפילות
+  var existingProtections = sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET);
+  for (var i = 0; i < existingProtections.length; i++) {
+    existingProtections[i].remove();
+  }
+
+  // הגנה על כל הגיליון
+  var protection = sheet.protect().setDescription('נעילת גיליון — רק AA ו-AB ניתנות לעריכה');
+
+  // שחרור עמודות AA (27) ו-AB (28) מההגנה
+  var lastRow = Math.max(sheet.getLastRow(), 1000); // מספיק שורות קדימה
+  var unprotectedRanges = [
+    sheet.getRange(2, 27, lastRow, 1),  // AA — מספר חשבונית (משורה 2, לא כולל כותרת)
+    sheet.getRange(2, 28, lastRow, 1)   // AB — מספר קבלה
+  ];
+  protection.setUnprotectedRanges(unprotectedRanges);
+
+  // רק הבעלים יכול לערוך את שאר הגיליון
+  // הסקריפט רץ כבעלים ולכן doPost ימשיך לעבוד
+  protection.setWarningOnly(false);
+
+  // הסרת כל העורכים חוץ מהבעלים
+  var editors = protection.getEditors();
+  for (var j = 0; j < editors.length; j++) {
+    if (editors[j].getEmail() !== Session.getEffectiveUser().getEmail()) {
+      protection.removeEditor(editors[j]);
+    }
+  }
+
+  Logger.log('הגיליון ננעל בהצלחה. עמודות AA ו-AB פתוחות לעריכה.');
+  Logger.log('הסקריפט (doPost) ימשיך לכתוב כרגיל כי הוא רץ כבעלים.');
+}
