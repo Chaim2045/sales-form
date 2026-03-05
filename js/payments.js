@@ -348,6 +348,41 @@ function renderAccountingSummary(client, payments) {
         '</div>';
 }
 
+// בניית שורת גיליון שיטס עבור תשלום גבייה חודשית
+function buildBillingSheetRow(client, payment, totalMonths) {
+    var amountWithVat = roundMoney(parseFloat(payment.actualAmountPaid) || 0);
+    var amountBeforeVat = roundMoney(amountWithVat / (1 + VAT_RATE));
+    var vatAmount = roundMoney(amountWithVat - amountBeforeVat);
+    var monthNum = parseInt(payment.monthNumber) || 0;
+    var totalM = parseInt(totalMonths) || 0;
+
+    return {
+        date: payment.actualPaymentDate || new Date().toISOString().split('T')[0],
+        formFillerName: payment.completedBy || '',
+        clientName: client.clientName || '',
+        phone: client.phone || '',
+        email: client.email || '',
+        idNumber: client.idNumber || '',
+        address: client.address || '',
+        clientStatus: 'חיוב חודשי',
+        transactionType: 'חיוב חודשי - גבייה',
+        transactionDescription: 'תשלום ' + monthNum + ' מתוך ' + totalM + ' - ' + (client.clientName || ''),
+        hoursQuantity: '',
+        hourlyRate: '',
+        amountBeforeVat: amountBeforeVat,
+        vatAmount: vatAmount,
+        amountWithVat: amountWithVat,
+        paymentMethod: client.paymentMethod || 'כרטיס אשראי',
+        isSplitPayment: false,
+        attorney: client.attorney || '',
+        caseNumber: client.caseNumber || '',
+        branch: client.branch || 'תל אביב',
+        notes: 'גבייה חודשית | ' + (client.billingIdPrefix || '') + ' | תשלום ' + monthNum + '/' + totalM,
+        invoiceNumber: '',
+        receiptNumber: payment.receiptNumber || ''
+    };
+}
+
 var _markingPayment = false;
 async function markSinglePayment(clientDocId, paymentDocId) {
     if (_markingPayment) return;
@@ -395,7 +430,27 @@ async function markSinglePayment(clientDocId, paymentDocId) {
 
         logAuditEvent('payment_marked', { clientDocId: clientDocId, paymentDocId: paymentDocId, amount: actualAmount, date: actualDate });
 
-        // 3. רענון המודאל
+        // 3. סנכרון לגיליון שיטס (fire-and-forget)
+        try {
+            var clientDoc = await db.collection('recurring_billing').doc(clientDocId).get();
+            var clientData = clientDoc.exists ? clientDoc.data() : {};
+            var sheetData = buildBillingSheetRow(
+                clientData,
+                {
+                    monthNumber: payData ? payData.monthNumber : 0,
+                    actualAmountPaid: actualAmount,
+                    actualPaymentDate: actualDate,
+                    receiptNumber: receiptNumber,
+                    completedBy: authUser ? authUser.email : ''
+                },
+                clientData.recurringMonthsCount || 0
+            );
+            syncToSheets(sheetData);
+        } catch (syncError) {
+            console.error('Error syncing billing payment to sheets:', syncError);
+        }
+
+        // 4. רענון המודאל
         await openPaymentModal(clientDocId);
 
     } catch (error) {
