@@ -350,9 +350,9 @@ function renderAccountingSummary(client, payments) {
 
 // בניית שורת גיליון שיטס עבור תשלום גבייה חודשית
 function buildBillingSheetRow(client, payment, totalMonths) {
-    var amountWithVat = roundMoney(parseFloat(payment.actualAmountPaid) || 0);
-    var amountBeforeVat = roundMoney(amountWithVat / (1 + VAT_RATE));
-    var vatAmount = roundMoney(amountWithVat - amountBeforeVat);
+    var amountBeforeVat = roundMoney(parseFloat(payment.actualAmountPaid) || 0);
+    var vatAmount = roundMoney(amountBeforeVat * VAT_RATE);
+    var amountWithVat = roundMoney(amountBeforeVat + vatAmount);
     var monthNum = parseInt(payment.monthNumber) || 0;
     var totalM = parseInt(totalMonths) || 0;
 
@@ -657,6 +657,29 @@ async function markAllDuePayments() {
         });
         await batch.commit();
         await recalcClientSummary(currentPaymentDocId);
+
+        // סנכרון לגיליון שיטס
+        try {
+            var clientDoc = await db.collection('recurring_billing').doc(currentPaymentDocId).get();
+            var clientData = clientDoc.exists ? clientDoc.data() : {};
+            duePayments.forEach(function(p) {
+                var sheetData = buildBillingSheetRow(
+                    clientData,
+                    {
+                        monthNumber: p.monthNumber,
+                        actualAmountPaid: roundMoney(p.plannedAmount),
+                        actualPaymentDate: nowISO,
+                        receiptNumber: '',
+                        completedBy: authUser ? authUser.email : ''
+                    },
+                    clientData.recurringMonthsCount || 0
+                );
+                syncToSheets(sheetData);
+            });
+        } catch (syncError) {
+            console.error('Error syncing batch payments to sheets:', syncError);
+        }
+
         alert(duePayments.length + ' תשלומים סומנו כבוצעו');
         await openPaymentModal(currentPaymentDocId);
     } catch (error) {
