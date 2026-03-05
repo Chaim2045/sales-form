@@ -1690,11 +1690,12 @@ function testRecurringBilling() {
  */
 function lockSheetExceptAAandAB() {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  var sheet = ss.getSheetByName(SHEET_NAME);
+  var sheet = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
   if (!sheet) {
-    Logger.log('גיליון "' + SHEET_NAME + '" לא נמצא');
+    Logger.log('לא נמצא גיליון');
     return;
   }
+  Logger.log('נועל גיליון: ' + sheet.getName());
 
   // הסרת הגנות קיימות (אם יש) כדי למנוע כפילות
   var existingProtections = sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET);
@@ -1727,4 +1728,27 @@ function lockSheetExceptAAandAB() {
 
   Logger.log('הגיליון ננעל בהצלחה. עמודות AA ו-AB פתוחות לעריכה.');
   Logger.log('הסקריפט (doPost) ימשיך לכתוב כרגיל כי הוא רץ כבעלים.');
+}
+
+/**
+ * יוצר את שורת הכותרות בגיליון הראשי (הרץ פעם אחת).
+ */
+function setupHeaders() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+
+  var headers = [
+    'חותמת זמן', 'תאריך', 'שם ממלא הטופס', 'שם הלקוח', 'טלפון', 'מייל',
+    'ח.פ / ת.ז', 'כתובת', 'סטטוס לקוח', 'סוג העסקה', 'תיאור העסקה',
+    'כמות שעות', 'מחיר לשעה', 'סכום לפני מע"מ', 'מע"מ', 'סכום כולל מע"מ',
+    'אמצעי תשלום', 'פיצול תשלום?', 'פירוט פיצול תשלום', 'פרטי כרטיס אשראי',
+    "פרטי צ'קים", "תמונת צ'ק", 'עו"ד מטפל', 'מספר תיק', 'סניף', 'הערות',
+    'מספר חשבונית', 'מספר קבלה'
+  ];
+
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+  sheet.setFrozenRows(1);
+
+  Logger.log('כותרות נוצרו בהצלחה: ' + headers.length + ' עמודות (A עד AB)');
 }

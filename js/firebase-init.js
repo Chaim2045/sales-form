@@ -22,11 +22,10 @@ var VAT_RATE = 0.18; // שיעור מע"מ — מקום אחד מרכזי
 
 // ========== ולידציית סיסמה חזקה ==========
 
-// 10+ תווים, אות גדולה, אות קטנה, מספר, תו מיוחד
+// 6+ תווים, אות גדולה, מספר, תו מיוחד
 function validateStrongPassword(password) {
-    if (!password || password.length < 10) return 'סיסמה חייבת להכיל לפחות 10 תווים';
+    if (!password || password.length < 6) return 'סיסמה חייבת להכיל לפחות 6 תווים';
     if (!/[A-Z]/.test(password)) return 'סיסמה חייבת להכיל אות גדולה באנגלית';
-    if (!/[a-z]/.test(password)) return 'סיסמה חייבת להכיל אות קטנה באנגלית';
     if (!/[0-9]/.test(password)) return 'סיסמה חייבת להכיל מספר';
     if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return 'סיסמה חייבת להכיל תו מיוחד (!@#$%...)';
     return null; // valid
