@@ -62,41 +62,55 @@ body {
 
 /* ──── 3. Tablets (max-width: 768px) ──── */
 @media (max-width: 768px) {
-    /* Increase button tap targets */
+    /* Increase button tap targets — minimum 44px height */
     .bm-action-primary {
-        padding: 8px 14px;
-        font-size: 13px;
+        padding: 10px 16px;
+        font-size: 14px;
+        min-height: 44px;
     }
     .bm-action-secondary {
-        padding: 6px 12px;
-        font-size: 12px;
+        padding: 10px 14px;
+        font-size: 13px;
+        min-height: 44px;
     }
     .pm-mark-btn {
-        padding: 8px 14px;
-        font-size: 13px;
+        padding: 10px 16px;
+        font-size: 14px;
+        min-height: 44px;
     }
     .pm-mark-btn.already-done {
-        padding: 8px 12px;
+        padding: 10px 14px;
         font-size: 13px;
+        min-height: 44px;
     }
     .pm-footer-btn {
-        padding: 8px 14px;
-        font-size: 13px;
+        padding: 10px 16px;
+        font-size: 14px;
+        min-height: 44px;
     }
     .um-action-btn {
-        padding: 8px 12px;
+        padding: 10px 14px;
+        min-height: 44px;
     }
     .bm-quick-mark {
-        padding: 6px 12px;
-        font-size: 12px;
+        padding: 10px 14px;
+        font-size: 13px;
+        min-height: 44px;
     }
     .bm-payments-btn {
-        padding: 6px 12px;
-        font-size: 12px;
+        padding: 10px 14px;
+        font-size: 13px;
+        min-height: 44px;
     }
     .bm-filter-btn {
-        padding: 6px 14px;
+        padding: 10px 16px;
+        font-size: 14px;
+        min-height: 44px;
+    }
+    .bm-notif-btn {
+        padding: 10px 14px;
         font-size: 13px;
+        min-height: 44px;
     }
 
     /* Billing toolbar — wrap nicely */
@@ -235,7 +249,7 @@ body {
     .bm-table td {
         border-bottom: none;
         padding: 0;
-        font-size: 13px;
+        font-size: 14px;
     }
     /* First cell (checkbox) */
     .bm-table td:first-child {
@@ -330,13 +344,13 @@ body {
         flex: 1 1 45%;
     }
 
-    /* Pagination — compact */
+    /* Pagination — touch-friendly */
     .sm-pagination {
         gap: 4px;
     }
     .sm-page-btn {
-        min-width: 36px;
-        height: 36px;
+        min-width: 44px;
+        height: 44px;
     }
 
     /* Activity log */
@@ -412,8 +426,8 @@ body {
         margin-bottom: 24px;
     }
     .step-label {
-        font-size: 10px;
-        width: 55px;
+        font-size: 12px;
+        width: 60px;
     }
 
     /* Greeting bar */
@@ -462,10 +476,11 @@ body {
         font-size: 13px;
     }
 
-    /* Quick-select chips — smaller */
+    /* Quick-select chips — readable */
     .qs-chip {
-        padding: 5px 10px;
-        font-size: 11px;
+        padding: 8px 12px;
+        font-size: 12px;
+        min-height: 36px;
     }
 
     /* Login */
@@ -473,15 +488,15 @@ body {
         padding: 24px 16px;
     }
 
-    /* Step indicators */
+    /* Step indicators — keep tappable */
     .step-indicator {
-        width: 30px;
-        height: 30px;
-        font-size: 12px;
+        width: 36px;
+        height: 36px;
+        font-size: 13px;
     }
     .step-label {
-        font-size: 9px;
-        width: 48px;
+        font-size: 11px;
+        width: 52px;
     }
 }
 
