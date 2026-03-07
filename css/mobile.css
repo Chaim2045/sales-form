@@ -219,11 +219,59 @@ body {
         justify-content: center;
     }
 
-    /* Billing table → card conversion */
+    /* ═══════════════════════════════════════════════════════
+       BILLING MANAGEMENT — FULL MOBILE REDESIGN
+       ═══════════════════════════════════════════════════════ */
+
+    /* --- Billing container --- */
+    #billingManagement {
+        padding: 16px 12px 100px;
+    }
+
+    /* --- Header: clean --- */
+    #billingManagement .bm-header {
+        border-bottom: none;
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+    }
+    #billingManagement .bm-header h2 {
+        font-size: 18px;
+    }
+    #billingManagement .bm-sync-btn,
+    #billingManagement .bm-back-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+        min-height: 40px;
+    }
+
+    /* --- Aging + Forecast: stack vertically --- */
+    #billingManagement div[style*="grid-template-columns:1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* --- Toolbar: stacked --- */
+    #billingManagement .bm-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    #billingManagement .bm-search {
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        flex: none;
+        padding: 10px 14px;
+        font-size: 15px;
+        border-radius: 10px;
+        min-height: 44px;
+    }
+
+    /* --- Table base: remove wrapper borders --- */
     .bm-table-wrap {
         border: none;
         border-radius: 0;
         overflow: visible;
+        background: transparent;
     }
     .bm-table {
         display: block;
@@ -234,31 +282,124 @@ body {
     .bm-table tbody {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
     }
-    .bm-table tr {
-        display: flex;
-        flex-wrap: wrap;
+
+    /* --- Billing table rows → structured cards --- */
+    #billingManagement .bm-table tr {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: 6px 12px;
-        padding: 14px;
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
+        padding: 14px 16px;
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 12px;
         background: var(--bg-primary);
         align-items: center;
     }
-    .bm-table td {
+    #billingManagement .bm-table td {
         border-bottom: none;
         padding: 0;
         font-size: 14px;
     }
-    /* First cell (checkbox) */
-    .bm-table td:first-child {
-        order: -1;
+    /* td1: Client name — full width, prominent */
+    #billingManagement .bm-table td:nth-child(1) {
+        grid-column: 1 / -1;
+        font-size: 15px;
+    }
+    /* td2: Attorney */
+    #billingManagement .bm-table td:nth-child(2) {
+        grid-column: 1;
+        font-size: 12px;
+        color: #64748b;
+    }
+    /* td3: Next payment amount */
+    #billingManagement .bm-table td:nth-child(3) {
+        grid-column: 2;
+        font-size: 13px;
+        text-align: left;
+    }
+    /* td4: Total deal */
+    #billingManagement .bm-table td:nth-child(4) {
+        grid-column: 1;
+        font-size: 13px;
+    }
+    /* td5: Paid amount */
+    #billingManagement .bm-table td:nth-child(5) {
+        grid-column: 2;
+        font-size: 13px;
+    }
+    /* td6: Progress bar — full width */
+    #billingManagement .bm-table td:nth-child(6) {
+        grid-column: 1 / -1;
+        min-width: 0;
+    }
+    /* td7: Status badge */
+    #billingManagement .bm-table td:nth-child(7) {
+        grid-column: 1;
+    }
+    /* td8: Next billing date */
+    #billingManagement .bm-table td:nth-child(8) {
+        grid-column: 2;
+        font-size: 12px;
+        color: #64748b;
+        text-align: left;
+    }
+    /* td9: Action buttons — full width */
+    #billingManagement .bm-table td:nth-child(9) {
+        grid-column: 1 / -1;
+        padding-top: 8px;
+        margin-top: 4px;
+        border-top: 1px solid rgba(0,0,0,0.04);
+    }
+    #billingManagement .bm-table td:nth-child(9) .bm-action-primary {
+        font-size: 13px;
+        padding: 8px 14px;
+        min-height: 40px;
     }
 
-    /* Billing summary — 2 columns */
+    /* --- Cards view: clean --- */
+    #billingManagement .bm-cards {
+        border: none;
+        background: transparent;
+        gap: 10px;
+        grid-template-columns: 1fr;
+    }
+    #billingManagement .bm-card {
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 12px;
+    }
+
+    /* --- Footer: lighter --- */
+    #billingManagement .bm-footer {
+        border-top: none;
+        margin-top: 20px;
+        padding: 12px 0;
+        opacity: 0.6;
+    }
+
+    /* Summary stats — clean table with subtle separators */
     .bm-summary {
         grid-template-columns: repeat(2, 1fr);
+        gap: 0;
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 12px;
+        background: var(--bg-primary);
+        overflow: hidden;
+    }
+    .bm-stat {
+        background: var(--bg-primary);
+        border-radius: 0;
+        padding: 14px 12px;
+        position: relative;
+    }
+    /* Subtle horizontal line between top and bottom row */
+    .bm-stat:nth-child(3),
+    .bm-stat:nth-child(4) {
+        border-top: 1px solid rgba(0,0,0,0.05);
+    }
+    /* Subtle vertical line between columns (RTL: even items are on the left) */
+    .bm-stat:nth-child(even) {
+        border-right: 1px solid rgba(0,0,0,0.05);
     }
 
     /* Filter buttons — scrollable horizontal strip */
@@ -276,7 +417,39 @@ body {
         flex-shrink: 0;
     }
 
-    /* User management table → cards */
+    /* ═══════════════════════════════════════════════════════
+       USER MANAGEMENT — FULL MOBILE REDESIGN
+       ═══════════════════════════════════════════════════════ */
+
+    /* --- Container --- */
+    #userManagement {
+        padding: 16px 12px 100px;
+    }
+    #userManagement .bm-header {
+        border-bottom: none;
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    #userManagement .bm-header h2,
+    #userManagement .bm-header .bm-title {
+        font-size: 18px;
+    }
+    #userManagement .bm-export-btn,
+    #userManagement .bm-back-btn {
+        min-height: 44px;
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+
+    /* --- Table wrapper --- */
+    #userManagement .bm-table-wrapper {
+        border: none;
+        overflow: visible;
+    }
+
+    /* --- Table → Cards --- */
     #userManagement .bm-table {
         display: block;
     }
@@ -286,28 +459,205 @@ body {
     #userManagement .bm-table tbody {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
     }
+
+    /* Each user → structured card */
     #userManagement .bm-table tr {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px 12px;
-        padding: 14px;
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px 10px;
+        padding: 16px;
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 12px;
         background: var(--bg-primary);
         align-items: center;
+    }
+    #userManagement .bm-table tr.um-inactive-row {
+        opacity: 0.5;
     }
     #userManagement .bm-table td {
         border-bottom: none;
         padding: 0;
-    }
-    .um-action-btn {
-        padding: 8px 14px;
-        font-size: 13px;
+        font-size: 14px;
     }
 
-    /* Sales management table → cards */
+    /* td1: Name + email — full width, prominent */
+    #userManagement .bm-table td:nth-child(1) {
+        grid-column: 1 / -1;
+        font-size: 15px;
+    }
+    /* td2: Role dropdown — full width */
+    #userManagement .bm-table td:nth-child(2) {
+        grid-column: 1 / -1;
+    }
+    #userManagement .bm-table td:nth-child(2) select {
+        width: 100%;
+        min-height: 40px;
+        font-size: 14px;
+        padding: 8px 10px;
+        border-radius: 8px;
+    }
+
+    /* td3-7: Permission toggles — 3 columns grid */
+    /* Each toggle cell gets a label via ::before */
+    #userManagement .bm-table td:nth-child(3),
+    #userManagement .bm-table td:nth-child(4),
+    #userManagement .bm-table td:nth-child(5),
+    #userManagement .bm-table td:nth-child(6),
+    #userManagement .bm-table td:nth-child(7) {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 0;
+        font-size: 11px;
+        color: #64748b;
+    }
+    #userManagement .bm-table td:nth-child(3)::before { content: "טופס מכר"; }
+    #userManagement .bm-table td:nth-child(4)::before { content: "גבייה"; }
+    #userManagement .bm-table td:nth-child(5)::before { content: "מכירות"; }
+    #userManagement .bm-table td:nth-child(6)::before { content: "לוג"; }
+    #userManagement .bm-table td:nth-child(7)::before { content: "משתמשים"; }
+
+    /* Permissions row: first 3 in first row, last 2 + active in second */
+    #userManagement .bm-table td:nth-child(3) { grid-column: 1; }
+    #userManagement .bm-table td:nth-child(4) { grid-column: 2; }
+    #userManagement .bm-table td:nth-child(5) { grid-column: 3; }
+    #userManagement .bm-table td:nth-child(6) { grid-column: 1; }
+    #userManagement .bm-table td:nth-child(7) { grid-column: 2; }
+
+    /* td8: Active toggle */
+    #userManagement .bm-table td:nth-child(8) {
+        grid-column: 3;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 0;
+        font-size: 11px;
+        color: #16a34a;
+        font-weight: 500;
+    }
+    #userManagement .bm-table td:nth-child(8)::before {
+        content: "פעיל";
+    }
+
+    /* td9: Action buttons — full width */
+    #userManagement .bm-table td:nth-child(9) {
+        grid-column: 1 / -1;
+        padding-top: 8px;
+        margin-top: 4px;
+        border-top: 1px solid rgba(0,0,0,0.04);
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+    }
+    .um-action-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+        min-height: 40px;
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       SALES MANAGEMENT — FULL MOBILE REDESIGN
+       ═══════════════════════════════════════════════════════ */
+
+    /* --- Sales container --- */
+    #salesManagement {
+        padding: 16px 12px 100px;
+    }
+
+    /* --- Header: clean, no heavy border --- */
+    #salesManagement .bm-header {
+        border-bottom: none;
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+    }
+    #salesManagement .bm-header h2 {
+        font-size: 18px;
+    }
+    #salesManagement .bm-sync-btn,
+    #salesManagement .bm-back-btn {
+        padding: 8px 14px;
+        font-size: 13px;
+        min-height: 44px;
+    }
+
+    /* --- Summary stats: inherit global table style --- */
+    #salesManagement .bm-summary {
+        margin-bottom: 16px;
+    }
+    #salesManagement .bm-stat-value {
+        font-size: 18px;
+    }
+    #salesManagement .bm-stat-label {
+        font-size: 12px;
+    }
+
+    /* --- Toolbar: stacked, clean --- */
+    #salesManagement .bm-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        margin-bottom: 16px;
+        overflow: visible;
+        padding-bottom: 0;
+    }
+
+    /* Search: full width, prominent */
+    #salesManagement .bm-search {
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        flex: none;
+        padding: 10px 14px;
+        font-size: 15px;
+        border-radius: 10px;
+        min-height: 44px;
+    }
+
+    /* Filters row: horizontal scroll strip */
+    #salesManagement .sm-filters-row {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 6px;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+    }
+    #salesManagement .sm-filters-row::-webkit-scrollbar {
+        display: none;
+    }
+    #salesManagement .sm-filter-select {
+        flex-shrink: 0;
+        max-width: none;
+        min-width: 100px;
+        padding: 8px 10px;
+        font-size: 13px;
+        border-radius: 8px;
+        min-height: 40px;
+        white-space: nowrap;
+    }
+
+    /* View toggle: hide on mobile — force cards view? or just smaller */
+    #salesManagement .bm-view-toggle {
+        align-self: flex-start;
+        border-radius: 8px;
+    }
+    #salesManagement .bm-view-btn {
+        padding: 8px 14px;
+        min-height: 40px;
+    }
+
+    /* --- Table → Card conversion --- */
+    #salesManagement .bm-table-wrap {
+        border: none;
+        border-radius: 0;
+        overflow: visible;
+        background: transparent;
+    }
     #salesManagement .bm-table {
         display: block;
     }
@@ -317,31 +667,137 @@ body {
     #salesManagement .bm-table tbody {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
     }
+    /* Each row → clean card */
     #salesManagement .bm-table tr {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px 12px;
-        padding: 14px;
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        grid-template-rows: auto auto auto;
+        gap: 4px 10px;
+        padding: 14px 16px;
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 12px;
         background: var(--bg-primary);
+        cursor: pointer;
         align-items: center;
     }
     #salesManagement .bm-table td {
         border-bottom: none;
         padding: 0;
+        font-size: 14px;
+        color: var(--text-primary);
     }
-    #salesManagement .bm-toolbar {
-        flex-wrap: wrap;
+    /* Row # — top-right corner badge */
+    #salesManagement .bm-table td:nth-child(1) {
+        grid-column: 1;
+        grid-row: 1;
+        font-size: 11px;
+        color: #94a3b8;
+        font-weight: 500;
     }
-    .sm-filters-row {
-        flex-wrap: wrap;
+    /* Date — top row, next to # */
+    #salesManagement .bm-table td:nth-child(2) {
+        grid-column: 2;
+        grid-row: 1;
+        font-size: 12px;
+        color: #94a3b8;
     }
-    .sm-filter-select {
-        max-width: none;
-        flex: 1 1 45%;
+    /* Client name — prominent, full row */
+    #salesManagement .bm-table td:nth-child(3) {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        font-size: 15px;
+    }
+    /* Transaction type */
+    #salesManagement .bm-table td:nth-child(4) {
+        grid-column: 1 / -1;
+        grid-row: 3;
+        font-size: 12px;
+        color: #64748b;
+    }
+    /* Amount before VAT */
+    #salesManagement .bm-table td:nth-child(5) {
+        grid-column: 1;
+        grid-row: 4;
+        font-size: 13px;
+        color: #64748b;
+    }
+    /* Amount with VAT — bold */
+    #salesManagement .bm-table td:nth-child(6) {
+        grid-column: 2;
+        grid-row: 4;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    /* Payment method */
+    #salesManagement .bm-table td:nth-child(7) {
+        grid-column: 3;
+        grid-row: 4;
+        font-size: 12px;
+        color: #64748b;
+    }
+    /* Attorney */
+    #salesManagement .bm-table td:nth-child(8) {
+        grid-column: 1;
+        grid-row: 5;
+        font-size: 12px;
+        color: #64748b;
+    }
+    /* Branch */
+    #salesManagement .bm-table td:nth-child(9) {
+        grid-column: 2;
+        grid-row: 5;
+        font-size: 12px;
+        color: #64748b;
+    }
+    /* File icon */
+    #salesManagement .bm-table td:nth-child(10) {
+        grid-column: 3;
+        grid-row: 1;
+        justify-self: end;
+    }
+    /* Invoice status */
+    #salesManagement .bm-table td:nth-child(11) {
+        grid-column: 1 / 3;
+        grid-row: 6;
+        padding-top: 8px;
+        margin-top: 6px;
+        border-top: 1px solid rgba(0,0,0,0.04);
+    }
+    /* Details button */
+    #salesManagement .bm-table td:nth-child(12) {
+        grid-column: 3;
+        grid-row: 6;
+        justify-self: end;
+        padding-top: 8px;
+        margin-top: 6px;
+        border-top: 1px solid rgba(0,0,0,0.04);
+    }
+    #salesManagement .bm-table td:nth-child(12) .bm-action-secondary {
+        padding: 6px 14px;
+        font-size: 12px;
+        min-height: 36px;
+    }
+
+    /* --- Cards view: clean, no outer border --- */
+    #salesManagement .bm-cards {
+        border: none;
+        background: transparent;
+        gap: 10px;
+        grid-template-columns: 1fr;
+    }
+    #salesManagement .bm-card {
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 12px;
+    }
+
+    /* --- Footer: lighter --- */
+    #salesManagement .bm-footer {
+        border-top: none;
+        margin-top: 20px;
+        padding: 12px 0;
+        opacity: 0.6;
     }
 
     /* Pagination — touch-friendly */
@@ -439,6 +895,137 @@ body {
     .bm-cards {
         grid-template-columns: 1fr;
     }
+
+    /* ═══════════════════════════════════════════════════════
+       MICRO-FIXES — EVERY TINY DETAIL
+       ═══════════════════════════════════════════════════════ */
+
+    /* --- Modal close buttons: 24px → 44px touch targets --- */
+    .billing-modal-close,
+    .edit-modal-close,
+    .pm-close {
+        width: 44px;
+        height: 44px;
+        font-size: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* --- Bottom nav: bigger icons + readable labels --- */
+    .bottom-nav-item {
+        min-height: 50px;
+    }
+    .bottom-nav-item svg {
+        width: 24px;
+        height: 24px;
+    }
+    .bottom-nav-label {
+        font-size: 12px;
+    }
+
+    /* --- Toggle switches: bigger for touch --- */
+    .um-toggle {
+        min-width: 44px;
+        min-height: 28px;
+    }
+    .um-toggle-slider {
+        width: 44px;
+        height: 24px;
+        border-radius: 12px;
+    }
+    .um-toggle-slider::before {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* --- Invoice badges/buttons: bigger touch targets --- */
+    .sm-invoice-badge,
+    .sm-invoice-btn {
+        padding: 8px 12px;
+        font-size: 13px;
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    /* --- Dropdown menus: proper mobile sizing --- */
+    .bm-actions-menu {
+        min-width: 160px;
+    }
+    .bm-actions-menu a,
+    .bm-actions-menu button {
+        padding: 12px 14px;
+        font-size: 14px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+
+    /* --- Progress bar: thicker on mobile --- */
+    .bm-progress-bar {
+        height: 6px;
+    }
+
+    /* --- Notification dot + badge: bigger --- */
+    .bm-notif-dot {
+        width: 8px;
+        height: 8px;
+    }
+    .bm-notif-badge {
+        font-size: 11px;
+        min-width: 18px;
+        height: 18px;
+    }
+
+    /* --- Payment modal inputs: prevent iOS zoom --- */
+    .pm-body input,
+    .pm-body select,
+    .pm-body textarea {
+        font-size: 16px !important;
+    }
+
+    /* --- Payment summary labels: readable --- */
+    .pm-summary-label {
+        font-size: 12px;
+    }
+    .pm-summary-value {
+        font-size: 16px;
+    }
+
+    /* --- Quick-select chips: proper touch targets --- */
+    .qs-chip {
+        min-height: 44px;
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+
+    /* --- Autocomplete items: 44px touch targets --- */
+    .autocomplete-item {
+        padding: 12px 16px;
+        min-height: 44px;
+    }
+
+    /* --- Empty state text: readable --- */
+    .bm-empty p {
+        font-size: 14px;
+    }
+
+    /* --- Form inputs: ensure 44px min-height --- */
+    input, select, textarea {
+        min-height: 44px;
+    }
+
+    /* --- Section titles in billing modals: bigger --- */
+    .billing-section-title {
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    /* --- Filter buttons: readable text --- */
+    .bm-filter-btn {
+        font-size: 13px;
+    }
 }
 
 /* ──── 5. Small phones (max-width: 380px) ──── */
@@ -476,11 +1063,31 @@ body {
         font-size: 13px;
     }
 
-    /* Quick-select chips — readable */
+    /* Quick-select chips — smaller text, keep 44px target */
     .qs-chip {
         padding: 8px 12px;
         font-size: 12px;
-        min-height: 36px;
+        min-height: 44px;
+    }
+
+    /* Billing + Sales — smaller screens */
+    #billingManagement,
+    #salesManagement {
+        padding: 12px 8px 100px;
+    }
+    #billingManagement .bm-table tr,
+    #salesManagement .bm-table tr {
+        padding: 12px;
+        gap: 3px 8px;
+    }
+    #billingManagement .bm-table td:nth-child(1),
+    #salesManagement .bm-table td:nth-child(3) {
+        font-size: 14px;
+    }
+    #salesManagement .sm-filter-select {
+        min-width: 90px;
+        font-size: 12px;
+        padding: 6px 8px;
     }
 
     /* Login */
@@ -495,7 +1102,7 @@ body {
         font-size: 13px;
     }
     .step-label {
-        font-size: 11px;
+        font-size: 12px;
         width: 52px;
     }
 }
