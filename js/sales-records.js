@@ -655,6 +655,27 @@ async function saveSaleEdit() {
         // Update Firestore
         await db.collection('sales_records').doc(docId).update(updateData);
 
+        // Sync update to Google Sheets
+        syncToSheets({
+            action: 'updateSaleRow',
+            firebaseDocId: docId,
+            clientName: updateData.clientName,
+            phone: updateData.phone,
+            email: updateData.email,
+            idNumber: updateData.idNumber,
+            address: updateData.address,
+            transactionType: updateData.transactionType,
+            transactionDescription: updateData.transactionDescription,
+            amountBeforeVat: updateData.amountBeforeVat,
+            vatAmount: updateData.vatAmount,
+            amountWithVat: updateData.amountWithVat,
+            paymentMethod: updateData.paymentMethod,
+            attorney: updateData.attorney,
+            caseNumber: updateData.caseNumber,
+            branch: updateData.branch,
+            notes: updateData.notes
+        });
+
         logAuditEvent('sale_edited', { docId: docId, clientName: clientName });
 
         closeSaleEditModal();

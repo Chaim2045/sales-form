@@ -99,8 +99,13 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
 
     if (!validateStep(4)) return;
 
-    // ולידציה מחדש של כל השלבים
-    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) return;
+    // ולידציה מחדש של כל השלבים — ניווט לשלב הבעייתי אם נכשל
+    for (var vStep = 1; vStep <= 3; vStep++) {
+        if (!validateStep(vStep)) {
+            showStep(vStep);
+            return;
+        }
+    }
 
     // ולידציית טלפון ות.ז
     var phoneVal = (document.getElementById('phone').value || '').trim();
@@ -116,7 +121,7 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
 
     // ולידציית תשלום מפוצל
     var selectedPayment = document.querySelector('input[name="paymentMethod"]:checked');
-    if (selectedPayment && selectedPayment.value === 'תשלום מפוצל') {
+    if (selectedPayment && selectedPayment.value === 'פיצול תשלום') {
         var splitRows = document.querySelectorAll('.split-payment-row');
         var splitTotal = 0;
         splitRows.forEach(function(row) {
@@ -247,10 +252,11 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
         };
 
         // Save to Firestore
-        await db.collection('sales_records').add(formData);
+        var docRef = await db.collection('sales_records').add(formData);
         logAuditEvent('sale_submitted', { clientName: formData.clientName, amount: formData.amountBeforeVat, type: formData.transactionType });
 
-        // Sync to Google Sheets
+        // Sync to Google Sheets (include Firebase doc ID for future updates)
+        formData.firebaseDocId = docRef.id;
         syncToSheets(formData);
 
         // Remember last used attorney and branch for next time

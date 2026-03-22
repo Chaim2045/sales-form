@@ -70,23 +70,29 @@ function validateStep(step) {
     const stepElement = document.querySelector(`.form-step[data-step="${step}"]`);
     const requiredFields = stepElement.querySelectorAll('[required]');
     let isValid = true;
+    var errors = [];
 
     requiredFields.forEach(field => {
+        // דלג על שדות מוסתרים (בתוך סקשן שלא מוצג)
+        var parentConditional = field.closest('.conditional-field');
+        if (parentConditional && !parentConditional.classList.contains('show')) {
+            field.classList.remove('error');
+            return;
+        }
+        var parentSubfield = field.closest('.conditional-subfield');
+        if (parentSubfield && parentSubfield.style.display === 'none') {
+            field.classList.remove('error');
+            return;
+        }
         if (!field.value) {
             field.classList.add('error');
             isValid = false;
+            var label = field.closest('.form-group')?.querySelector('label');
+            if (label) errors.push(label.textContent.replace('*', '').trim());
         } else {
             field.classList.remove('error');
         }
     });
-
-    // Special validation for radio buttons in step 3
-    if (step === 3) {
-        const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked');
-        if (!paymentMethod) {
-            isValid = false;
-        }
-    }
 
     // Special validation for amount field in step 2
     if (step === 2) {
@@ -95,18 +101,156 @@ function validateStep(step) {
         if (amountValue <= 0) {
             amountField.classList.add('error');
             isValid = false;
+            errors.push('סכום לפני מע"מ');
         } else {
             amountField.classList.remove('error');
         }
     }
 
+    // Special validation for radio buttons in step 3
+    if (step === 3) {
+        const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked');
+        if (!paymentMethod) {
+            isValid = false;
+            errors.push('אמצעי תשלום');
+            // הדגשת אזור הרדיו
+            var paymentGroup = document.getElementById('paymentMethodGroup');
+            if (paymentGroup) paymentGroup.classList.add('error-highlight');
+        } else {
+            var paymentGroup = document.getElementById('paymentMethodGroup');
+            if (paymentGroup) paymentGroup.classList.remove('error-highlight');
+
+            // ולידציה של שדות מותנים לפי אמצעי תשלום
+            if (paymentMethod.value === 'כרטיס אשראי') {
+                var ccConfirm = document.getElementById('creditCardConfirmation');
+                if (ccConfirm && ccConfirm.classList.contains('show')) {
+                    var ccStatus = document.querySelector('input[name="creditCardStatus"]:checked');
+                    if (!ccStatus) {
+                        isValid = false;
+                        errors.push('סטטוס כרטיס אשראי');
+                        ccConfirm.classList.add('error-highlight');
+                    } else {
+                        ccConfirm.classList.remove('error-highlight');
+                    }
+                }
+            }
+
+            if (paymentMethod.value === 'שיקים דחויים') {
+                // בדיקת שדות שיקים דינמיים
+                var checksCount = parseInt(document.getElementById('checksCount').value) || 0;
+                for (var i = 1; i <= checksCount; i++) {
+                    var dateInput = document.getElementById('check_date_' + i);
+                    var amountInput = document.getElementById('check_amount_' + i);
+                    if (dateInput && !dateInput.value) {
+                        dateInput.classList.add('error');
+                        isValid = false;
+                        errors.push('תאריך שיק ' + i);
+                    } else if (dateInput) {
+                        dateInput.classList.remove('error');
+                    }
+                    if (amountInput && (!amountInput.value || parseFloat(amountInput.value) <= 0)) {
+                        amountInput.classList.add('error');
+                        isValid = false;
+                        errors.push('סכום שיק ' + i);
+                    } else if (amountInput) {
+                        amountInput.classList.remove('error');
+                    }
+                }
+            }
+
+            if (paymentMethod.value === 'פיצול תשלום') {
+                var splitRows = document.querySelectorAll('.split-payment-row');
+                var hasValidRow = false;
+                splitRows.forEach(function(row, idx) {
+                    var method = row.querySelector('.split-payment-method');
+                    var amount = row.querySelector('.split-payment-amount');
+                    if (!method.value) {
+                        method.classList.add('error');
+                        isValid = false;
+                        errors.push('אמצעי תשלום בשורה ' + (idx + 1));
+                    } else {
+                        method.classList.remove('error');
+                        hasValidRow = true;
+                    }
+                    if (!amount.value || parseFloat(amount.value) <= 0) {
+                        amount.classList.add('error');
+                        isValid = false;
+                        errors.push('סכום בשורה ' + (idx + 1));
+                    } else {
+                        amount.classList.remove('error');
+                    }
+                });
+                if (splitRows.length === 0) {
+                    isValid = false;
+                    errors.push('יש להוסיף לפחות שורת פיצול אחת');
+                }
+            }
+        }
+    }
+
+    // הצגת הודעת שגיאה למשתמש
+    if (!isValid && errors.length > 0) {
+        showValidationError(errors);
+    }
+
     return isValid;
+}
+
+function showValidationError(errors) {
+    // הסרת הודעה קודמת אם קיימת
+    var existing = document.getElementById('validationErrorToast');
+    if (existing) existing.remove();
+
+    var toast = document.createElement('div');
+    toast.id = 'validationErrorToast';
+    toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:12px;padding:14px 22px;z-index:9999;font-family:Heebo,sans-serif;font-size:14px;box-shadow:0 4px 20px rgba(0,0,0,0.15);max-width:90%;direction:rtl;animation:slideDown 0.3s ease;';
+
+    var title = document.createElement('div');
+    title.style.cssText = 'font-weight:700;margin-bottom:6px;font-size:15px;';
+    title.textContent = 'יש למלא את השדות הבאים:';
+    toast.appendChild(title);
+
+    var list = document.createElement('ul');
+    list.style.cssText = 'margin:0;padding:0 18px;';
+    errors.forEach(function(err) {
+        var li = document.createElement('li');
+        li.style.cssText = 'margin-bottom:2px;';
+        li.textContent = err;
+        list.appendChild(li);
+    });
+    toast.appendChild(list);
+
+    document.body.appendChild(toast);
+
+    // הוספת אנימציה
+    var style = document.getElementById('validationToastStyle');
+    if (!style) {
+        style = document.createElement('style');
+        style.id = 'validationToastStyle';
+        style.textContent = '@keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}} .error-highlight{outline:2px solid #ef4444 !important;border-radius:8px;padding:4px;}';
+        document.head.appendChild(style);
+    }
+
+    // הסרה אוטומטית אחרי 5 שניות
+    setTimeout(function() {
+        if (toast.parentNode) {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s ease';
+            setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
+        }
+    }, 5000);
 }
 
 function nextStep() {
     if (validateStep(currentStep)) {
         if (currentStep < totalSteps) {
             showStep(currentStep + 1);
+        }
+    } else {
+        // גלילה לשדה הראשון עם שגיאה
+        var firstError = document.querySelector('.form-step.active .error, .form-step.active .error-highlight');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }
 }
@@ -201,15 +345,13 @@ document.getElementById('checksCount').addEventListener('input', function() {
             container.appendChild(checkRow);
         }
 
-        // Add event listeners for auto-calculation
-        setTimeout(() => {
-            for (let i = 1; i <= count; i++) {
-                const amountInput = document.getElementById(`check_amount_${i}`);
-                if (amountInput) {
-                    amountInput.addEventListener('input', autoCalculateLastCheck);
-                }
+        // Add event listeners for auto-calculation (מיידי, בלי setTimeout)
+        for (let i = 1; i <= count; i++) {
+            const amountInput = document.getElementById(`check_amount_${i}`);
+            if (amountInput) {
+                amountInput.addEventListener('input', autoCalculateLastCheck);
             }
-        }, 100);
+        }
     }
 });
 
@@ -287,6 +429,9 @@ document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
         // Show encouragement message based on payment method
         showEncouragementMessage(this.value);
 
+        // ניקוי ערכים של סקשנים מוסתרים בעת החלפת אמצעי תשלום
+        clearHiddenPaymentFields();
+
         if (this.value === 'כרטיס אשראי') {
             ccConfirm.classList.add('show');
             updateAmountReminder('cc');
@@ -317,6 +462,51 @@ document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
         }
     });
 });
+
+// ניקוי ערכים של סקשנים שהוסתרו בעת החלפת אמצעי תשלום
+function clearHiddenPaymentFields() {
+    // ניקוי שדות כרטיס אשראי
+    var ccConfirm = document.getElementById('creditCardConfirmation');
+    if (ccConfirm && !ccConfirm.classList.contains('show')) {
+        document.querySelectorAll('input[name="creditCardStatus"]').forEach(function(r) { r.checked = false; });
+        var paymentsCount = document.getElementById('paymentsCount');
+        if (paymentsCount) { paymentsCount.value = ''; paymentsCount.removeAttribute('required'); }
+        var monthlyCharge = document.getElementById('monthlyCharge');
+        if (monthlyCharge) { monthlyCharge.value = ''; monthlyCharge.removeAttribute('required'); }
+        var temporaryCreditText = document.getElementById('temporaryCreditText');
+        if (temporaryCreditText) { temporaryCreditText.value = ''; temporaryCreditText.removeAttribute('required'); }
+        var recurringMonthlyAmount = document.getElementById('recurringMonthlyAmount');
+        if (recurringMonthlyAmount) { recurringMonthlyAmount.value = ''; recurringMonthlyAmount.removeAttribute('required'); }
+        var recurringMonthsCount = document.getElementById('recurringMonthsCount');
+        if (recurringMonthsCount) { recurringMonthsCount.value = ''; recurringMonthsCount.removeAttribute('required'); }
+        var recurringStartDate = document.getElementById('recurringStartDate');
+        if (recurringStartDate) { recurringStartDate.value = ''; recurringStartDate.removeAttribute('required'); }
+        // סגירת כל sub-sections
+        ['fullChargeDetails','monthlyChargeDetails','depositDetails','temporaryCreditDetails'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.classList.remove('show');
+        });
+    }
+
+    // ניקוי שדות שיקים
+    var checksDetail = document.getElementById('checksDetails');
+    if (checksDetail && !checksDetail.classList.contains('show')) {
+        var checksCount = document.getElementById('checksCount');
+        if (checksCount) checksCount.value = '';
+        var checksTotalAmount = document.getElementById('checksTotalAmount');
+        if (checksTotalAmount) checksTotalAmount.value = '';
+        var checksDetailsContainer = document.getElementById('checksDetailsContainer');
+        if (checksDetailsContainer) checksDetailsContainer.innerHTML = '';
+    }
+
+    // ניקוי שדות פיצול
+    var splitDetail = document.getElementById('splitPaymentDetails');
+    if (splitDetail && !splitDetail.classList.contains('show')) {
+        var splitRows = document.getElementById('splitPaymentRows');
+        if (splitRows) splitRows.innerHTML = '';
+        splitPaymentRowCounter = 0;
+    }
+}
 
 // Show Encouragement Message Function
 function showEncouragementMessage(paymentMethod) {

@@ -209,7 +209,7 @@ const BILLING_SHEET_NAME = 'גבייה חודשית';
 const DASHBOARD_SHEET_NAME = 'לוח בקרה גבייה';
 const REMINDER_EMAIL_RECIPIENTS = ['haim@guylawoffice.co.il']; // עדכן לכתובות המייל הרלוונטיות
 const REMINDER_DAYS_BEFORE = 1;
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxI77_Ods8DkYgymloY-mwFkYjRJJpzWrxST7ivN3-01_P_ZfN8sk6SiUWuHmAZp06h/exec';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbw9k3lDbIUz40lt3plM1N1OaiexRSX3rQQTOyRbya7KIuU0dtdR9si20kRiRMqzrOpE/exec';
 
 
 function doPost(e) {
@@ -270,6 +270,14 @@ function doPost(e) {
     // הוספת חודשי תשלום נוספים לסדרה קיימת
     if (data.action === 'extendBillingSeries') {
       const result = extendBillingSeries(data);
+      return ContentService
+        .createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // עדכון רשומת מכר קיימת בגיליון
+    if (data.action === 'updateSaleRow') {
+      const result = updateSaleRow(data);
       return ContentService
         .createTextOutput(JSON.stringify(result))
         .setMimeType(ContentService.MimeType.JSON);
@@ -427,7 +435,8 @@ function addRowToSheet(data) {
     'סניף': data.branch || 'תל אביב',
     'הערות': data.notes || '',
     'מספר חשבונית': data.invoiceNumber || '',
-    'מספר קבלה': data.receiptNumber || ''
+    'מספר קבלה': data.receiptNumber || '',
+    'מזהה Firebase': data.firebaseDocId || ''
   };
 
   // בניית שורה לפי סדר הכותרות בגיליון בפועל
@@ -459,6 +468,105 @@ function addRowToSheet(data) {
     rowNumber: newRowNumber,
     clientName: data.clientName,
     timestamp: new Date().toISOString()
+  };
+}
+
+
+// ========== עדכון שורת מכר קיימת בגיליון ==========
+
+function updateSaleRow(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(SHEET_NAME) || ss.getSheets()[0];
+
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if (lastRow <= 1) {
+    return { success: false, error: 'הגיליון ריק' };
+  }
+
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const allData = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+  // חיפוש השורה לפי מזהה Firebase (עמודה AB)
+  var firebaseColIndex = headers.findIndex(function(h) {
+    return h.toString().trim() === 'מזהה Firebase';
+  });
+
+  var targetRow = -1;
+
+  if (firebaseColIndex >= 0 && data.firebaseDocId) {
+    for (var i = 0; i < allData.length; i++) {
+      if (allData[i][firebaseColIndex] === data.firebaseDocId) {
+        targetRow = i + 2; // +2 because row 1 is headers, array is 0-based
+        break;
+      }
+    }
+  }
+
+  // אם לא נמצא לפי Firebase ID, חיפוש לפי שם לקוח + סכום (fallback לרשומות ישנות)
+  if (targetRow === -1 && data.clientName) {
+    var clientColIndex = headers.findIndex(function(h) {
+      return h.toString().trim() === 'שם הלקוח';
+    });
+    var amountColIndex = headers.findIndex(function(h) {
+      return h.toString().trim() === 'סכום כולל מע"מ';
+    });
+
+    if (clientColIndex >= 0) {
+      // חיפוש מהשורה האחרונה כלפי מעלה (הרשומה האחרונה של הלקוח)
+      for (var i = allData.length - 1; i >= 0; i--) {
+        if (allData[i][clientColIndex] === data.clientName) {
+          targetRow = i + 2;
+          break;
+        }
+      }
+    }
+  }
+
+  if (targetRow === -1) {
+    return { success: false, error: 'לא נמצאה שורה תואמת בגיליון' };
+  }
+
+  // מיפוי שדות לעדכון
+  var updateMap = {
+    'שם הלקוח': data.clientName,
+    'טלפון': data.phone,
+    'מייל': data.email,
+    'ח.פ / ת.ז': data.idNumber,
+    'כתובת': data.address,
+    'סוג העסקה': data.transactionType,
+    'תיאור העסקה': data.transactionDescription,
+    'סכום לפני מע"מ': data.amountBeforeVat,
+    'מע"מ': data.vatAmount,
+    'סכום כולל מע"מ': data.amountWithVat,
+    'אמצעי תשלום': data.paymentMethod,
+    'עו"ד מטפל': data.attorney,
+    'מספר תיק': data.caseNumber,
+    'סניף': data.branch,
+    'הערות': data.notes
+  };
+
+  // עדכון כל תא בנפרד
+  var updatedFields = 0;
+  for (var key in updateMap) {
+    if (updateMap[key] !== undefined && updateMap[key] !== null) {
+      var colIndex = headers.findIndex(function(h) {
+        return h.toString().trim() === key;
+      });
+      if (colIndex >= 0) {
+        sheet.getRange(targetRow, colIndex + 1).setValue(updateMap[key]);
+        updatedFields++;
+      }
+    }
+  }
+
+  Logger.log('עודכנה שורה ' + targetRow + ' בגיליון (' + updatedFields + ' שדות)');
+
+  return {
+    success: true,
+    message: 'הרשומה עודכנה בגיליון',
+    row: targetRow,
+    updatedFields: updatedFields
   };
 }
 
@@ -636,7 +744,8 @@ function updateSheetHeaders() {
     'סניף',                   // X
     'הערות',                  // Y
     'מספר חשבונית',           // Z
-    'מספר קבלה'               // AA
+    'מספר קבלה',              // AA
+    'מזהה Firebase'            // AB
   ];
 
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);

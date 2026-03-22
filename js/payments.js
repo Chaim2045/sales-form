@@ -430,7 +430,7 @@ async function markSinglePayment(clientDocId, paymentDocId) {
 
         logAuditEvent('payment_marked', { clientDocId: clientDocId, paymentDocId: paymentDocId, amount: actualAmount, date: actualDate });
 
-        // 3. סנכרון לגיליון שיטס (fire-and-forget)
+        // 3. שמירה ל-sales_records + סנכרון לגיליון שיטס
         try {
             var clientDoc = await db.collection('recurring_billing').doc(clientDocId).get();
             var clientData = clientDoc.exists ? clientDoc.data() : {};
@@ -445,6 +445,16 @@ async function markSinglePayment(clientDocId, paymentDocId) {
                 },
                 clientData.recurringMonthsCount || 0
             );
+
+            // שמירה ל-Firestore sales_records כדי שיופיע בסקשן מכירות
+            var saleRecord = Object.assign({}, sheetData, {
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                sourceBillingId: clientDocId,
+                sourcePaymentId: paymentDocId
+            });
+            await db.collection('sales_records').add(saleRecord);
+
+            // סנכרון לגיליון שיטס (fire-and-forget)
             syncToSheets(sheetData);
         } catch (syncError) {
             console.error('Error syncing billing payment to sheets:', syncError);
@@ -658,11 +668,12 @@ async function markAllDuePayments() {
         await batch.commit();
         await recalcClientSummary(currentPaymentDocId);
 
-        // סנכרון לגיליון שיטס
+        // שמירה ל-sales_records + סנכרון לגיליון שיטס
         try {
             var clientDoc = await db.collection('recurring_billing').doc(currentPaymentDocId).get();
             var clientData = clientDoc.exists ? clientDoc.data() : {};
-            duePayments.forEach(function(p) {
+            for (var i = 0; i < duePayments.length; i++) {
+                var p = duePayments[i];
                 var sheetData = buildBillingSheetRow(
                     clientData,
                     {
@@ -674,8 +685,17 @@ async function markAllDuePayments() {
                     },
                     clientData.recurringMonthsCount || 0
                 );
+
+                // שמירה ל-Firestore sales_records
+                var saleRecord = Object.assign({}, sheetData, {
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    sourceBillingId: currentPaymentDocId,
+                    sourcePaymentId: p.id
+                });
+                await db.collection('sales_records').add(saleRecord);
+
                 syncToSheets(sheetData);
-            });
+            }
         } catch (syncError) {
             console.error('Error syncing batch payments to sheets:', syncError);
         }
