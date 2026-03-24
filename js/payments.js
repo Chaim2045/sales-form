@@ -350,9 +350,9 @@ function renderAccountingSummary(client, payments) {
 
 // בניית שורת גיליון שיטס עבור תשלום גבייה חודשית
 function buildBillingSheetRow(client, payment, totalMonths) {
-    var amountBeforeVat = roundMoney(parseFloat(payment.actualAmountPaid) || 0);
-    var vatAmount = roundMoney(amountBeforeVat * VAT_RATE);
-    var amountWithVat = roundMoney(amountBeforeVat + vatAmount);
+    var amountWithVat = roundMoney(parseFloat(payment.actualAmountPaid) || 0);
+    var amountBeforeVat = roundMoney(amountWithVat / (1 + VAT_RATE));
+    var vatAmount = roundMoney(amountWithVat - amountBeforeVat);
     var monthNum = parseInt(payment.monthNumber) || 0;
     var totalM = parseInt(totalMonths) || 0;
 
@@ -470,6 +470,89 @@ async function markSinglePayment(clientDocId, paymentDocId) {
         _markingPayment = false;
         if (markBtn) markBtn.disabled = false;
     }
+}
+
+// ========== תיקון חד-פעמי: חישוב מע"מ בגבייה חודשית ==========
+// הסכום ששולם (actualAmountPaid) כולל מע"מ, אך נשמר בטעות כ"לפני מע"מ".
+// הסקריפט מתקן את כל הרשומות הקיימות ב-sales_records וגם בגיליון שיטס.
+async function fixBillingVatRecords() {
+    if (!confirm('האם לתקן את חישוב המע"מ בכל רשומות הגבייה החודשית?\nהסכום ששולם יטופל ככולל מע"מ (במקום לפני מע"מ).')) return;
+
+    var snapshot = await db.collection('sales_records')
+        .where('transactionType', '==', 'חיוב חודשי - גבייה')
+        .get();
+
+    if (snapshot.empty) {
+        alert('לא נמצאו רשומות גבייה חודשית לתיקון.');
+        return;
+    }
+
+    var fixed = 0;
+    var errors = 0;
+    var details = [];
+
+    for (var i = 0; i < snapshot.docs.length; i++) {
+        var doc = snapshot.docs[i];
+        var data = doc.data();
+
+        // הסכום המקורי שנשמר כ-amountBeforeVat הוא בעצם הסכום הכולל מע"מ
+        var originalAmount = parseFloat(data.amountBeforeVat) || 0;
+        if (originalAmount <= 0) continue;
+
+        // בדיקה: אם amountWithVat == amountBeforeVat * 1.18, הרשומה שגויה
+        var oldWithVat = parseFloat(data.amountWithVat) || 0;
+        var expectedWrongWithVat = roundMoney(originalAmount * (1 + VAT_RATE));
+        if (Math.abs(oldWithVat - expectedWrongWithVat) > 1) {
+            // הרשומה כבר תוקנה או שיש חישוב אחר — דלג
+            continue;
+        }
+
+        // תיקון: הסכום המקורי הוא כולל מע"מ
+        var correctedWithVat = roundMoney(originalAmount);
+        var correctedBeforeVat = roundMoney(correctedWithVat / (1 + VAT_RATE));
+        var correctedVat = roundMoney(correctedWithVat - correctedBeforeVat);
+
+        try {
+            // עדכון Firebase
+            await db.collection('sales_records').doc(doc.id).update({
+                amountBeforeVat: correctedBeforeVat,
+                vatAmount: correctedVat,
+                amountWithVat: correctedWithVat
+            });
+
+            // עדכון גיליון שיטס
+            try {
+                await syncToSheets({
+                    action: 'updateSaleRow',
+                    firebaseDocId: doc.id,
+                    clientName: data.clientName || '',
+                    amountBeforeVat: correctedBeforeVat,
+                    vatAmount: correctedVat,
+                    amountWithVat: correctedWithVat
+                });
+            } catch (sheetErr) {
+                console.warn('שיטס לא עודכן עבור ' + doc.id, sheetErr);
+            }
+
+            fixed++;
+            details.push(
+                (data.clientName || 'ללא שם') + ': ' +
+                originalAmount.toFixed(2) + ' ➜ לפנ"מ ' + correctedBeforeVat.toFixed(2) +
+                ' + מע"מ ' + correctedVat.toFixed(2) + ' = ' + correctedWithVat.toFixed(2)
+            );
+        } catch (err) {
+            errors++;
+            console.error('שגיאה בתיקון רשומה ' + doc.id, err);
+        }
+    }
+
+    var msg = 'תיקון מע"מ גבייה חודשית הושלם!\n\n' +
+        'תוקנו: ' + fixed + ' רשומות\n' +
+        (errors > 0 ? 'שגיאות: ' + errors + '\n' : '') +
+        '\nפירוט:\n' + details.join('\n');
+
+    console.log(msg);
+    alert(msg);
 }
 
 var _updatingAmount = {};
