@@ -103,21 +103,19 @@ async function uploadFile(file, path) {
 document.getElementById('salesForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
-    console.log('[SUBMIT] Starting form validation...');
     if (!validateStep(4)) {
-        console.log('[SUBMIT] Step 4 validation FAILED');
+        alert('שלב 4 נכשל: ' + (window._lastValidationErrors || []).join(', '));
         return;
     }
 
     // ולידציה מחדש של כל השלבים — ניווט לשלב הבעייתי אם נכשל
     for (var vStep = 1; vStep <= 3; vStep++) {
         if (!validateStep(vStep)) {
-            console.log('[SUBMIT] Step ' + vStep + ' validation FAILED');
+            alert('שלב ' + vStep + ' נכשל: ' + (window._lastValidationErrors || []).join(', '));
             showStep(vStep);
             return;
         }
     }
-    console.log('[SUBMIT] All steps passed validation');
 
     // ולידציית טלפון ות.ז
     var phoneVal = (document.getElementById('phone').value || '').trim();
