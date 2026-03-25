@@ -156,6 +156,15 @@ function validateStep(step) {
             }
 
             if (paymentMethod.value === 'שיקים דחויים') {
+                // בדיקת צילום שיקים (ידנית כי file input עם display:none לא נתמך ב-required במובייל)
+                var checksPhotoInput = document.getElementById('checksPhoto');
+                if (checksPhotoInput && checksPhotoInput.files.length === 0) {
+                    isValid = false;
+                    errors.push('צילום שיקים');
+                    window._lastValidationErrors = window._lastValidationErrors || [];
+                    window._lastValidationErrors.push('צילום שיקים [checksPhoto]');
+                }
+
                 // בדיקת שדות שיקים דינמיים
                 var checksCount = parseInt(document.getElementById('checksCount').value) || 0;
                 for (var i = 1; i <= checksCount; i++) {
@@ -461,7 +470,7 @@ document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
         } else if (this.value === 'שיקים דחויים') {
             checksDetail.classList.add('show');
             updateAmountReminder('checks');
-            checksPhoto.setAttribute('required', 'required');
+            // checksPhoto לא מקבל required — הוולידציה שלו ידנית ב-validateStep
             checksCount.setAttribute('required', 'required');
             checksTotalAmount.setAttribute('required', 'required');
         } else if (this.value === 'פיצול תשלום') {
