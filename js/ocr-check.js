@@ -47,9 +47,9 @@ function triggerOcrExtraction(file) {
     }
     if (!file) return;
 
-    // Only process images (not PDFs)
-    if (!file.type.startsWith('image/')) {
-        showOcrStatus('OCR זמין רק עבור תמונות, לא PDF', 'warning');
+    // Validate file type
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+        showOcrStatus('OCR זמין רק עבור תמונות ו-PDF', 'warning');
         return;
     }
 

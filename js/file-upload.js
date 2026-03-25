@@ -37,10 +37,10 @@ document.getElementById('checksPhoto').addEventListener('change', function(e) {
         };
         reader.readAsDataURL(file);
 
-        // Show OCR button if image (not PDF)
+        // Show OCR button after file upload
         var ocrArea = document.getElementById('ocrActionArea');
         if (ocrArea) {
-            ocrArea.style.display = file.type.startsWith('image/') ? 'block' : 'none';
+            ocrArea.style.display = 'block';
         }
     }
 });
