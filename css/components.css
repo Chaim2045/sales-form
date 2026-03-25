@@ -460,3 +460,204 @@ input.error, select.error {
     font-weight: 500;
     font-size: 14px;
 }
+
+/* === OCR Check Reading === */
+.ocr-action-area {
+    margin-top: 10px;
+    text-align: center;
+}
+
+.ocr-extract-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.ocr-extract-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+
+.ocr-extract-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.ocr-btn-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+.ocr-status {
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.ocr-status-loading { color: #6366f1; background: #eef2ff; }
+.ocr-status-success { color: #059669; background: #ecfdf5; }
+.ocr-status-warning { color: #d97706; background: #fffbeb; }
+.ocr-status-error { color: #dc2626; background: #fef2f2; }
+
+/* OCR Confirmation Modal */
+.ocr-confirm-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: fadeIn 0.2s ease;
+}
+
+.ocr-confirm-modal {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    direction: rtl;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.ocr-confirm-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.ocr-confirm-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 16px;
+}
+
+.ocr-check-row {
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.ocr-check-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #6366f1;
+    margin-bottom: 8px;
+}
+
+.ocr-check-fields-row {
+    display: flex;
+    gap: 8px;
+}
+
+.ocr-field-group {
+    flex: 1;
+}
+
+.ocr-field-group label {
+    display: block;
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.ocr-field-group input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 14px;
+    direction: ltr;
+    text-align: right;
+    box-sizing: border-box;
+}
+
+.ocr-field-group input:focus {
+    border-color: #6366f1;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.ocr-confirm-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.ocr-btn-apply {
+    flex: 1;
+    padding: 10px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ocr-btn-apply:hover { opacity: 0.9; }
+
+.ocr-btn-cancel {
+    padding: 10px 20px;
+    background: #f1f5f9;
+    color: #64748b;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.ocr-btn-cancel:hover { background: #e2e8f0; }
+
+/* Highlight for OCR-filled fields */
+@keyframes ocrHighlight {
+    0% { background-color: #eef2ff; box-shadow: 0 0 0 3px rgba(99,102,241,0.3); }
+    100% { background-color: transparent; box-shadow: none; }
+}
+
+.ocr-filled {
+    animation: ocrHighlight 2s ease forwards;
+}
+
+/* Mobile adjustments */
+@media (max-width: 600px) {
+    .ocr-check-fields-row {
+        flex-direction: column;
+        gap: 6px;
+    }
+    .ocr-confirm-modal {
+        padding: 16px;
+    }
+}

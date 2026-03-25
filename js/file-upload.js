@@ -36,6 +36,12 @@ document.getElementById('checksPhoto').addEventListener('change', function(e) {
             preview.classList.add('show');
         };
         reader.readAsDataURL(file);
+
+        // Show OCR button if image (not PDF)
+        var ocrArea = document.getElementById('ocrActionArea');
+        if (ocrArea) {
+            ocrArea.style.display = file.type.startsWith('image/') ? 'block' : 'none';
+        }
     }
 });
 
