@@ -96,12 +96,16 @@ function validateStep(step) {
             isValid = false;
             // חיפוש label — גם ב-form-group ישיר וגם ב-parent עליון (עבור file inputs מוסתרים)
             var label = field.closest('.form-group')?.querySelector('label');
+            var fieldName;
             if (label) {
-                errors.push(label.textContent.replace('*', '').trim());
+                fieldName = label.textContent.replace('*', '').trim();
+                errors.push(fieldName);
             } else {
                 // fallback — שם השדה מ-placeholder או id
-                errors.push(field.placeholder || field.id || 'שדה חובה');
+                fieldName = field.placeholder || field.id || 'שדה חובה';
+                errors.push(fieldName);
             }
+            console.log('[VALIDATE] Step ' + step + ' - field FAILED:', field.id || field.name, '(' + fieldName + ')', 'type=' + field.type);
         } else {
             field.classList.remove('error');
         }

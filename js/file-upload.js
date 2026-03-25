@@ -103,15 +103,21 @@ async function uploadFile(file, path) {
 document.getElementById('salesForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
-    if (!validateStep(4)) return;
+    console.log('[SUBMIT] Starting form validation...');
+    if (!validateStep(4)) {
+        console.log('[SUBMIT] Step 4 validation FAILED');
+        return;
+    }
 
     // ולידציה מחדש של כל השלבים — ניווט לשלב הבעייתי אם נכשל
     for (var vStep = 1; vStep <= 3; vStep++) {
         if (!validateStep(vStep)) {
+            console.log('[SUBMIT] Step ' + vStep + ' validation FAILED');
             showStep(vStep);
             return;
         }
     }
+    console.log('[SUBMIT] All steps passed validation');
 
     // ולידציית טלפון ות.ז
     var phoneVal = (document.getElementById('phone').value || '').trim();
