@@ -18,6 +18,9 @@ function selectUser(userName) {
 
     // Pre-fill from localStorage
     prefillFromLocalStorage();
+
+    // Initialize draft auto-save
+    if (typeof tryInitDraft === 'function') tryInitDraft();
 }
 
 function prefillFromLocalStorage() {

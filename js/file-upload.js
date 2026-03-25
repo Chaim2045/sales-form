@@ -284,6 +284,9 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
 
         document.getElementById('summaryAmount').textContent = formData.amountWithVat.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
+        // Clear draft after successful submission
+        if (typeof clearDraft === 'function') clearDraft();
+
         // Show success
         document.getElementById('mainForm').classList.add('hidden');
         document.getElementById('successScreen').classList.add('show');
@@ -300,6 +303,7 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
 
 // Reset Form
 function resetForm() {
+    if (typeof clearDraft === 'function') clearDraft();
     document.getElementById('salesForm').reset();
     document.getElementById('successScreen').classList.remove('show');
     document.getElementById('mainForm').classList.remove('hidden');

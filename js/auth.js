@@ -78,6 +78,8 @@ function handleLogout() {
     document.getElementById('loginEmail').value = '';
     document.getElementById('loginPassword').value = '';
     document.getElementById('loginError').textContent = '';
+    // Clear draft on logout for security
+    if (typeof clearDraft === 'function') clearDraft();
     // Show quick login button if credentials are saved
     checkQuickLoginAvailable();
     auth.signOut();
