@@ -84,11 +84,21 @@ function validateStep(step) {
             field.classList.remove('error');
             return;
         }
-        if (!field.value) {
+
+        // בדיקה מיוחדת ל-file input (הערך שלו ריק כשאין קובץ)
+        var isEmpty = field.type === 'file' ? field.files.length === 0 : !field.value;
+
+        if (isEmpty) {
             field.classList.add('error');
             isValid = false;
+            // חיפוש label — גם ב-form-group ישיר וגם ב-parent עליון (עבור file inputs מוסתרים)
             var label = field.closest('.form-group')?.querySelector('label');
-            if (label) errors.push(label.textContent.replace('*', '').trim());
+            if (label) {
+                errors.push(label.textContent.replace('*', '').trim());
+            } else {
+                // fallback — שם השדה מ-placeholder או id
+                errors.push(field.placeholder || field.id || 'שדה חובה');
+            }
         } else {
             field.classList.remove('error');
         }
@@ -189,8 +199,8 @@ function validateStep(step) {
     }
 
     // הצגת הודעת שגיאה למשתמש
-    if (!isValid && errors.length > 0) {
-        showValidationError(errors);
+    if (!isValid) {
+        showValidationError(errors.length > 0 ? errors : ['יש למלא את כל שדות החובה']);
     }
 
     return isValid;
