@@ -56,43 +56,79 @@ function getCorsOrigin(event) {
 }
 
 // Parse a SINGLE Israeli check text — one page = one check
-// Returns { date, amount, checkNumber } — the best match from the text
+// Returns { date, amount } — the best match from the text
 function parseCheckText(fullText) {
     var match;
 
-    // === DATE: find the check date (DD/MM/YYYY) ===
-    // Israeli checks have the date near the top. Pick the first valid future/recent date.
-    var datePattern = /(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](20\d{2}|\d{2})/g;
+    // === DATE ===
+    // Israeli checks: date is near "DATE" / "תאריך" at the bottom
+    // Format can be: DD/MM/YYYY, DD.MM.YYYY, DD.M.YY, DD , M , YY (handwritten with spaces)
     var bestDate = '';
-    while ((match = datePattern.exec(fullText)) !== null) {
+
+    // Pattern 1: date near "DATE" or "תאריך" keyword (most reliable for checks)
+    var dateAreaPattern = /(?:DATE|תאריך)[\s\S]{0,30}?(\d{1,2})\s*[\/\.\,\s]\s*(\d{1,2})\s*[\/\.\,\s]\s*(\d{2,4})/gi;
+    while ((match = dateAreaPattern.exec(fullText)) !== null) {
         var day = match[1].padStart(2, '0');
         var month = match[2].padStart(2, '0');
         var year = match[3].length === 2 ? '20' + match[3] : match[3];
         var d = parseInt(day), m = parseInt(month), y = parseInt(year);
         if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 2024 && y <= 2030) {
             bestDate = year + '-' + month + '-' + day;
-            break; // Take the first valid date (usually the check date at the top)
+            break;
         }
     }
 
-    // === AMOUNT: find the check amount ===
-    // Priority 1: amount between asterisks (***1,500.00***) — standard Israeli check format
+    // Pattern 2: look before "DATE" / "תאריך" (date written above the label)
+    if (!bestDate) {
+        var beforeDatePattern = /(\d{1,2})\s*[\/\.\,\s]\s*(\d{1,2})\s*[\/\.\,\s]\s*(\d{2,4})\s*[\s\S]{0,20}?(?:DATE|תאריך)/gi;
+        while ((match = beforeDatePattern.exec(fullText)) !== null) {
+            var day2 = match[1].padStart(2, '0');
+            var month2 = match[2].padStart(2, '0');
+            var year2 = match[3].length === 2 ? '20' + match[3] : match[3];
+            var d2 = parseInt(day2), m2 = parseInt(month2), y2 = parseInt(year2);
+            if (d2 >= 1 && d2 <= 31 && m2 >= 1 && m2 <= 12 && y2 >= 2024 && y2 <= 2030) {
+                bestDate = year2 + '-' + month2 + '-' + day2;
+                break;
+            }
+        }
+    }
+
+    // Pattern 3: fallback — any date in DD/MM/YYYY or DD.MM.YY format
+    if (!bestDate) {
+        var generalDatePattern = /(\d{1,2})\s*[\/\.]\s*(\d{1,2})\s*[\/\.]\s*(\d{2,4})/g;
+        while ((match = generalDatePattern.exec(fullText)) !== null) {
+            var day3 = match[1].padStart(2, '0');
+            var month3 = match[2].padStart(2, '0');
+            var year3 = match[3].length === 2 ? '20' + match[3] : match[3];
+            var d3 = parseInt(day3), m3 = parseInt(month3), y3 = parseInt(year3);
+            if (d3 >= 1 && d3 <= 31 && m3 >= 1 && m3 <= 12 && y3 >= 2024 && y3 <= 2030) {
+                bestDate = year3 + '-' + month3 + '-' + day3;
+                break;
+            }
+        }
+    }
+
+    // === AMOUNT ===
+    // Israeli check: amount is near ₪ or N.I.S. — the numeric amount (e.g., 8,850)
     var bestAmount = 0;
 
-    var asteriskPattern = /\*{1,3}\s*([\d,]+\.?\d{0,2})\s*\*{1,3}/g;
-    while ((match = asteriskPattern.exec(fullText)) !== null) {
-        var val = parseFloat(match[1].replace(/,/g, ''));
-        if (val > 0 && val < 10000000) {
+    // Priority 1: number near ₪ sign (right side of check)
+    var shekelPattern = /₪\s*([\d,\.]+)|(\d[\d,]*\.?\d{0,2})\s*[₪]/g;
+    while ((match = shekelPattern.exec(fullText)) !== null) {
+        var numStr = match[1] || match[2];
+        var val = parseFloat(numStr.replace(/,/g, ''));
+        if (val >= 100 && val < 10000000) {
             bestAmount = val;
             break;
         }
     }
 
-    // Priority 2: amount near ש"ח / ₪
+    // Priority 2: number near N.I.S.
     if (bestAmount === 0) {
-        var shekelPattern = /(\d[\d,]*\.?\d{0,2})\s*(?:ש"ח|₪|שקל|ש״ח)/g;
-        while ((match = shekelPattern.exec(fullText)) !== null) {
-            var val2 = parseFloat(match[1].replace(/,/g, ''));
+        var nisPattern = /N\.?\s*I\.?\s*S\.?\s*[^\d]*([\d,]+\.?\d{0,2})|([\d,]+\.?\d{0,2})\s*N\.?\s*I\.?\s*S/gi;
+        while ((match = nisPattern.exec(fullText)) !== null) {
+            var numStr2 = match[1] || match[2];
+            var val2 = parseFloat(numStr2.replace(/,/g, ''));
             if (val2 >= 100 && val2 < 10000000) {
                 bestAmount = val2;
                 break;
@@ -100,10 +136,10 @@ function parseCheckText(fullText) {
         }
     }
 
-    // Priority 3: amount near "סכום" / "סך"
+    // Priority 3: amount between asterisks ***1,500***
     if (bestAmount === 0) {
-        var sumPattern = /(?:סכום|סך|sum|amount)[^\d]*([\d,]+\.?\d{0,2})/gi;
-        while ((match = sumPattern.exec(fullText)) !== null) {
+        var asteriskPattern = /\*{1,3}\s*([\d,]+\.?\d{0,2})\s*\*{1,3}/g;
+        while ((match = asteriskPattern.exec(fullText)) !== null) {
             var val3 = parseFloat(match[1].replace(/,/g, ''));
             if (val3 >= 100 && val3 < 10000000) {
                 bestAmount = val3;
@@ -112,17 +148,18 @@ function parseCheckText(fullText) {
         }
     }
 
-    // Priority 4: largest number that looks like a reasonable check amount (500-10M)
+    // Priority 4: number with comma formatting (X,XXX) — typical check amount format
     if (bestAmount === 0) {
-        var numberPattern = /(?:^|[\s\*])(\d{1,3}(?:,\d{3})*\.?\d{0,2})(?:[\s\*]|$)/gm;
+        var commaPattern = /\b(\d{1,3},\d{3}(?:\.\d{1,2})?)\b/g;
         var candidates = [];
-        while ((match = numberPattern.exec(fullText)) !== null) {
+        while ((match = commaPattern.exec(fullText)) !== null) {
             var val4 = parseFloat(match[1].replace(/,/g, ''));
+            // Skip numbers that look like phone/ID (too many digits without comma)
             if (val4 >= 500 && val4 < 10000000) candidates.push(val4);
         }
         if (candidates.length > 0) {
-            // Take the largest — usually the check amount is the biggest number
-            bestAmount = Math.max.apply(null, candidates);
+            // If multiple, prefer the one that appears most often (repeated = likely the amount)
+            bestAmount = candidates[0];
         }
     }
 
