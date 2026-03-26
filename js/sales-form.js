@@ -70,7 +70,6 @@ function showStep(step) {
 }
 
 function validateStep(step) {
-    window._lastValidationErrors = [];
     const stepElement = document.querySelector(`.form-step[data-step="${step}"]`);
     const requiredFields = stepElement.querySelectorAll('[required]');
     let isValid = true;
@@ -107,8 +106,6 @@ function validateStep(step) {
                 errors.push(fieldName);
             }
             console.log('[VALIDATE] Step ' + step + ' - field FAILED:', field.id || field.name, '(' + fieldName + ')', 'type=' + field.type);
-            window._lastValidationErrors = window._lastValidationErrors || [];
-            window._lastValidationErrors.push(fieldName + ' [' + (field.id || field.type) + ']');
         } else {
             field.classList.remove('error');
         }
@@ -161,8 +158,6 @@ function validateStep(step) {
                 if (checksPhotoInput && checksPhotoInput.files.length === 0) {
                     isValid = false;
                     errors.push('צילום שיקים');
-                    window._lastValidationErrors = window._lastValidationErrors || [];
-                    window._lastValidationErrors.push('צילום שיקים [checksPhoto]');
                 }
 
                 // בדיקת שדות שיקים דינמיים

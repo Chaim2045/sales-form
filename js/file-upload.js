@@ -103,15 +103,11 @@ async function uploadFile(file, path) {
 document.getElementById('salesForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
-    if (!validateStep(4)) {
-        alert('שלב 4 נכשל: ' + (window._lastValidationErrors || []).join(', '));
-        return;
-    }
+    if (!validateStep(4)) return;
 
     // ולידציה מחדש של כל השלבים — ניווט לשלב הבעייתי אם נכשל
     for (var vStep = 1; vStep <= 3; vStep++) {
         if (!validateStep(vStep)) {
-            alert('שלב ' + vStep + ' נכשל: ' + (window._lastValidationErrors || []).join(', '));
             showStep(vStep);
             return;
         }
