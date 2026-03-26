@@ -55,81 +55,99 @@ function getCorsOrigin(event) {
     return '';
 }
 
-// Parse Israeli check text from Vision API response
+// Parse a SINGLE Israeli check text — one page = one check
+// Returns { date, amount, checkNumber } — the best match from the text
 function parseCheckText(fullText) {
-    var checks = [];
-    var lines = fullText.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
-
-    // Extract dates (DD/MM/YYYY or DD.MM.YYYY or DD-MM-YYYY)
-    var datePattern = /(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](20\d{2}|\d{2})/g;
-    var dates = [];
     var match;
+
+    // === DATE: find the check date (DD/MM/YYYY) ===
+    // Israeli checks have the date near the top. Pick the first valid future/recent date.
+    var datePattern = /(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](20\d{2}|\d{2})/g;
+    var bestDate = '';
     while ((match = datePattern.exec(fullText)) !== null) {
         var day = match[1].padStart(2, '0');
         var month = match[2].padStart(2, '0');
         var year = match[3].length === 2 ? '20' + match[3] : match[3];
-        // Validate reasonable date
         var d = parseInt(day), m = parseInt(month), y = parseInt(year);
         if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 2024 && y <= 2030) {
-            dates.push(year + '-' + month + '-' + day);
+            bestDate = year + '-' + month + '-' + day;
+            break; // Take the first valid date (usually the check date at the top)
         }
     }
 
-    // Extract amounts - look for patterns with asterisks (Israeli check format: ***1,500.00***)
-    var amounts = [];
+    // === AMOUNT: find the check amount ===
+    // Priority 1: amount between asterisks (***1,500.00***) — standard Israeli check format
+    var bestAmount = 0;
 
-    // Pattern 1: amounts between asterisks
     var asteriskPattern = /\*{1,3}\s*([\d,]+\.?\d{0,2})\s*\*{1,3}/g;
     while ((match = asteriskPattern.exec(fullText)) !== null) {
         var val = parseFloat(match[1].replace(/,/g, ''));
-        if (val > 0 && val < 10000000) amounts.push(val);
+        if (val > 0 && val < 10000000) {
+            bestAmount = val;
+            break;
+        }
     }
 
-    // Pattern 2: amounts with ש"ח or ₪ nearby
-    var shekelPattern = /(\d[\d,]*\.?\d{0,2})\s*(?:ש"ח|₪|שקל|ש״ח)/g;
-    while ((match = shekelPattern.exec(fullText)) !== null) {
-        var val2 = parseFloat(match[1].replace(/,/g, ''));
-        if (val2 > 0 && val2 < 10000000 && amounts.indexOf(val2) === -1) amounts.push(val2);
+    // Priority 2: amount near ש"ח / ₪
+    if (bestAmount === 0) {
+        var shekelPattern = /(\d[\d,]*\.?\d{0,2})\s*(?:ש"ח|₪|שקל|ש״ח)/g;
+        while ((match = shekelPattern.exec(fullText)) !== null) {
+            var val2 = parseFloat(match[1].replace(/,/g, ''));
+            if (val2 >= 100 && val2 < 10000000) {
+                bestAmount = val2;
+                break;
+            }
+        }
     }
 
-    // Pattern 3: standalone large numbers (likely check amounts)
-    var numberPattern = /(?:^|\s)([\d,]{3,}\.?\d{0,2})(?:\s|$)/gm;
-    while ((match = numberPattern.exec(fullText)) !== null) {
-        var val3 = parseFloat(match[1].replace(/,/g, ''));
-        if (val3 >= 100 && val3 < 10000000 && amounts.indexOf(val3) === -1) amounts.push(val3);
+    // Priority 3: amount near "סכום" / "סך"
+    if (bestAmount === 0) {
+        var sumPattern = /(?:סכום|סך|sum|amount)[^\d]*([\d,]+\.?\d{0,2})/gi;
+        while ((match = sumPattern.exec(fullText)) !== null) {
+            var val3 = parseFloat(match[1].replace(/,/g, ''));
+            if (val3 >= 100 && val3 < 10000000) {
+                bestAmount = val3;
+                break;
+            }
+        }
     }
 
-    // Extract check numbers from MICR line (7-8 digit sequences)
-    var checkNumbers = [];
-    var micrPattern = /\b(\d{6,8})\b/g;
+    // Priority 4: largest number that looks like a reasonable check amount (500-10M)
+    if (bestAmount === 0) {
+        var numberPattern = /(?:^|[\s\*])(\d{1,3}(?:,\d{3})*\.?\d{0,2})(?:[\s\*]|$)/gm;
+        var candidates = [];
+        while ((match = numberPattern.exec(fullText)) !== null) {
+            var val4 = parseFloat(match[1].replace(/,/g, ''));
+            if (val4 >= 500 && val4 < 10000000) candidates.push(val4);
+        }
+        if (candidates.length > 0) {
+            // Take the largest — usually the check amount is the biggest number
+            bestAmount = Math.max.apply(null, candidates);
+        }
+    }
+
+    // === CHECK NUMBER: from MICR line at bottom ===
+    var bestCheckNumber = '';
+    var micrPattern = /\b(\d{7,8})\b/g;
     while ((match = micrPattern.exec(fullText)) !== null) {
-        var num = match[1];
-        // Skip if it looks like a date or year
-        if (num.length <= 4) continue;
-        // Skip if already captured as amount
-        var numVal = parseFloat(num);
-        if (amounts.indexOf(numVal) !== -1) continue;
-        if (checkNumbers.indexOf(num) === -1) checkNumbers.push(num);
+        bestCheckNumber = match[1];
+        break;
     }
 
-    // Build check objects - match dates with amounts
-    var checkCount = Math.max(dates.length, amounts.length, 1);
-
-    for (var i = 0; i < checkCount; i++) {
-        checks.push({
-            date: dates[i] || '',
-            amount: amounts[i] || 0,
-            checkNumber: checkNumbers[i] || '',
-            index: i + 1
-        });
-    }
-
-    // If no data found at all, return empty
-    if (dates.length === 0 && amounts.length === 0) {
+    // Return single check or empty
+    if (!bestDate && bestAmount === 0) {
         return { checks: [], rawText: fullText };
     }
 
-    return { checks: checks, rawText: fullText };
+    return {
+        checks: [{
+            date: bestDate,
+            amount: bestAmount,
+            checkNumber: bestCheckNumber,
+            index: 1
+        }],
+        rawText: fullText
+    };
 }
 
 exports.handler = async (event) => {
