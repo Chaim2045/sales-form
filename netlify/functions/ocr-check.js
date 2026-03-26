@@ -1,5 +1,5 @@
-// Netlify Function: OCR check reading via Google Cloud Vision API
-// Receives a check photo, extracts amount, date, and check number
+// Netlify Function: OCR check reading
+// Google Vision API for text extraction + Claude API for intelligent parsing
 
 const https = require('https');
 
@@ -19,14 +19,10 @@ function httpRequest(options, data) {
     });
 }
 
-// Verify caller is authenticated (any active user, not just master)
+// Verify caller is authenticated
 async function verifyAuth(idToken) {
     var apiKey = process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY;
-    console.log('verifyAuth: API key exists:', !!apiKey, 'token length:', idToken ? idToken.length : 0);
-
-    if (!apiKey) {
-        throw new Error('FIREBASE_WEB_API_KEY not configured');
-    }
+    if (!apiKey) throw new Error('FIREBASE_WEB_API_KEY not configured');
 
     var postData = JSON.stringify({ idToken: idToken });
     var res = await httpRequest({
@@ -39,10 +35,8 @@ async function verifyAuth(idToken) {
         }
     }, postData);
 
-    console.log('verifyAuth response:', res.status, JSON.stringify(res.data).substring(0, 200));
-
     if (res.status !== 200 || !res.data.users || !res.data.users[0]) {
-        throw new Error('Invalid token - status: ' + res.status + ' data: ' + JSON.stringify(res.data).substring(0, 200));
+        throw new Error('Invalid token');
     }
     return res.data.users[0].localId;
 }
@@ -55,126 +49,65 @@ function getCorsOrigin(event) {
     return '';
 }
 
-// Parse a SINGLE Israeli check text — one page = one check
-// Tuned for real OCR output from scanned Israeli bank checks
-function parseCheckText(fullText) {
-    var match;
-
-    // === DATE ===
-    // OCR reads handwritten dates near DATE/תאריך in various broken formats:
-    // "304 26" (30/4/26), "30626" (30/6/26), "3826" (30/8/26), "30.9.26"
-    var bestDate = '';
-
-    // Find the area near DATE/תאריך
-    var dateAreaMatch = fullText.match(/(?:DATE|תאריך)[\s\S]{0,5}/i);
-    var dateSearchArea = '';
-    if (dateAreaMatch) {
-        // Search 60 chars before DATE keyword (date is written above it)
-        var dateIdx = fullText.indexOf(dateAreaMatch[0]);
-        var startIdx = Math.max(0, dateIdx - 60);
-        dateSearchArea = fullText.substring(startIdx, dateIdx + 20);
+// Use Claude API to extract check date and amount from OCR text
+async function parseCheckWithClaude(ocrText) {
+    var anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey) {
+        console.warn('ANTHROPIC_API_KEY not configured, falling back to regex');
+        return null;
     }
 
-    // Pattern 1: clean format DD.MM.YY or DD/MM/YY
-    var cleanDatePattern = /(\d{1,2})\s*[\.\/-]\s*(\d{1,2})\s*[\.\/-]\s*(\d{2,4})/g;
-    var searchIn = dateSearchArea || fullText;
-    while ((match = cleanDatePattern.exec(searchIn)) !== null) {
-        var day = match[1], month = match[2], year = match[3];
-        if (year.length === 2) year = '20' + year;
-        var d = parseInt(day), m = parseInt(month), y = parseInt(year);
-        if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 2024 && y <= 2030) {
-            bestDate = year + '-' + month.padStart(2, '0') + '-' + day.padStart(2, '0');
-            break;
+    var prompt = 'הטקסט הבא הוא פלט OCR מסריקה של שיק ישראלי. ' +
+        'חלץ את תאריך השיק ואת סכום השיק בלבד.\n\n' +
+        'כללים חשובים:\n' +
+        '- התאריך נמצא ליד המילה DATE או תאריך, בפורמט יום/חודש/שנה\n' +
+        '- ה-OCR לפעמים מרסק ספרות ביחד, למשל "304 26" זה 30/4/26, "30626" זה 30/6/26\n' +
+        '- הסכום נמצא ליד ₪ או N.I.S., בפורמט עם פסיק (למשל 8,850)\n' +
+        '- ה-OCR לפעמים מוסיף 1 בטעות לפני הסכום (18,850 במקום 8,850) או $ במקום ₪\n' +
+        '- התעלם ממספרי חשבון, מספרי סניף, מספרי טלפון ומספרי שיק\n\n' +
+        'החזר תשובה בפורמט JSON בלבד, ללא טקסט נוסף:\n' +
+        '{"date": "YYYY-MM-DD", "amount": 1234}\n\n' +
+        'אם לא מצליח לזהות, החזר null בשדה המתאים.\n\n' +
+        'הטקסט:\n' + ocrText;
+
+    var requestBody = JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 100,
+        messages: [{ role: 'user', content: prompt }]
+    });
+
+    var res = await httpRequest({
+        hostname: 'api.anthropic.com',
+        path: '/v1/messages',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': anthropicKey,
+            'anthropic-version': '2023-06-01',
+            'Content-Length': Buffer.byteLength(requestBody)
         }
+    }, requestBody);
+
+    if (res.status !== 200) {
+        console.error('Claude API error:', res.status, JSON.stringify(res.data).substring(0, 300));
+        return null;
     }
 
-    // Pattern 2: digits smashed together near DATE — e.g., "304 26" or "30626" or "3826"
-    if (!bestDate && dateSearchArea) {
-        // Look for 3-6 digit sequences near DATE
-        var smashedPattern = /(\d{3,6})\s*(\d{2})?/g;
-        while ((match = smashedPattern.exec(dateSearchArea)) !== null) {
-            var digits = match[1] + (match[2] || '');
-            var parsed = parseSmashedDate(digits);
-            if (parsed) {
-                bestDate = parsed;
-                break;
-            }
-        }
+    try {
+        var responseText = res.data.content[0].text.trim();
+        // Extract JSON from response (Claude might wrap it in markdown)
+        var jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) return null;
+
+        var parsed = JSON.parse(jsonMatch[0]);
+        return {
+            date: parsed.date || '',
+            amount: parseFloat(parsed.amount) || 0
+        };
+    } catch (e) {
+        console.error('Failed to parse Claude response:', e);
+        return null;
     }
-
-    // === AMOUNT ===
-    // OCR reads amounts as: "8,850", "$8,850", "18,850", "8.850", "18.850"
-    // The actual amount has comma or dot as thousands separator
-    var bestAmount = 0;
-
-    // Collect all numbers with comma or dot thousands separator (X,XXX or X.XXX)
-    var amountPattern = /[\$₪]?\s*[1]?(\d{1,3}[,\.]\d{3}(?:\.\d{1,2})?)/g;
-    var amountCandidates = [];
-    while ((match = amountPattern.exec(fullText)) !== null) {
-        // Remove leading 1 that OCR sometimes adds, and normalize separators
-        var numStr = match[1].replace(/\./g, ','); // normalize dots to commas
-        var val = parseFloat(numStr.replace(/,/g, ''));
-        if (val >= 100 && val < 10000000) {
-            amountCandidates.push(val);
-        }
-    }
-
-    if (amountCandidates.length > 0) {
-        // Find the most common amount (the real amount appears multiple times on a check)
-        var counts = {};
-        amountCandidates.forEach(function(v) {
-            counts[v] = (counts[v] || 0) + 1;
-        });
-        var sorted = Object.keys(counts).sort(function(a, b) { return counts[b] - counts[a]; });
-        bestAmount = parseFloat(sorted[0]);
-    }
-
-    // Return single check or empty
-    if (!bestDate && bestAmount === 0) {
-        return { checks: [], rawText: fullText };
-    }
-
-    return {
-        checks: [{
-            date: bestDate,
-            amount: bestAmount,
-            index: 1
-        }],
-        rawText: fullText
-    };
-}
-
-// Parse smashed date digits: "30426" → 30/4/26, "30626" → 30/6/26, "3826" → 30/8/26 (dropped 0)
-function parseSmashedDate(digits) {
-    // Try different splits for DD M YY or DD MM YY
-    var attempts = [];
-
-    if (digits.length === 5) {
-        // DDMYY: e.g., "30426" → 30, 4, 26
-        attempts.push({ d: digits.substr(0, 2), m: digits.substr(2, 1), y: digits.substr(3, 2) });
-        // DMMYY: e.g., "3 04 26" unlikely but try
-        attempts.push({ d: digits.substr(0, 1), m: digits.substr(1, 2), y: digits.substr(3, 2) });
-    } else if (digits.length === 6) {
-        // DDMMYY: e.g., "300426"
-        attempts.push({ d: digits.substr(0, 2), m: digits.substr(2, 2), y: digits.substr(4, 2) });
-    } else if (digits.length === 4) {
-        // DMYY: e.g., "3826" → could be 3/8/26 or 30/8/26 (dropped 0)
-        attempts.push({ d: digits.substr(0, 1), m: digits.substr(1, 1), y: digits.substr(2, 2) });
-        // Try with leading 30: "3826" → 30, 8, 26 (OCR dropped the 0 from 30)
-        attempts.push({ d: '30', m: digits.substr(1, 1), y: digits.substr(2, 2) });
-        attempts.push({ d: digits.substr(0, 2), m: digits.substr(2, 1), y: '2' + digits.substr(3, 1) });
-    } else if (digits.length === 3) {
-        // MYY or DMY: e.g., "426" → 4/26? unlikely, skip
-    }
-
-    for (var i = 0; i < attempts.length; i++) {
-        var a = attempts[i];
-        var d = parseInt(a.d), m = parseInt(a.m), y = parseInt(a.y.length === 2 ? '20' + a.y : a.y);
-        if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 2024 && y <= 2030) {
-            return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-        }
-    }
-    return null;
 }
 
 exports.handler = async (event) => {
@@ -213,7 +146,6 @@ exports.handler = async (event) => {
         // Parse request body
         var body = JSON.parse(event.body);
         var imageBase64 = body.imageBase64;
-        var mimeType = body.mimeType || 'image/jpeg';
 
         if (!imageBase64) {
             return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Missing image data' }) };
@@ -251,7 +183,7 @@ exports.handler = async (event) => {
 
         if (visionRes.status !== 200) {
             console.error('Vision API error:', JSON.stringify(visionRes.data));
-            return { statusCode: 502, headers: corsHeaders, body: JSON.stringify({ error: 'Vision API error', details: visionRes.data }) };
+            return { statusCode: 502, headers: corsHeaders, body: JSON.stringify({ error: 'Vision API error' }) };
         }
 
         // Extract text from Vision API response
@@ -265,18 +197,26 @@ exports.handler = async (event) => {
         }
 
         var fullText = responses[0].textAnnotations[0].description || '';
-        console.log('OCR raw text:', fullText);
 
-        // Parse the check data
-        var result = parseCheckText(fullText);
+        // Parse with Claude API
+        var checkData = await parseCheckWithClaude(fullText);
+
+        var checks = [];
+        if (checkData && (checkData.date || checkData.amount > 0)) {
+            checks.push({
+                date: checkData.date,
+                amount: checkData.amount,
+                index: 1
+            });
+        }
 
         return {
             statusCode: 200,
             headers: corsHeaders,
             body: JSON.stringify({
                 success: true,
-                checks: result.checks,
-                rawText: result.rawText
+                checks: checks,
+                rawText: fullText
             })
         };
 

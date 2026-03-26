@@ -167,12 +167,6 @@ function triggerOcrExtraction(file) {
 
     ocrExtractCheckData(file)
         .then(function(result) {
-            // Debug: always show raw text from first page
-            if (result.rawText) {
-                console.log('OCR raw text:', result.rawText);
-                alert('טקסט גולמי (עמוד 1):\n\n' + result.rawText.substring(0, 800));
-            }
-
             if (result.checks && result.checks.length > 0) {
                 showOcrConfirmationModal(result.checks);
                 showOcrStatus('נמצאו ' + result.checks.length + ' שיקים', 'success');
