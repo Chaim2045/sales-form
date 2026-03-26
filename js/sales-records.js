@@ -596,6 +596,7 @@ function openSaleEditModal(saleId) {
 
     // Fill edit form
     document.getElementById('saleEditId').value = record.id;
+    document.getElementById('saleEditDate').value = record.date || '';
     document.getElementById('saleEditClientName').value = record.clientName || '';
     document.getElementById('saleEditPhone').value = record.phone || '';
     document.getElementById('saleEditEmail').value = record.email || '';
@@ -631,7 +632,10 @@ async function saveSaleEdit() {
     var vatAmount = Math.round(amountBefore * VAT_RATE * 100) / 100;
     var amountWith = Math.round((amountBefore + vatAmount) * 100) / 100;
 
+    var editedDate = document.getElementById('saleEditDate').value;
+
     var updateData = {
+        date: editedDate,
         clientName: clientName,
         phone: document.getElementById('saleEditPhone').value.trim(),
         email: document.getElementById('saleEditEmail').value.trim(),
@@ -659,6 +663,7 @@ async function saveSaleEdit() {
         syncToSheets({
             action: 'updateSaleRow',
             firebaseDocId: docId,
+            date: updateData.date,
             clientName: updateData.clientName,
             phone: updateData.phone,
             email: updateData.email,

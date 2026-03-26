@@ -529,6 +529,7 @@ function updateSaleRow(data) {
 
   // מיפוי שדות לעדכון
   var updateMap = {
+    'תאריך': data.date ? formatDate(data.date) : undefined,
     'שם הלקוח': data.clientName,
     'טלפון': data.phone,
     'מייל': data.email,
