@@ -21,15 +21,28 @@ function httpRequest(options, data) {
 
 // Verify caller is authenticated (any active user, not just master)
 async function verifyAuth(idToken) {
-    const res = await httpRequest({
+    var apiKey = process.env.FIREBASE_API_KEY;
+    console.log('verifyAuth: API key exists:', !!apiKey, 'token length:', idToken ? idToken.length : 0);
+
+    if (!apiKey) {
+        throw new Error('FIREBASE_API_KEY not configured');
+    }
+
+    var postData = JSON.stringify({ idToken: idToken });
+    var res = await httpRequest({
         hostname: 'identitytoolkit.googleapis.com',
-        path: '/v1/accounts:lookup?key=' + process.env.FIREBASE_API_KEY,
+        path: '/v1/accounts:lookup?key=' + apiKey,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-    }, JSON.stringify({ idToken: idToken }));
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(postData)
+        }
+    }, postData);
+
+    console.log('verifyAuth response:', res.status, JSON.stringify(res.data).substring(0, 200));
 
     if (res.status !== 200 || !res.data.users || !res.data.users[0]) {
-        throw new Error('Invalid token');
+        throw new Error('Invalid token - status: ' + res.status + ' data: ' + JSON.stringify(res.data).substring(0, 200));
     }
     return res.data.users[0].localId;
 }

@@ -75,7 +75,7 @@ function triggerOcrExtraction(file) {
         })
         .catch(function(err) {
             console.error('OCR error:', err);
-            showOcrStatus('שגיאה בסריקה. מלא/י ידנית.', 'error');
+            showOcrStatus('שגיאה: ' + (err.message || 'שגיאה בסריקה') + '. מלא/י ידנית.', 'error');
         })
         .finally(function() {
             _ocrProcessing = false;
