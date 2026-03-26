@@ -3,7 +3,33 @@
 
 var _ocrProcessing = false;
 
-// Convert PDF pages to image base64 array using pdf.js
+// Compress image base64 to fit within Netlify's 1MB limit
+function compressImageBase64(canvas, maxSizeKB) {
+    maxSizeKB = maxSizeKB || 700; // 700KB default to stay under 1MB with JSON overhead
+    var quality = 0.85;
+    var result = canvas.toDataURL('image/jpeg', quality);
+
+    // Reduce quality until under limit
+    while (result.length * 0.75 > maxSizeKB * 1024 && quality > 0.3) {
+        quality -= 0.1;
+        result = canvas.toDataURL('image/jpeg', quality);
+    }
+
+    // If still too large, scale down
+    if (result.length * 0.75 > maxSizeKB * 1024) {
+        var scale = 0.5;
+        var smallCanvas = document.createElement('canvas');
+        smallCanvas.width = canvas.width * scale;
+        smallCanvas.height = canvas.height * scale;
+        var ctx = smallCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, 0, smallCanvas.width, smallCanvas.height);
+        result = smallCanvas.toDataURL('image/jpeg', 0.7);
+    }
+
+    return result;
+}
+
+// Convert PDF pages to compressed image base64 array using pdf.js
 async function pdfPagesToImages(file) {
     var arrayBuffer = await file.arrayBuffer();
     var pdfjsLib = window.pdfjsLib;
@@ -19,7 +45,7 @@ async function pdfPagesToImages(file) {
 
     for (var p = 1; p <= pageCount; p++) {
         var page = await pdf.getPage(p);
-        var scale = 2; // 2x for better OCR accuracy
+        var scale = 1.5; // 1.5x — enough for OCR, not too large
         var viewport = page.getViewport({ scale: scale });
 
         var canvas = document.createElement('canvas');
@@ -28,7 +54,7 @@ async function pdfPagesToImages(file) {
         var ctx = canvas.getContext('2d');
 
         await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-        images.push(canvas.toDataURL('image/png'));
+        images.push(compressImageBase64(canvas));
     }
 
     return images;
@@ -81,10 +107,29 @@ async function ocrExtractCheckData(file) {
 
         return { success: true, checks: allChecks, rawText: allRawText };
     } else {
-        // Image — send directly
+        // Image — load and compress before sending
         var base64 = await new Promise(function(resolve, reject) {
             var reader = new FileReader();
-            reader.onload = function() { resolve(reader.result); };
+            reader.onload = function() {
+                var img = new Image();
+                img.onload = function() {
+                    var canvas = document.createElement('canvas');
+                    // Scale down if very large
+                    var maxDim = 2000;
+                    var w = img.width, h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        var ratio = Math.min(maxDim / w, maxDim / h);
+                        w = Math.round(w * ratio);
+                        h = Math.round(h * ratio);
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    resolve(compressImageBase64(canvas));
+                };
+                img.onerror = function() { resolve(reader.result); }; // fallback to original
+                img.src = reader.result;
+            };
             reader.onerror = function() { reject(new Error('Failed to read file')); };
             reader.readAsDataURL(file);
         });

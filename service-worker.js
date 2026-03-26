@@ -1,7 +1,7 @@
 // Service Worker — TOFES OFFICE PWA
 // Network-first strategy: always try network, fallback to cache
 
-var CACHE_NAME = 'tofes-office-v9';
+var CACHE_NAME = 'tofes-office-v10';
 var STATIC_ASSETS = [
     '/',
     '/index.html',
