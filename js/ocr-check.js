@@ -168,9 +168,11 @@ function triggerOcrExtraction(file) {
     ocrExtractCheckData(file)
         .then(function(result) {
             if (result.checks && result.checks.length > 0) {
+                console.log('OCR results:', JSON.stringify(result.checks));
                 showOcrConfirmationModal(result.checks);
                 showOcrStatus('נמצאו ' + result.checks.length + ' שיקים', 'success');
             } else {
+                console.log('OCR no checks found. Raw text:', result.rawText);
                 showOcrStatus('לא הצלחנו לזהות פרטי שיק. מלא/י ידנית.', 'warning');
             }
         })
