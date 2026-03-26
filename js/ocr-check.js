@@ -91,12 +91,18 @@ async function ocrExtractCheckData(file) {
 
         for (var i = 0; i < images.length; i++) {
             showOcrStatus('סורק עמוד ' + (i + 1) + ' מתוך ' + images.length + '...', 'loading');
-            var result = await sendOcrRequest(images[i], idToken);
-            if (result.checks) {
-                allChecks = allChecks.concat(result.checks);
-            }
-            if (result.rawText) {
-                allRawText += (allRawText ? '\n--- עמוד ' + (i + 1) + ' ---\n' : '') + result.rawText;
+            try {
+                var result = await sendOcrRequest(images[i], idToken);
+                if (result.checks) {
+                    allChecks = allChecks.concat(result.checks);
+                }
+                if (result.rawText) {
+                    allRawText += (allRawText ? '\n--- עמוד ' + (i + 1) + ' ---\n' : '') + result.rawText;
+                }
+            } catch (pageErr) {
+                console.warn('OCR failed for page ' + (i + 1) + ':', pageErr);
+                // Add empty check placeholder so user knows a page was skipped
+                allChecks.push({ date: '', amount: 0, index: i + 1 });
             }
         }
 

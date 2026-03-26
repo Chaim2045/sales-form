@@ -72,9 +72,11 @@ async function parseCheckWithClaude(ocrText) {
         '   Look for digits BEFORE the word DATE/תאריך. The date is always written above the DATE label.\n' +
         '2. AMOUNT: Located near ₪ or N.I.S. on the right side of the check. ' +
         'Format uses comma as thousands separator (e.g., 8,850). ' +
-        'OCR sometimes adds a leading "1" by mistake (18,850 should be 8,850) or uses $ instead of ₪. ' +
-        'OCR sometimes uses dot instead of comma (8.850 = 8,850). ' +
-        'The amount in WORDS (written in Hebrew) can help verify the number.\n' +
+        'IMPORTANT: OCR very often adds a leading "1" by mistake — if you see "18,850" or "18.850" but ' +
+        'the Hebrew words say "שמונה אלפים" (eight thousand), the real amount is 8,850 NOT 18,850. ' +
+        'Always cross-reference the numeric amount with the Hebrew words on the check. ' +
+        'OCR may also use $ instead of ₪, or dot instead of comma (8.850 = 8,850). ' +
+        'If you see "IN 18,850" or "$18,850" — the leading 1 is almost certainly an OCR error.\n' +
         '3. IGNORE: account numbers (381817), branch numbers (78000), phone numbers (054...), ' +
         'check numbers (0014095), and ID numbers (515652881).\n\n' +
         'Respond with ONLY valid JSON, no other text:\n' +
