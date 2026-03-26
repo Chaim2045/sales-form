@@ -60,6 +60,7 @@ async function pdfPagesToImages(file) {
     return images;
 }
 
+// Send single image to OCR function (Vision + Claude)
 async function sendOcrRequest(base64, idToken) {
     var response = await fetch('/api/ocr-check', {
         method: 'POST',
@@ -80,38 +81,81 @@ async function sendOcrRequest(base64, idToken) {
     return data;
 }
 
+// Send pre-extracted OCR texts to Claude for parsing (no Vision needed)
+async function sendParseRequest(ocrTexts, idToken) {
+    var response = await fetch('/api/ocr-check', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + idToken,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ocrTexts: ocrTexts })
+    });
+
+    var data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.error || 'Parse request failed');
+    }
+    return data;
+}
+
+// Extract text from single image via Vision API (called from function)
+async function extractVisionText(base64, idToken) {
+    var response = await fetch('/api/ocr-check', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + idToken,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            imageBase64: base64,
+            mimeType: 'image/png',
+            visionOnly: true
+        })
+    });
+
+    var data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Vision request failed');
+    return data.rawText || '';
+}
+
 async function ocrExtractCheckData(file) {
     var idToken = await authUser.getIdToken();
 
     if (file.type === 'application/pdf') {
-        // PDF — convert each page to image and OCR separately
+        // Step 1: Convert PDF pages to images
         var images = await pdfPagesToImages(file);
-        var allChecks = [];
-        var allRawText = '';
 
+        // Step 2: Extract text from each page via Vision API (one call per page)
+        var ocrTexts = [];
         for (var i = 0; i < images.length; i++) {
-            showOcrStatus('סורק עמוד ' + (i + 1) + ' מתוך ' + images.length + '...', 'loading');
+            showOcrStatus('קורא עמוד ' + (i + 1) + ' מתוך ' + images.length + '...', 'loading');
             try {
-                var result = await sendOcrRequest(images[i], idToken);
-                if (result.checks) {
-                    allChecks = allChecks.concat(result.checks);
-                }
-                if (result.rawText) {
-                    allRawText += (allRawText ? '\n--- עמוד ' + (i + 1) + ' ---\n' : '') + result.rawText;
-                }
+                // Send with visionOnly flag — no Claude parsing yet
+                var response = await fetch('/api/ocr-check', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + idToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        imageBase64: images[i],
+                        mimeType: 'image/png',
+                        visionOnly: true
+                    })
+                });
+                var data = await response.json();
+                ocrTexts.push((data && data.rawText) || '');
             } catch (pageErr) {
-                console.warn('OCR failed for page ' + (i + 1) + ':', pageErr);
-                // Add empty check placeholder so user knows a page was skipped
-                allChecks.push({ date: '', amount: 0, index: i + 1 });
+                console.warn('Vision failed for page ' + (i + 1) + ':', pageErr);
+                ocrTexts.push('');
             }
         }
 
-        // Re-index checks
-        for (var j = 0; j < allChecks.length; j++) {
-            allChecks[j].index = j + 1;
-        }
-
-        return { success: true, checks: allChecks, rawText: allRawText };
+        // Step 3: Send ALL texts to Claude in ONE call for parsing
+        showOcrStatus('מנתח ' + images.length + ' שיקים...', 'loading');
+        var parseResult = await sendParseRequest(ocrTexts, idToken);
+        return parseResult;
     } else {
         // Image — load and compress before sending
         var base64 = await new Promise(function(resolve, reject) {

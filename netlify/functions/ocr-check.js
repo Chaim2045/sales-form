@@ -49,43 +49,38 @@ function getCorsOrigin(event) {
     return '';
 }
 
-// Use Claude API to extract check date and amount from OCR text
-async function parseCheckWithClaude(ocrText) {
+// Use Claude API to extract check dates and amounts from OCR text
+// Supports single check or multiple checks (separated by "--- עמוד X ---")
+async function parseChecksWithClaude(ocrText) {
     var anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) {
-        console.warn('ANTHROPIC_API_KEY not configured, falling back to regex');
-        return null;
+        console.warn('ANTHROPIC_API_KEY not configured');
+        return [];
     }
 
-    var prompt = 'You are parsing OCR output from a scanned Israeli bank check (שיק). ' +
-        'Extract ONLY the check date and check amount.\n\n' +
+    // Count pages
+    var pageCount = (ocrText.match(/--- עמוד/g) || []).length + 1;
+
+    var prompt = 'You are parsing OCR output from scanned Israeli bank checks (שיקים). ' +
+        'The text contains ' + pageCount + ' check(s). Each check is on a separate page, ' +
+        'separated by "--- עמוד X ---". Extract the date and amount from EACH check.\n\n' +
         'CRITICAL RULES:\n' +
-        '1. DATE: Located near the word "DATE" or "תאריך" at the bottom of the check. ' +
-        'Format is DAY/MONTH/YEAR (Israeli format). Year is 2-digit (26 = 2026). ' +
-        'OCR often smashes digits together, for example:\n' +
-        '   - "304 26" = 30/4/26 (April 30, 2026)\n' +
-        '   - "30626" = 30/6/26 (June 30, 2026)\n' +
-        '   - "3826" = 30/8/26 (August 30, 2026) - the 0 was dropped\n' +
-        '   - "726" = likely 30/7/26 (July 30, 2026) - digits were lost\n' +
-        '   - "30.9.26" = 30/9/26 (September 30, 2026)\n' +
-        '   - "5.26" near "30" = 30/5/26 (May 30, 2026) - digits split across lines\n' +
-        '   Look for digits BEFORE the word DATE/תאריך. The date is always written above the DATE label.\n' +
-        '2. AMOUNT: Located near ₪ or N.I.S. on the right side of the check. ' +
-        'Format uses comma as thousands separator (e.g., 8,850). ' +
-        'IMPORTANT: OCR very often adds a leading "1" by mistake — if you see "18,850" or "18.850" but ' +
-        'the Hebrew words say "שמונה אלפים" (eight thousand), the real amount is 8,850 NOT 18,850. ' +
-        'Always cross-reference the numeric amount with the Hebrew words on the check. ' +
-        'OCR may also use $ instead of ₪, or dot instead of comma (8.850 = 8,850). ' +
-        'If you see "IN 18,850" or "$18,850" — the leading 1 is almost certainly an OCR error.\n' +
-        '3. IGNORE: account numbers (381817), branch numbers (78000), phone numbers (054...), ' +
-        'check numbers (0014095), and ID numbers (515652881).\n\n' +
-        'Respond with ONLY valid JSON, no other text:\n' +
-        '{"date": "YYYY-MM-DD", "amount": 8850}\n\n' +
+        '1. DATE: Located near "DATE" or "תאריך" at the bottom of each check. ' +
+        'Format is DAY/MONTH/YEAR (Israeli). Year is 2-digit (26 = 2026). ' +
+        'OCR smashes digits: "304 26"=30/4/26, "30626"=30/6/26, "3826"=30/8/26, "726"=30/7/26, ' +
+        '"5.26" near "30"=30/5/26. Look BEFORE the word DATE/תאריך.\n' +
+        '2. AMOUNT: Near ₪ or N.I.S. Format: X,XXX. ' +
+        'OCR adds leading "1" (18,850→8,850) or "$". Cross-reference with Hebrew words. ' +
+        'Dot can replace comma (8.850=8,850).\n' +
+        '3. IGNORE: account/branch/phone/check/ID numbers.\n\n' +
+        'Respond with ONLY a JSON array, one object per check, no other text:\n' +
+        '[{"date":"YYYY-MM-DD","amount":8850},{"date":"YYYY-MM-DD","amount":8850},...]\n\n' +
+        'Return exactly ' + pageCount + ' objects in the array.\n\n' +
         'OCR Text:\n' + ocrText;
 
     var requestBody = JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 100,
+        max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }]
     });
 
@@ -103,23 +98,24 @@ async function parseCheckWithClaude(ocrText) {
 
     if (res.status !== 200) {
         console.error('Claude API error:', res.status, JSON.stringify(res.data).substring(0, 300));
-        return null;
+        return [];
     }
 
     try {
         var responseText = res.data.content[0].text.trim();
-        // Extract JSON from response (Claude might wrap it in markdown)
-        var jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) return null;
-
-        var parsed = JSON.parse(jsonMatch[0]);
-        return {
-            date: parsed.date || '',
-            amount: parseFloat(parsed.amount) || 0
-        };
+        console.log('Claude response:', responseText);
+        // Extract JSON array from response
+        var jsonMatch = responseText.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) {
+            // Try single object
+            var objMatch = responseText.match(/\{[\s\S]*\}/);
+            if (objMatch) return [JSON.parse(objMatch[0])];
+            return [];
+        }
+        return JSON.parse(jsonMatch[0]);
     } catch (e) {
         console.error('Failed to parse Claude response:', e);
-        return null;
+        return [];
     }
 }
 
@@ -158,79 +154,80 @@ exports.handler = async (event) => {
 
         // Parse request body
         var body = JSON.parse(event.body);
-        var imageBase64 = body.imageBase64;
 
-        if (!imageBase64) {
-            return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Missing image data' }) };
-        }
+        // Mode 1: Single image (Vision + Claude)
+        // Mode 2: Pre-extracted OCR texts from multiple pages (Claude only)
+        var fullText = '';
 
-        // Remove data URL prefix if present
-        if (imageBase64.indexOf('base64,') !== -1) {
-            imageBase64 = imageBase64.split('base64,')[1];
-        }
-
-        // Call Google Cloud Vision API
-        var visionApiKey = process.env.GOOGLE_VISION_API_KEY;
-        if (!visionApiKey) {
-            return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: 'Vision API not configured' }) };
-        }
-
-        var visionRequest = {
-            requests: [{
-                image: { content: imageBase64 },
-                features: [{ type: 'TEXT_DETECTION', maxResults: 10 }],
-                imageContext: { languageHints: ['he', 'en'] }
-            }]
-        };
-
-        var visionData = JSON.stringify(visionRequest);
-        var visionRes = await httpRequest({
-            hostname: 'vision.googleapis.com',
-            path: '/v1/images:annotate?key=' + visionApiKey,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(visionData)
+        if (body.ocrTexts) {
+            // Multiple pages — texts already extracted by client via Vision API
+            fullText = body.ocrTexts.map(function(t, i) {
+                return (i > 0 ? '\n--- עמוד ' + (i + 1) + ' ---\n' : '') + t;
+            }).join('');
+        } else if (body.imageBase64) {
+            // Single image — extract text with Vision API
+            var imageBase64 = body.imageBase64;
+            if (imageBase64.indexOf('base64,') !== -1) {
+                imageBase64 = imageBase64.split('base64,')[1];
             }
-        }, visionData);
 
-        if (visionRes.status !== 200) {
-            console.error('Vision API error:', JSON.stringify(visionRes.data));
-            return { statusCode: 502, headers: corsHeaders, body: JSON.stringify({ error: 'Vision API error' }) };
-        }
+            var visionApiKey = process.env.GOOGLE_VISION_API_KEY;
+            if (!visionApiKey) {
+                return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: 'Vision API not configured' }) };
+            }
 
-        // Extract text from Vision API response
-        var responses = visionRes.data.responses;
-        if (!responses || !responses[0] || !responses[0].textAnnotations || responses[0].textAnnotations.length === 0) {
-            return {
-                statusCode: 200,
-                headers: corsHeaders,
-                body: JSON.stringify({ success: true, checks: [], rawText: '', message: 'No text detected in image' })
+            var visionRequest = {
+                requests: [{
+                    image: { content: imageBase64 },
+                    features: [{ type: 'TEXT_DETECTION', maxResults: 10 }],
+                    imageContext: { languageHints: ['he', 'en'] }
+                }]
             };
+
+            var visionData = JSON.stringify(visionRequest);
+            var visionRes = await httpRequest({
+                hostname: 'vision.googleapis.com',
+                path: '/v1/images:annotate?key=' + visionApiKey,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(visionData)
+                }
+            }, visionData);
+
+            if (visionRes.status !== 200) {
+                return { statusCode: 502, headers: corsHeaders, body: JSON.stringify({ error: 'Vision API error' }) };
+            }
+
+            var responses = visionRes.data.responses;
+            if (!responses || !responses[0] || !responses[0].textAnnotations || !responses[0].textAnnotations[0]) {
+                return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ success: true, checks: [], rawText: '' }) };
+            }
+
+            fullText = responses[0].textAnnotations[0].description || '';
+
+            // Vision-only mode: return raw text without Claude parsing
+            if (body.visionOnly) {
+                return {
+                    statusCode: 200,
+                    headers: corsHeaders,
+                    body: JSON.stringify({ success: true, rawText: fullText })
+                };
+            }
+        } else {
+            return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Missing image or text data' }) };
         }
 
-        var fullText = responses[0].textAnnotations[0].description || '';
-
-        // Parse with Claude API
-        var checkData = await parseCheckWithClaude(fullText);
-
-        var checks = [];
-        if (checkData && (checkData.date || checkData.amount > 0)) {
-            checks.push({
-                date: checkData.date,
-                amount: checkData.amount,
-                index: 1
-            });
-        }
+        // Parse all checks with Claude in one call
+        var parsedChecks = await parseChecksWithClaude(fullText);
+        var checks = parsedChecks.map(function(c, i) {
+            return { date: c.date || '', amount: parseFloat(c.amount) || 0, index: i + 1 };
+        });
 
         return {
             statusCode: 200,
             headers: corsHeaders,
-            body: JSON.stringify({
-                success: true,
-                checks: checks,
-                rawText: fullText
-            })
+            body: JSON.stringify({ success: true, checks: checks, rawText: fullText })
         };
 
     } catch (err) {
