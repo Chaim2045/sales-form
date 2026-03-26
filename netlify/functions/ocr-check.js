@@ -56,111 +56,77 @@ function getCorsOrigin(event) {
 }
 
 // Parse a SINGLE Israeli check text — one page = one check
-// Returns { date, amount } — the best match from the text
+// Tuned for real OCR output from scanned Israeli bank checks
 function parseCheckText(fullText) {
     var match;
 
     // === DATE ===
-    // Israeli checks: date is near "DATE" / "תאריך" at the bottom
-    // Format can be: DD/MM/YYYY, DD.MM.YYYY, DD.M.YY, DD , M , YY (handwritten with spaces)
+    // OCR reads handwritten dates near DATE/תאריך in various broken formats:
+    // "304 26" (30/4/26), "30626" (30/6/26), "3826" (30/8/26), "30.9.26"
     var bestDate = '';
 
-    // Pattern 1: date near "DATE" or "תאריך" keyword (most reliable for checks)
-    var dateAreaPattern = /(?:DATE|תאריך)[\s\S]{0,30}?(\d{1,2})\s*[\/\.\,\s]\s*(\d{1,2})\s*[\/\.\,\s]\s*(\d{2,4})/gi;
-    while ((match = dateAreaPattern.exec(fullText)) !== null) {
-        var day = match[1].padStart(2, '0');
-        var month = match[2].padStart(2, '0');
-        var year = match[3].length === 2 ? '20' + match[3] : match[3];
+    // Find the area near DATE/תאריך
+    var dateAreaMatch = fullText.match(/(?:DATE|תאריך)[\s\S]{0,5}/i);
+    var dateSearchArea = '';
+    if (dateAreaMatch) {
+        // Search 60 chars before DATE keyword (date is written above it)
+        var dateIdx = fullText.indexOf(dateAreaMatch[0]);
+        var startIdx = Math.max(0, dateIdx - 60);
+        dateSearchArea = fullText.substring(startIdx, dateIdx + 20);
+    }
+
+    // Pattern 1: clean format DD.MM.YY or DD/MM/YY
+    var cleanDatePattern = /(\d{1,2})\s*[\.\/-]\s*(\d{1,2})\s*[\.\/-]\s*(\d{2,4})/g;
+    var searchIn = dateSearchArea || fullText;
+    while ((match = cleanDatePattern.exec(searchIn)) !== null) {
+        var day = match[1], month = match[2], year = match[3];
+        if (year.length === 2) year = '20' + year;
         var d = parseInt(day), m = parseInt(month), y = parseInt(year);
         if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 2024 && y <= 2030) {
-            bestDate = year + '-' + month + '-' + day;
+            bestDate = year + '-' + month.padStart(2, '0') + '-' + day.padStart(2, '0');
             break;
         }
     }
 
-    // Pattern 2: look before "DATE" / "תאריך" (date written above the label)
-    if (!bestDate) {
-        var beforeDatePattern = /(\d{1,2})\s*[\/\.\,\s]\s*(\d{1,2})\s*[\/\.\,\s]\s*(\d{2,4})\s*[\s\S]{0,20}?(?:DATE|תאריך)/gi;
-        while ((match = beforeDatePattern.exec(fullText)) !== null) {
-            var day2 = match[1].padStart(2, '0');
-            var month2 = match[2].padStart(2, '0');
-            var year2 = match[3].length === 2 ? '20' + match[3] : match[3];
-            var d2 = parseInt(day2), m2 = parseInt(month2), y2 = parseInt(year2);
-            if (d2 >= 1 && d2 <= 31 && m2 >= 1 && m2 <= 12 && y2 >= 2024 && y2 <= 2030) {
-                bestDate = year2 + '-' + month2 + '-' + day2;
-                break;
-            }
-        }
-    }
-
-    // Pattern 3: fallback — any date in DD/MM/YYYY or DD.MM.YY format
-    if (!bestDate) {
-        var generalDatePattern = /(\d{1,2})\s*[\/\.]\s*(\d{1,2})\s*[\/\.]\s*(\d{2,4})/g;
-        while ((match = generalDatePattern.exec(fullText)) !== null) {
-            var day3 = match[1].padStart(2, '0');
-            var month3 = match[2].padStart(2, '0');
-            var year3 = match[3].length === 2 ? '20' + match[3] : match[3];
-            var d3 = parseInt(day3), m3 = parseInt(month3), y3 = parseInt(year3);
-            if (d3 >= 1 && d3 <= 31 && m3 >= 1 && m3 <= 12 && y3 >= 2024 && y3 <= 2030) {
-                bestDate = year3 + '-' + month3 + '-' + day3;
+    // Pattern 2: digits smashed together near DATE — e.g., "304 26" or "30626" or "3826"
+    if (!bestDate && dateSearchArea) {
+        // Look for 3-6 digit sequences near DATE
+        var smashedPattern = /(\d{3,6})\s*(\d{2})?/g;
+        while ((match = smashedPattern.exec(dateSearchArea)) !== null) {
+            var digits = match[1] + (match[2] || '');
+            var parsed = parseSmashedDate(digits);
+            if (parsed) {
+                bestDate = parsed;
                 break;
             }
         }
     }
 
     // === AMOUNT ===
-    // Israeli check: amount is near ₪ or N.I.S. — the numeric amount (e.g., 8,850)
+    // OCR reads amounts as: "8,850", "$8,850", "18,850", "8.850", "18.850"
+    // The actual amount has comma or dot as thousands separator
     var bestAmount = 0;
 
-    // Priority 1: number near ₪ sign (right side of check)
-    var shekelPattern = /₪\s*([\d,\.]+)|(\d[\d,]*\.?\d{0,2})\s*[₪]/g;
-    while ((match = shekelPattern.exec(fullText)) !== null) {
-        var numStr = match[1] || match[2];
+    // Collect all numbers with comma or dot thousands separator (X,XXX or X.XXX)
+    var amountPattern = /[\$₪]?\s*[1]?(\d{1,3}[,\.]\d{3}(?:\.\d{1,2})?)/g;
+    var amountCandidates = [];
+    while ((match = amountPattern.exec(fullText)) !== null) {
+        // Remove leading 1 that OCR sometimes adds, and normalize separators
+        var numStr = match[1].replace(/\./g, ','); // normalize dots to commas
         var val = parseFloat(numStr.replace(/,/g, ''));
         if (val >= 100 && val < 10000000) {
-            bestAmount = val;
-            break;
+            amountCandidates.push(val);
         }
     }
 
-    // Priority 2: number near N.I.S.
-    if (bestAmount === 0) {
-        var nisPattern = /N\.?\s*I\.?\s*S\.?\s*[^\d]*([\d,]+\.?\d{0,2})|([\d,]+\.?\d{0,2})\s*N\.?\s*I\.?\s*S/gi;
-        while ((match = nisPattern.exec(fullText)) !== null) {
-            var numStr2 = match[1] || match[2];
-            var val2 = parseFloat(numStr2.replace(/,/g, ''));
-            if (val2 >= 100 && val2 < 10000000) {
-                bestAmount = val2;
-                break;
-            }
-        }
-    }
-
-    // Priority 3: amount between asterisks ***1,500***
-    if (bestAmount === 0) {
-        var asteriskPattern = /\*{1,3}\s*([\d,]+\.?\d{0,2})\s*\*{1,3}/g;
-        while ((match = asteriskPattern.exec(fullText)) !== null) {
-            var val3 = parseFloat(match[1].replace(/,/g, ''));
-            if (val3 >= 100 && val3 < 10000000) {
-                bestAmount = val3;
-                break;
-            }
-        }
-    }
-
-    // Priority 4: number with comma formatting (X,XXX) — typical check amount format
-    if (bestAmount === 0) {
-        var commaPattern = /\b(\d{1,3},\d{3}(?:\.\d{1,2})?)\b/g;
-        var candidates = [];
-        while ((match = commaPattern.exec(fullText)) !== null) {
-            var val4 = parseFloat(match[1].replace(/,/g, ''));
-            // Skip numbers that look like phone/ID (too many digits without comma)
-            if (val4 >= 500 && val4 < 10000000) candidates.push(val4);
-        }
-        if (candidates.length > 0) {
-            // If multiple, prefer the one that appears most often (repeated = likely the amount)
-            bestAmount = candidates[0];
-        }
+    if (amountCandidates.length > 0) {
+        // Find the most common amount (the real amount appears multiple times on a check)
+        var counts = {};
+        amountCandidates.forEach(function(v) {
+            counts[v] = (counts[v] || 0) + 1;
+        });
+        var sorted = Object.keys(counts).sort(function(a, b) { return counts[b] - counts[a]; });
+        bestAmount = parseFloat(sorted[0]);
     }
 
     // Return single check or empty
@@ -176,6 +142,39 @@ function parseCheckText(fullText) {
         }],
         rawText: fullText
     };
+}
+
+// Parse smashed date digits: "30426" → 30/4/26, "30626" → 30/6/26, "3826" → 30/8/26 (dropped 0)
+function parseSmashedDate(digits) {
+    // Try different splits for DD M YY or DD MM YY
+    var attempts = [];
+
+    if (digits.length === 5) {
+        // DDMYY: e.g., "30426" → 30, 4, 26
+        attempts.push({ d: digits.substr(0, 2), m: digits.substr(2, 1), y: digits.substr(3, 2) });
+        // DMMYY: e.g., "3 04 26" unlikely but try
+        attempts.push({ d: digits.substr(0, 1), m: digits.substr(1, 2), y: digits.substr(3, 2) });
+    } else if (digits.length === 6) {
+        // DDMMYY: e.g., "300426"
+        attempts.push({ d: digits.substr(0, 2), m: digits.substr(2, 2), y: digits.substr(4, 2) });
+    } else if (digits.length === 4) {
+        // DMYY: e.g., "3826" → could be 3/8/26 or 30/8/26 (dropped 0)
+        attempts.push({ d: digits.substr(0, 1), m: digits.substr(1, 1), y: digits.substr(2, 2) });
+        // Try with leading 30: "3826" → 30, 8, 26 (OCR dropped the 0 from 30)
+        attempts.push({ d: '30', m: digits.substr(1, 1), y: digits.substr(2, 2) });
+        attempts.push({ d: digits.substr(0, 2), m: digits.substr(2, 1), y: '2' + digits.substr(3, 1) });
+    } else if (digits.length === 3) {
+        // MYY or DMY: e.g., "426" → 4/26? unlikely, skip
+    }
+
+    for (var i = 0; i < attempts.length; i++) {
+        var a = attempts[i];
+        var d = parseInt(a.d), m = parseInt(a.m), y = parseInt(a.y.length === 2 ? '20' + a.y : a.y);
+        if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 2024 && y <= 2030) {
+            return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+        }
+    }
+    return null;
 }
 
 exports.handler = async (event) => {
