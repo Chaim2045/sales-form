@@ -162,6 +162,8 @@ function validateStep(step) {
 
                 // בדיקת שדות שיקים דינמיים
                 var checksCount = parseInt(document.getElementById('checksCount').value) || 0;
+                var checksSum = 0;
+                var today = new Date().toISOString().split('T')[0];
                 for (var i = 1; i <= checksCount; i++) {
                     var dateInput = document.getElementById('check_date_' + i);
                     var amountInput = document.getElementById('check_amount_' + i);
@@ -169,6 +171,10 @@ function validateStep(step) {
                         dateInput.classList.add('error');
                         isValid = false;
                         errors.push('תאריך שיק ' + i);
+                    } else if (dateInput && dateInput.value < today) {
+                        dateInput.classList.add('error');
+                        isValid = false;
+                        errors.push('תאריך שיק ' + i + ' בעבר');
                     } else if (dateInput) {
                         dateInput.classList.remove('error');
                     }
@@ -178,7 +184,19 @@ function validateStep(step) {
                         errors.push('סכום שיק ' + i);
                     } else if (amountInput) {
                         amountInput.classList.remove('error');
+                        checksSum += parseFloat(amountInput.value) || 0;
                     }
+                }
+
+                // וולידציה: סכום השיקים הבודדים = סה"כ
+                var checksTotalInput = document.getElementById('checksTotalAmount');
+                var checksTotal = parseFloat(checksTotalInput ? checksTotalInput.value : 0) || 0;
+                if (checksCount > 0 && checksTotal > 0 && checksSum > 0 && Math.abs(checksSum - checksTotal) > 1) {
+                    isValid = false;
+                    errors.push('סכום השיקים (' + checksSum.toFixed(0) + ') לא תואם לסה"כ (' + checksTotal.toFixed(0) + ')');
+                    if (checksTotalInput) checksTotalInput.classList.add('error');
+                } else if (checksTotalInput) {
+                    checksTotalInput.classList.remove('error');
                 }
             }
 
@@ -244,6 +262,14 @@ function showValidationError(errors) {
     });
     toast.appendChild(list);
 
+    // כפתור סגירה
+    var closeBtn = document.createElement('span');
+    closeBtn.style.cssText = 'position:absolute;top:8px;left:12px;cursor:pointer;font-size:18px;color:#991b1b;font-weight:bold;';
+    closeBtn.textContent = '✕';
+    closeBtn.onclick = function() { toast.remove(); };
+    toast.style.position = 'fixed';
+    toast.appendChild(closeBtn);
+
     document.body.appendChild(toast);
 
     // הוספת אנימציה
@@ -255,14 +281,14 @@ function showValidationError(errors) {
         document.head.appendChild(style);
     }
 
-    // הסרה אוטומטית אחרי 5 שניות
+    // הסרה אוטומטית אחרי 10 שניות (או לחיצה על X)
     setTimeout(function() {
         if (toast.parentNode) {
             toast.style.opacity = '0';
             toast.style.transition = 'opacity 0.3s ease';
             setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
         }
-    }, 5000);
+    }, 10000);
 }
 
 function nextStep() {

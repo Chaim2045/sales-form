@@ -45,6 +45,18 @@ document.getElementById('checksPhoto').addEventListener('change', function(e) {
     }
 });
 
+function clearChecksFile() {
+    var fileInput = document.getElementById('checksPhoto');
+    var container = document.getElementById('checksUploadContainer');
+    var preview = document.getElementById('checksPreview');
+    var ocrArea = document.getElementById('ocrActionArea');
+
+    if (fileInput) fileInput.value = '';
+    if (container) container.classList.remove('has-file');
+    if (preview) preview.classList.remove('show');
+    if (ocrArea) ocrArea.style.display = 'none';
+}
+
 // Generate UUID for secure filenames
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -100,8 +112,12 @@ async function uploadFile(file, path) {
 }
 
 // Form Submission
+var _submittingForm = false;
 document.getElementById('salesForm').addEventListener('submit', async function(e) {
     e.preventDefault();
+
+    // מניעת שליחה כפולה
+    if (_submittingForm) return;
 
     if (!validateStep(4)) return;
 
@@ -141,6 +157,7 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
         }
     }
 
+    _submittingForm = true;
     const submitBtn = document.getElementById('submitBtn');
     const submitText = document.getElementById('submitText');
     const submitSpinner = document.getElementById('submitSpinner');
@@ -295,6 +312,7 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
         console.error('Error submitting form:', error);
         alert('\u05D0\u05D9\u05E8\u05E2\u05D4 \u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05E9\u05DC\u05D9\u05D7\u05EA \u05D4\u05D8\u05D5\u05E4\u05E1. \u05E0\u05E1\u05D4 \u05E9\u05E0\u05D9\u05EA.');
     } finally {
+        _submittingForm = false;
         submitBtn.disabled = false;
         submitText.classList.remove('hidden');
         submitSpinner.classList.add('hidden');
@@ -338,6 +356,28 @@ function resetForm() {
     document.getElementById('checksUploadContainer').classList.remove('has-file');
     document.getElementById('checksPreview').classList.remove('show');
     document.getElementById('checksImage').src = '';
+    document.getElementById('checksPhoto').value = '';
+    var ocrArea = document.getElementById('ocrActionArea');
+    if (ocrArea) ocrArea.style.display = 'none';
+
+    // Reset dynamic check fields
+    var checksContainer = document.getElementById('checksDetailsContainer');
+    if (checksContainer) checksContainer.innerHTML = '';
+
+    // Reset credit card sub-fields
+    document.querySelectorAll('.conditional-subfield').forEach(function(el) {
+        el.style.display = 'none';
+    });
+
+    // Reset error highlights
+    document.querySelectorAll('.error, .error-highlight').forEach(function(el) {
+        el.classList.remove('error');
+        el.classList.remove('error-highlight');
+    });
+
+    // Remove validation toast if visible
+    var toast = document.getElementById('validationErrorToast');
+    if (toast) toast.remove();
 
     // Reset to step 1
     showStep(1);
