@@ -126,14 +126,6 @@ function parseCheckText(fullText) {
         }
     }
 
-    // === CHECK NUMBER: from MICR line at bottom ===
-    var bestCheckNumber = '';
-    var micrPattern = /\b(\d{7,8})\b/g;
-    while ((match = micrPattern.exec(fullText)) !== null) {
-        bestCheckNumber = match[1];
-        break;
-    }
-
     // Return single check or empty
     if (!bestDate && bestAmount === 0) {
         return { checks: [], rawText: fullText };
@@ -143,7 +135,6 @@ function parseCheckText(fullText) {
         checks: [{
             date: bestDate,
             amount: bestAmount,
-            checkNumber: bestCheckNumber,
             index: 1
         }],
         rawText: fullText

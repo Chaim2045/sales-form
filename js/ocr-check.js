@@ -259,12 +259,6 @@ function showOcrConfirmationModal(checks) {
         amountGroup.innerHTML = '<label>סכום</label><input type="number" class="ocr-check-amount" value="' + (checks[i].amount || '') + '" step="any" min="0">';
         row.appendChild(amountGroup);
 
-        // Check number field
-        var numGroup = document.createElement('div');
-        numGroup.className = 'ocr-field-group';
-        numGroup.innerHTML = '<label>מס\' שיק</label><input type="text" class="ocr-check-number" value="' + (checks[i].checkNumber || '') + '">';
-        row.appendChild(numGroup);
-
         checkDiv.appendChild(row);
         fieldsContainer.appendChild(checkDiv);
     }
@@ -307,14 +301,12 @@ function showOcrConfirmationModal(checks) {
 function collectOcrModalData() {
     var dates = document.querySelectorAll('.ocr-check-date');
     var amounts = document.querySelectorAll('.ocr-check-amount');
-    var numbers = document.querySelectorAll('.ocr-check-number');
     var checks = [];
 
     for (var i = 0; i < dates.length; i++) {
         checks.push({
             date: dates[i].value || '',
-            amount: parseFloat(amounts[i].value) || 0,
-            checkNumber: numbers[i] ? numbers[i].value : ''
+            amount: parseFloat(amounts[i].value) || 0
         });
     }
     return checks;
