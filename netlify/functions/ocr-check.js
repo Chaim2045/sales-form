@@ -21,11 +21,11 @@ function httpRequest(options, data) {
 
 // Verify caller is authenticated (any active user, not just master)
 async function verifyAuth(idToken) {
-    var apiKey = process.env.FIREBASE_API_KEY;
+    var apiKey = process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY;
     console.log('verifyAuth: API key exists:', !!apiKey, 'token length:', idToken ? idToken.length : 0);
 
     if (!apiKey) {
-        throw new Error('FIREBASE_API_KEY not configured');
+        throw new Error('FIREBASE_WEB_API_KEY not configured');
     }
 
     var postData = JSON.stringify({ idToken: idToken });
