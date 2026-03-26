@@ -1,40 +1,96 @@
 // ========== OCR Check Reading ==========
-// Extracts check details (date, amount, check number) from uploaded check photos
+// Extracts check details (date, amount, check number) from uploaded check photos/PDFs
 
 var _ocrProcessing = false;
 
-async function ocrExtractCheckData(file) {
-    return new Promise(function(resolve, reject) {
-        var reader = new FileReader();
-        reader.onload = async function() {
-            try {
-                var base64 = reader.result; // data:image/jpeg;base64,...
-                var idToken = await authUser.getIdToken();
+// Convert PDF pages to image base64 array using pdf.js
+async function pdfPagesToImages(file) {
+    var arrayBuffer = await file.arrayBuffer();
+    var pdfjsLib = window.pdfjsLib;
+    if (!pdfjsLib) throw new Error('PDF.js not loaded');
 
-                var response = await fetch('/api/ocr-check', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + idToken,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        imageBase64: base64,
-                        mimeType: file.type
-                    })
-                });
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-                var data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || 'OCR request failed');
-                }
-                resolve(data);
-            } catch (err) {
-                reject(err);
-            }
-        };
-        reader.onerror = function() { reject(new Error('Failed to read file')); };
-        reader.readAsDataURL(file);
+    var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    var images = [];
+
+    // Max 10 pages to avoid excessive API calls
+    var pageCount = Math.min(pdf.numPages, 10);
+
+    for (var p = 1; p <= pageCount; p++) {
+        var page = await pdf.getPage(p);
+        var scale = 2; // 2x for better OCR accuracy
+        var viewport = page.getViewport({ scale: scale });
+
+        var canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        var ctx = canvas.getContext('2d');
+
+        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+        images.push(canvas.toDataURL('image/png'));
+    }
+
+    return images;
+}
+
+async function sendOcrRequest(base64, idToken) {
+    var response = await fetch('/api/ocr-check', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + idToken,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            imageBase64: base64,
+            mimeType: 'image/png'
+        })
     });
+
+    var data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.error || 'OCR request failed');
+    }
+    return data;
+}
+
+async function ocrExtractCheckData(file) {
+    var idToken = await authUser.getIdToken();
+
+    if (file.type === 'application/pdf') {
+        // PDF — convert each page to image and OCR separately
+        var images = await pdfPagesToImages(file);
+        var allChecks = [];
+        var allRawText = '';
+
+        for (var i = 0; i < images.length; i++) {
+            showOcrStatus('סורק עמוד ' + (i + 1) + ' מתוך ' + images.length + '...', 'loading');
+            var result = await sendOcrRequest(images[i], idToken);
+            if (result.checks) {
+                allChecks = allChecks.concat(result.checks);
+            }
+            if (result.rawText) {
+                allRawText += (allRawText ? '\n--- עמוד ' + (i + 1) + ' ---\n' : '') + result.rawText;
+            }
+        }
+
+        // Re-index checks
+        for (var j = 0; j < allChecks.length; j++) {
+            allChecks[j].index = j + 1;
+        }
+
+        return { success: true, checks: allChecks, rawText: allRawText };
+    } else {
+        // Image — send directly
+        var base64 = await new Promise(function(resolve, reject) {
+            var reader = new FileReader();
+            reader.onload = function() { resolve(reader.result); };
+            reader.onerror = function() { reject(new Error('Failed to read file')); };
+            reader.readAsDataURL(file);
+        });
+
+        return await sendOcrRequest(base64, idToken);
+    }
 }
 
 function triggerOcrExtraction(file) {
