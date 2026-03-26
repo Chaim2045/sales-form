@@ -57,18 +57,29 @@ async function parseCheckWithClaude(ocrText) {
         return null;
     }
 
-    var prompt = 'הטקסט הבא הוא פלט OCR מסריקה של שיק ישראלי. ' +
-        'חלץ את תאריך השיק ואת סכום השיק בלבד.\n\n' +
-        'כללים חשובים:\n' +
-        '- התאריך נמצא ליד המילה DATE או תאריך, בפורמט יום/חודש/שנה\n' +
-        '- ה-OCR לפעמים מרסק ספרות ביחד, למשל "304 26" זה 30/4/26, "30626" זה 30/6/26\n' +
-        '- הסכום נמצא ליד ₪ או N.I.S., בפורמט עם פסיק (למשל 8,850)\n' +
-        '- ה-OCR לפעמים מוסיף 1 בטעות לפני הסכום (18,850 במקום 8,850) או $ במקום ₪\n' +
-        '- התעלם ממספרי חשבון, מספרי סניף, מספרי טלפון ומספרי שיק\n\n' +
-        'החזר תשובה בפורמט JSON בלבד, ללא טקסט נוסף:\n' +
-        '{"date": "YYYY-MM-DD", "amount": 1234}\n\n' +
-        'אם לא מצליח לזהות, החזר null בשדה המתאים.\n\n' +
-        'הטקסט:\n' + ocrText;
+    var prompt = 'You are parsing OCR output from a scanned Israeli bank check (שיק). ' +
+        'Extract ONLY the check date and check amount.\n\n' +
+        'CRITICAL RULES:\n' +
+        '1. DATE: Located near the word "DATE" or "תאריך" at the bottom of the check. ' +
+        'Format is DAY/MONTH/YEAR (Israeli format). Year is 2-digit (26 = 2026). ' +
+        'OCR often smashes digits together, for example:\n' +
+        '   - "304 26" = 30/4/26 (April 30, 2026)\n' +
+        '   - "30626" = 30/6/26 (June 30, 2026)\n' +
+        '   - "3826" = 30/8/26 (August 30, 2026) - the 0 was dropped\n' +
+        '   - "726" = likely 30/7/26 (July 30, 2026) - digits were lost\n' +
+        '   - "30.9.26" = 30/9/26 (September 30, 2026)\n' +
+        '   - "5.26" near "30" = 30/5/26 (May 30, 2026) - digits split across lines\n' +
+        '   Look for digits BEFORE the word DATE/תאריך. The date is always written above the DATE label.\n' +
+        '2. AMOUNT: Located near ₪ or N.I.S. on the right side of the check. ' +
+        'Format uses comma as thousands separator (e.g., 8,850). ' +
+        'OCR sometimes adds a leading "1" by mistake (18,850 should be 8,850) or uses $ instead of ₪. ' +
+        'OCR sometimes uses dot instead of comma (8.850 = 8,850). ' +
+        'The amount in WORDS (written in Hebrew) can help verify the number.\n' +
+        '3. IGNORE: account numbers (381817), branch numbers (78000), phone numbers (054...), ' +
+        'check numbers (0014095), and ID numbers (515652881).\n\n' +
+        'Respond with ONLY valid JSON, no other text:\n' +
+        '{"date": "YYYY-MM-DD", "amount": 8850}\n\n' +
+        'OCR Text:\n' + ocrText;
 
     var requestBody = JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
