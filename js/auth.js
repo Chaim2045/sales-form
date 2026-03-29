@@ -2,35 +2,6 @@
 
 var _quickLoginAvailable = false; // true if saved credentials exist
 
-function togglePasswordVisibility() {
-    var input = document.getElementById('loginPassword');
-    var wrapper = input.closest('.password-wrapper');
-    var eyeOpen = wrapper.querySelector('.eye-open');
-    var eyeClosed = wrapper.querySelector('.eye-closed');
-    if (input.type === 'password') {
-        input.type = 'text';
-        eyeOpen.style.display = 'none';
-        eyeClosed.style.display = '';
-    } else {
-        input.type = 'password';
-        eyeOpen.style.display = '';
-        eyeClosed.style.display = 'none';
-    }
-    input.focus();
-}
-
-function setLoginLoading(btn, loading) {
-    if (loading) {
-        btn.classList.add('is-loading');
-        btn.querySelector('.login-btn-text').textContent = 'מתחבר...';
-        btn.disabled = true;
-    } else {
-        btn.classList.remove('is-loading');
-        btn.querySelector('.login-btn-text').textContent = 'כניסה';
-        btn.disabled = false;
-    }
-}
-
 async function handleLogin() {
     var email = document.getElementById('loginEmail').value.trim();
     var password = document.getElementById('loginPassword').value;
@@ -41,16 +12,15 @@ async function handleLogin() {
 
     if (!email) {
         errorEl.textContent = 'נא להזין אימייל';
-        document.getElementById('loginEmail').focus();
         return;
     }
     if (!password) {
         errorEl.textContent = 'נא להזין סיסמה';
-        document.getElementById('loginPassword').focus();
         return;
     }
 
-    setLoginLoading(btn, true);
+    btn.disabled = true;
+    btn.textContent = 'מתחבר...';
 
     try {
         await auth.signInWithEmailAndPassword(email, password);
@@ -70,7 +40,8 @@ async function handleLogin() {
         logAuditEvent('login_failed', { email: email, reason: error.code });
     }
 
-    setLoginLoading(btn, false);
+    btn.disabled = false;
+    btn.textContent = 'כניסה';
 }
 
 // Enter key handlers
