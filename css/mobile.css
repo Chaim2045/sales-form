@@ -874,7 +874,10 @@ body {
 
     /* Login screen */
     #loginScreen {
-        margin: 40px auto;
+        padding: 16px;
+    }
+    .login-card {
+        padding: 28px 20px;
     }
 
     /* Progress bar — compact */

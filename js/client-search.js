@@ -124,37 +124,115 @@ function showAutoFillFeedback() {
     }, 2500);
 }
 
-function displayAutocompleteResults(clients) {
-    const dropdown = document.getElementById('clientAutocomplete');
+// Search companies by name from Israeli Registrar (רשות התאגידים)
+async function searchCompanies(searchTerm) {
+    if (!searchTerm || searchTerm.length < 3) return [];
+    try {
+        var response = await fetch('/api/company-lookup?name=' + encodeURIComponent(searchTerm));
+        if (!response.ok) return [];
+        var data = await response.json();
+        return data.results || [];
+    } catch (err) {
+        console.error('Company search failed:', err);
+        return [];
+    }
+}
 
-    if (clients.length === 0) {
+function displayAutocompleteResults(clients, companies) {
+    const dropdown = document.getElementById('clientAutocomplete');
+    companies = companies || [];
+
+    if (clients.length === 0 && companies.length === 0) {
         dropdown.innerHTML = '<div class="autocomplete-no-results">לא נמצאו לקוחות</div>';
         dropdown.classList.add('show');
         return;
     }
 
     dropdown.innerHTML = '';
-    clients.forEach(function(client) {
-        var item = document.createElement('div');
-        item.className = 'autocomplete-item';
 
-        var nameDiv = document.createElement('div');
-        nameDiv.className = 'autocomplete-item-name';
-        nameDiv.textContent = client.clientName;
+    // Show existing clients first
+    if (clients.length > 0) {
+        var clientHeader = document.createElement('div');
+        clientHeader.className = 'autocomplete-section-header';
+        clientHeader.textContent = 'לקוחות קיימים';
+        dropdown.appendChild(clientHeader);
 
-        var detailsDiv = document.createElement('div');
-        detailsDiv.className = 'autocomplete-item-details';
-        detailsDiv.textContent = (client.phone || '') + ' \u2022 ' + (client.email || '');
+        clients.forEach(function(client) {
+            var item = document.createElement('div');
+            item.className = 'autocomplete-item';
 
-        item.appendChild(nameDiv);
-        item.appendChild(detailsDiv);
+            var nameDiv = document.createElement('div');
+            nameDiv.className = 'autocomplete-item-name';
+            nameDiv.textContent = client.clientName;
 
-        item.addEventListener('click', function() {
-            fillClientData(client);
+            var detailsDiv = document.createElement('div');
+            detailsDiv.className = 'autocomplete-item-details';
+            detailsDiv.textContent = (client.phone || '') + ' \u2022 ' + (client.email || '');
+
+            item.appendChild(nameDiv);
+            item.appendChild(detailsDiv);
+
+            item.addEventListener('click', function() {
+                fillClientData(client);
+            });
+
+            dropdown.appendChild(item);
         });
+    }
 
-        dropdown.appendChild(item);
-    });
+    // Show company registry results
+    if (companies.length > 0) {
+        var companyHeader = document.createElement('div');
+        companyHeader.className = 'autocomplete-section-header';
+        companyHeader.textContent = 'רשות התאגידים';
+        dropdown.appendChild(companyHeader);
+
+        companies.forEach(function(company) {
+            var item = document.createElement('div');
+            item.className = 'autocomplete-item autocomplete-item-company';
+
+            var nameDiv = document.createElement('div');
+            nameDiv.className = 'autocomplete-item-name';
+            nameDiv.textContent = company.companyName;
+
+            var detailsDiv = document.createElement('div');
+            detailsDiv.className = 'autocomplete-item-details';
+            var details = 'ח.פ. ' + company.companyNumber;
+            if (company.status) details += ' \u2022 ' + company.status;
+            if (company.fullAddress) details += ' \u2022 ' + company.fullAddress;
+            detailsDiv.textContent = details;
+
+            item.appendChild(nameDiv);
+            item.appendChild(detailsDiv);
+
+            item.addEventListener('click', function() {
+                // Fill from company registry data
+                document.getElementById('clientName').value = company.companyName;
+                document.getElementById('idNumber').value = company.companyNumber;
+                if (company.fullAddress) {
+                    document.getElementById('address').value = company.fullAddress;
+                }
+
+                // Hide dropdown
+                dropdown.classList.remove('show');
+
+                // Cache in company lookup cache for future reference
+                if (typeof _companyLookupCache !== 'undefined') {
+                    _companyLookupCache[company.companyNumber.replace(/\D/g, '')] = company;
+                }
+
+                // Show toast
+                if (typeof showCompanyLookupToast === 'function') {
+                    showCompanyLookupToast(company);
+                }
+
+                logAuditEvent('company_registry_autocomplete', { companyName: company.companyName, companyNumber: company.companyNumber });
+            });
+
+            dropdown.appendChild(item);
+        });
+    }
+
     dropdown.classList.add('show');
 }
 
@@ -183,8 +261,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Debounce search - wait 300ms after user stops typing
         searchTimeout = setTimeout(async () => {
-            const results = await searchClients(searchTerm);
-            displayAutocompleteResults(results);
+            // Search existing clients and company registry in parallel
+            var promises = [searchClients(searchTerm)];
+            if (searchTerm.length >= 3) {
+                promises.push(searchCompanies(searchTerm));
+            } else {
+                promises.push(Promise.resolve([]));
+            }
+            var [clients, companies] = await Promise.all(promises);
+
+            // Filter out companies already in client list (by name)
+            var existingNames = new Set(clients.map(function(c) { return c.clientName; }));
+            companies = companies.filter(function(c) { return !existingNames.has(c.companyName); });
+
+            displayAutocompleteResults(clients, companies);
         }, 300);
     });
 
