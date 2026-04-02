@@ -1,5 +1,25 @@
 /* ==================== Leads CRM Styles ==================== */
 
+/* Header buttons (used in leadsManagement) */
+#leadsManagement .bm-export-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+#leadsManagement .bm-export-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+}
+
 #leadsManagement {
     display: none;
     padding: 16px;
