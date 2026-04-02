@@ -1,0 +1,478 @@
+/* ==================== Leads CRM Styles ==================== */
+
+#leadsManagement {
+    display: none;
+    padding: 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-bottom: 80px;
+}
+
+#leadsManagement.active {
+    display: block;
+}
+
+/* Filter selects */
+.ld-filter-select {
+    padding: 6px 10px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    background: var(--bg-primary);
+    min-width: 120px;
+}
+
+.ld-filter-date {
+    padding: 6px 8px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    background: var(--bg-primary);
+    max-width: 130px;
+}
+
+/* ==================== Status Badges ==================== */
+
+.ld-status {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ld-status-new { background: rgba(59,130,246,0.1); color: #3b82f6; }
+.ld-status-assigned { background: rgba(139,92,246,0.1); color: #8b5cf6; }
+.ld-status-contacted { background: rgba(245,158,11,0.1); color: #f59e0b; }
+.ld-status-followup { background: rgba(6,182,212,0.1); color: #06b6d4; }
+.ld-status-no_answer { background: rgba(107,114,128,0.1); color: #6b7280; }
+.ld-status-closed { background: rgba(16,185,129,0.1); color: #10b981; }
+.ld-status-not_relevant { background: rgba(239,68,68,0.1); color: #ef4444; }
+
+/* ==================== AI Score Badge ==================== */
+
+.ld-score {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.ld-score-high { color: #10b981; }
+.ld-score-med { color: #f59e0b; }
+.ld-score-low { color: #ef4444; }
+.ld-score-none { color: var(--text-quaternary); }
+
+.ld-score-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+/* ==================== Source Labels ==================== */
+
+.ld-source {
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+
+/* ==================== Kanban View ==================== */
+
+.ld-kanban {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
+
+@media (max-width: 900px) {
+    .ld-kanban {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 500px) {
+    .ld-kanban {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ld-kanban-col {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-lg);
+    padding: 10px;
+    min-height: 200px;
+}
+
+.ld-kanban-header {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ld-kanban-count {
+    background: var(--bg-active);
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.ld-kanban-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ld-kanban-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-sm);
+}
+
+.ld-kanban-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.ld-kanban-card-subject {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-bottom: 4px;
+}
+
+.ld-kanban-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.ld-kanban-card-assignee {
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 500;
+}
+
+/* ==================== Modal ==================== */
+
+.ld-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 16px;
+    overflow-y: auto;
+}
+
+.ld-modal {
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    width: 100%;
+    max-width: 560px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.ld-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px;
+    border-bottom: 1px solid var(--border-default);
+    position: sticky;
+    top: 0;
+    background: var(--bg-primary);
+    z-index: 1;
+}
+
+.ld-modal-header h3 {
+    flex: 1;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ld-modal-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--text-tertiary);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+}
+
+.ld-modal-close:hover {
+    background: var(--bg-active);
+}
+
+.ld-modal-body {
+    padding: 16px;
+}
+
+/* AI Box */
+.ld-ai-box {
+    background: rgba(59,130,246,0.04);
+    border: 1px solid rgba(59,130,246,0.12);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.ld-ai-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 6px;
+}
+
+.ld-ai-box p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Info Rows */
+.ld-modal-info {
+    margin-bottom: 16px;
+}
+
+.ld-info-row {
+    display: flex;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-default);
+    font-size: 13px;
+}
+
+.ld-info-label {
+    color: var(--text-tertiary);
+    min-width: 60px;
+    font-weight: 500;
+}
+
+.ld-info-value {
+    color: var(--text-primary);
+    flex: 1;
+    direction: ltr;
+    text-align: right;
+}
+
+/* Editable Fields */
+.ld-modal-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 500px) {
+    .ld-modal-fields {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ld-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ld-field-group label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+}
+
+.ld-modal-select,
+.ld-modal-input,
+.ld-modal-textarea {
+    padding: 7px 10px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    background: var(--bg-primary);
+    font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ld-modal-select:focus,
+.ld-modal-input:focus,
+.ld-modal-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-ring);
+}
+
+.ld-modal-textarea {
+    resize: vertical;
+    min-height: 50px;
+}
+
+/* Action Buttons */
+.ld-modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.ld-btn-primary {
+    padding: 8px 20px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.ld-btn-primary:hover {
+    background: var(--accent-hover);
+}
+
+.ld-btn-secondary {
+    padding: 8px 16px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ld-btn-secondary:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+}
+
+/* History */
+.ld-modal-history {
+    margin-top: 12px;
+}
+
+.ld-modal-history h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 8px;
+}
+
+.ld-history-item {
+    display: flex;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-default);
+    font-size: 12px;
+}
+
+.ld-history-time {
+    color: var(--text-quaternary);
+    min-width: 70px;
+    white-space: nowrap;
+}
+
+.ld-history-text {
+    color: var(--text-secondary);
+    flex: 1;
+}
+
+/* Original Message */
+.ld-original-msg {
+    margin-top: 12px;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-md);
+    padding: 10px;
+}
+
+.ld-original-msg h4 {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    margin: 0 0 6px;
+}
+
+.ld-original-msg div {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+
+/* ==================== Table Enhancements ==================== */
+
+#ldTableView .bm-table td {
+    vertical-align: middle;
+}
+
+.ld-phone-cell {
+    direction: ltr;
+    text-align: right;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.ld-name-cell {
+    font-weight: 600;
+    color: var(--text-primary);
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ==================== Responsive ==================== */
+
+@media (max-width: 768px) {
+    #leadsManagement .bm-summary {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    #leadsManagement .bm-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ld-filter-select,
+    .ld-filter-date {
+        width: 100%;
+    }
+
+    .ld-modal {
+        max-height: 90vh;
+        margin-top: 20px;
+    }
+}
+
+@media (max-width: 500px) {
+    #leadsManagement .bm-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

@@ -13,6 +13,7 @@ function navHome() {
     hideSalesManagement();
     hideActivityLog();
     hideUserManagement();
+    hideLeadsManagement();
     document.getElementById('mainContainer').style.display = '';
     document.getElementById('mainForm').classList.remove('hidden');
     document.getElementById('successScreen').classList.remove('show');
@@ -30,6 +31,7 @@ function navBillingMgmt() {
     hideSalesManagement();
     hideActivityLog();
     hideUserManagement();
+    hideLeadsManagement();
     showBillingManagement();
     setActiveNav('navBillingMgmtBtn');
     logAuditEvent('nav_billing_mgmt');
@@ -39,15 +41,27 @@ function navSalesMgmt() {
     hideBillingManagement();
     hideActivityLog();
     hideUserManagement();
+    hideLeadsManagement();
     showSalesManagement();
     setActiveNav('navSalesMgmtBtn');
     logAuditEvent('nav_sales_mgmt');
+}
+
+function navLeadsMgmt() {
+    hideBillingManagement();
+    hideSalesManagement();
+    hideActivityLog();
+    hideUserManagement();
+    showLeadsManagement();
+    setActiveNav('navLeadsMgmtBtn');
+    logAuditEvent('nav_leads_mgmt');
 }
 
 function navActivityLog() {
     hideBillingManagement();
     hideSalesManagement();
     hideUserManagement();
+    hideLeadsManagement();
     showActivityLog();
     setActiveNav('navActivityLogBtn');
     logAuditEvent('nav_activity_log');
@@ -57,6 +71,7 @@ function navUserMgmt() {
     hideBillingManagement();
     hideSalesManagement();
     hideActivityLog();
+    hideLeadsManagement();
     showUserManagement();
     setActiveNav('navUserMgmtBtn');
     logAuditEvent('nav_user_mgmt');
@@ -70,6 +85,16 @@ function navLogout() {
 function hideUserManagement() {
     var el = document.getElementById('userManagement');
     if (el) el.classList.remove('active');
+}
+
+// Safe hide for leadsManagement
+function hideLeadsManagement() {
+    if (typeof window.hideLeadsManagement_internal === 'function') {
+        window.hideLeadsManagement_internal();
+    } else {
+        var el = document.getElementById('leadsManagement');
+        if (el) el.classList.remove('active');
+    }
 }
 
 // Show/hide bottom nav based on auth state
@@ -98,6 +123,9 @@ function updateNavVisibility() {
 
     var logBtn = document.getElementById('navActivityLogBtn');
     if (logBtn) logBtn.style.display = perms.activityLog ? '' : 'none';
+
+    var leadsBtn = document.getElementById('navLeadsMgmtBtn');
+    if (leadsBtn) leadsBtn.style.display = (perms.leadsManagement || perms.salesManagement || currentUserRole === 'master') ? '' : 'none';
 
     var usersBtn = document.getElementById('navUserMgmtBtn');
     if (usersBtn) usersBtn.style.display = perms.userManagement ? '' : 'none';
