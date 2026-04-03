@@ -24,28 +24,34 @@ async function parseEmailWithClaude(emailBody, emailSubject, emailFrom) {
     var anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) return null;
 
-    var prompt = 'אתה מחלץ פרטי לידים ממיילים שמגיעים למשרד עו"ד גיא הרשקוביץ.\n\n' +
+    var prompt = 'אתה מסנן מיילים למשרד עו"ד גיא הרשקוביץ ומחלץ לידים אמיתיים.\n\n' +
         'המייל הבא הגיע:\n' +
         'מאת: ' + (emailFrom || 'לא ידוע') + '\n' +
         'נושא: ' + (emailSubject || 'ללא נושא') + '\n' +
         'תוכן:\n' + (emailBody || '').substring(0, 1500) + '\n\n' +
-        'חלץ את הפרטים הבאים והחזר JSON בלבד:\n' +
+        'החזר JSON בלבד:\n' +
         '{\n' +
-        '  "name": "שם הפונה אם יש (לא שם השולח/האתר)",\n' +
-        '  "phone": "מספר טלפון (פורמט: 05X-XXXXXXX)",\n' +
-        '  "email": "מייל אם יש",\n' +
-        '  "subject": "נושא הפנייה בקצרה (3-5 מילים)",\n' +
-        '  "summary": "סיכום קצר (משפט אחד)",\n' +
+        '  "name": "שם הלקוח הפוטנציאלי (לא שם השולח/האתר/המנהלת)",\n' +
+        '  "phone": "מספר טלפון של הלקוח (05X-XXXXXXX)",\n' +
+        '  "email": "מייל הלקוח אם יש",\n' +
+        '  "subject": "נושא הפנייה (3-5 מילים)",\n' +
+        '  "summary": "סיכום קצר",\n' +
         '  "isLead": true/false,\n' +
         '  "score": 1-10\n' +
         '}\n\n' +
-        'חשוב מאוד:\n' +
-        '- מיילים מ-din.co.il, mishpati.co.il, lawguide.co.il — אלה התראות על לקוחות פוטנציאליים. זה תמיד ליד! (isLead: true)\n' +
-        '- "שיחה שלא נענתה" עם מספר טלפון = ליד חם! (score: 7+, subject: "שיחה שלא נענתה")\n' +
-        '- "פנייה חדשה" / "טופס יצירת קשר" = ליד (isLead: true)\n' +
-        '- אם יש רק טלפון בלי שם — name = null, אבל עדיין isLead: true אם זה מאתר לידים\n' +
-        '- רק ספאם, ניוזלטר, פרסום, או מיילים שאין בהם מספר טלפון או פנייה = isLead: false\n' +
-        'JSON בלבד, בלי טקסט מחוץ ל-JSON.';
+        '=== ליד אמיתי (isLead: true) ===\n' +
+        '- "שיחה שלא נענתה מלקוח מאתר דין שמספרו 05X..." = ליד חם (score: 7+)\n' +
+        '- "פנייה חדשה מהפורום" / "טופס יצירת קשר" עם טלפון של לקוח = ליד\n' +
+        '- הודעה עם שם + טלפון + נושא משפטי = ליד\n' +
+        '- גם אם יש רק טלפון בלי שם — עדיין ליד (name: null)\n\n' +
+        '=== לא ליד (isLead: false) ===\n' +
+        '- מיילים מרותם / מנהלת אתר din.co.il (תזכורות, כתבות לאישור, דוחות, חשבוניות)\n' +
+        '- "העברתי לכם כתבות" / "תזכורת חידוש" / "לאישור" / "דוח חודשי"\n' +
+        '- ניוזלטרים, פרסומות, הצעות לפרסום\n' +
+        '- מיילים ללא טלפון של לקוח ובלי פנייה ספציפית\n' +
+        '- מיילים פנימיים מצוות אתר דין / צוות משפטי / ספקים\n\n' +
+        'הכלל: אם אין מספר טלפון של לקוח פוטנציאלי ואין פנייה ספציפית = isLead: false.\n' +
+        'JSON בלבד.';
 
     var requestBody = JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
@@ -85,7 +91,6 @@ async function parseEmailWithClaude(emailBody, emailSubject, emailFrom) {
 async function saveLeadToFirestore(leadData) {
     var projectId = process.env.FIREBASE_PROJECT_ID || 'law-office-sales-form';
     var apiKey = process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY;
-
     var firestoreDoc = {
         fields: {
             name: { stringValue: leadData.name || '' },
@@ -132,8 +137,9 @@ async function saveLeadToFirestore(leadData) {
         console.log('[Email Lead] Saved to Firestore');
         return true;
     } else {
-        console.error('[Email Lead] Firestore error:', res.status, JSON.stringify(res.data).substring(0, 200));
-        return false;
+        var errDetail = JSON.stringify(res.data).substring(0, 300);
+        console.error('[Email Lead] Firestore error:', res.status, errDetail);
+        return { error: true, status: res.status, detail: errDetail };
     }
 }
 
@@ -185,17 +191,19 @@ exports.handler = async (event) => {
         parsed.originalBody = emailBody;
         parsed.emailFrom = emailFrom;
         var saved = await saveLeadToFirestore(parsed);
+        var isSuccess = saved === true;
 
         return {
             statusCode: 200,
             headers: corsHeaders,
             body: JSON.stringify({
-                success: saved,
+                success: isSuccess,
                 isLead: true,
                 name: parsed.name,
                 phone: parsed.phone,
                 subject: parsed.subject,
-                score: parsed.score
+                score: parsed.score,
+                _debug: !isSuccess && saved && saved.error ? saved : undefined
             })
         };
 

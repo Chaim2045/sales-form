@@ -28,6 +28,7 @@ var STAFF_NAMES = {
 };
 
 // Full names for Sheets/Firebase (must match Sheets dropdown values)
+// IMPORTANT: Full names must match displayName in Firestore users collection
 var STAFF_FULL_NAMES = {
     '972542400403': 'גיא הרשקוביץ',
     '972525014146': 'אורי שטיינברג',
@@ -36,6 +37,20 @@ var STAFF_FULL_NAMES = {
     '972508807935': 'רועי הרשקוביץ',
     '972549539238': 'חיים'
 };
+
+// Resolve first name → full name for CRM matching
+function resolveFullName(firstName) {
+    if (!firstName) return firstName;
+    var name = firstName.replace(/@|\u200f/g, '').trim();
+    // Check STAFF_FULL_NAMES for match
+    var keys = Object.keys(STAFF_NAMES);
+    for (var i = 0; i < keys.length; i++) {
+        if (STAFF_NAMES[keys[i]] === name || STAFF_FULL_NAMES[keys[i]] === name) {
+            return STAFF_FULL_NAMES[keys[i]] || name;
+        }
+    }
+    return name; // Return as-is if no match
+}
 
 // Reminder intervals (ms)
 const REMINDER_1 = 10 * 60 * 1000;  // 10 minutes
@@ -292,14 +307,29 @@ setInterval(function() {
 
 // ==================== Leads Follow-Up Check (every 10 min) ====================
 
+// Track sent reminders to avoid spamming: { docId: { lastSent: timestamp, level: 'normal' } }
+var sentFollowupReminders = {};
+
 setInterval(async function() {
     if (!isConnected) return;
 
     try {
         var due = await getDueFollowups();
+        var now = Date.now();
+
         for (var i = 0; i < due.length; i++) {
             var lead = due[i];
             if (!lead.assignedTo) continue;
+
+            // Throttle by reminder level (hours between sends)
+            var THROTTLE_HOURS = { normal: 1, daily: 24, weekly: 72 };
+            var prev = sentFollowupReminders[lead.docId];
+            if (prev) {
+                var hoursSinceLast = (now - prev.lastSent) / (1000 * 60 * 60);
+                var minHours = THROTTLE_HOURS[lead.reminderLevel];
+                if (minHours && hoursSinceLast < minHours) continue;
+                if (lead.reminderLevel === 'final' && prev.level === 'final') continue;
+            }
 
             // Find assignee's phone to DM them
             var assigneePhone = null;
@@ -313,12 +343,28 @@ setInterval(async function() {
 
             if (assigneePhone) {
                 var dmId = assigneePhone + '@c.us';
-                await botSend(dmId, '🔔 תזכורת פולואפ!\n*' + (lead.name || 'ליד') + '* ' + (lead.phone || '') + '\nסטטוס: ' + (lead.statusNote || lead.status) + '\n\nמה הסטטוס? 📋\nלידוביץ');
-                log('sent', '📋 Followup reminder → ' + lead.assignedTo + ' for ' + (lead.name || lead.phone));
+                var ageText = lead.ageDays < 1 ? Math.round(lead.ageDays * 24) + ' שעות' : Math.round(lead.ageDays) + ' ימים';
+                var urgency = lead.reminderLevel === 'final' ? '🔴 תזכורת אחרונה!' : lead.reminderLevel === 'weekly' ? '🟡 תזכורת' : '🔔 תזכורת פולואפ';
+                var dmText = urgency + '\n*' + (lead.name || 'ליד') + '* ' + (lead.phone || '') + '\nסטטוס: ' + (lead.statusNote || lead.status) + '\nגיל הליד: ' + ageText + '\n\nמה הסטטוס?\nלידוביץ 📋';
+                await botSend(dmId, dmText);
+                log('sent', '📋 Followup [' + lead.reminderLevel + '] → ' + lead.assignedTo + ' for ' + (lead.name || lead.phone) + ' (' + ageText + ')');
             }
 
-            // Clear the followup so we don't remind again
-            await updateLeadStatus(lead.docId, lead.status, 'bot', 'תזכורת נשלחה', null);
+            // Track that we sent this reminder
+            sentFollowupReminders[lead.docId] = { lastSent: now, level: lead.reminderLevel };
+
+            // If final reminder, clear followupAt so we stop checking
+            if (lead.reminderLevel === 'final') {
+                await updateLeadStatus(lead.docId, lead.status, 'bot', 'תזכורת אחרונה נשלחה — ליד בן ' + Math.round(lead.ageDays) + ' ימים', null);
+            }
+        }
+
+        // Clean old tracking entries (older than 15 days)
+        var trackKeys = Object.keys(sentFollowupReminders);
+        for (var t = 0; t < trackKeys.length; t++) {
+            if (now - sentFollowupReminders[trackKeys[t]].lastSent > 15 * 24 * 60 * 60 * 1000) {
+                delete sentFollowupReminders[trackKeys[t]];
+            }
         }
     } catch (e) {
         log('error', 'Leads followup check failed: ' + e.message);
@@ -552,8 +598,8 @@ setInterval(async function() {
 // ==================== Message Handler ====================
 
 // Listen on BOTH events to catch all messages
-wa.on('message', async function(msg) { handleMessage(msg); });
-wa.on('message_create', async function(msg) { handleMessage(msg); });
+wa.on('message', async function(msg) { handleMessage(msg).catch(function(e) { log('error', 'msg handler: ' + String(e.message || e).substring(0, 100)); }); });
+wa.on('message_create', async function(msg) { handleMessage(msg).catch(function(e) { log('error', 'msg_create handler: ' + String(e.message || e).substring(0, 100)); }); });
 
 var processedMessages = new Set();
 
@@ -704,15 +750,42 @@ async function handleMessage(msg) {
                 }
 
                 if (relevantLead) {
-                    var assignee = assignment.type === 'self' ? senderName : assignment.assignee;
+                    // Use full name for CRM matching (displayName in Firestore users)
+                    var assignee = assignment.type === 'self' ? (senderFullName || senderName) : resolveFullName(assignment.assignee);
                     var ok = await assignLead(relevantLead.docId, assignee);
                     if (ok) {
                         relevantLead.assignedTo = assignee;
                         log('msg', '📋 Lead assigned: ' + (relevantLead.lead.name || '') + ' → ' + assignee);
 
-                        // Confirm only if more than 2 min passed (don't interrupt natural flow)
-                        if (Date.now() - relevantLead.timestamp > 2 * 60 * 1000) {
-                            await botSend(chatId, '✅ *' + (relevantLead.lead.name || 'ליד') + '* — ' + assignee + ' מטפל.\nלידוביץ 📋');
+                        // Confirm in group
+                        await botSend(chatId, '✅ *' + (relevantLead.lead.name || 'ליד') + '* — ' + assignee + ' מטפל.\nלידוביץ 📋');
+
+                        // DM call prep to assignee (if we have their phone)
+                        var assigneePhone = null;
+                        var staffKeys = Object.keys(STAFF_NAMES);
+                        for (var ak = 0; ak < staffKeys.length; ak++) {
+                            if (STAFF_NAMES[staffKeys[ak]] === senderName || STAFF_FULL_NAMES[staffKeys[ak]] === assignee) {
+                                assigneePhone = staffKeys[ak];
+                                break;
+                            }
+                        }
+                        if (assigneePhone) {
+                            var leadInfo = relevantLead.lead;
+                            var dmText = '📋 *הכנה לשיחה — ' + (leadInfo.name || leadInfo.phone || 'ליד חדש') + '*\n\n';
+                            dmText += '📱 טלפון: ' + (leadInfo.phone || 'לא ידוע') + '\n';
+                            if (leadInfo.subject) dmText += '📌 נושא: ' + leadInfo.subject + '\n';
+                            if (leadInfo.raw) dmText += '💬 הודעה: "' + (leadInfo.raw || '').substring(0, 200) + '"\n';
+                            dmText += '\n💡 *טיפים:*\n';
+                            dmText += '• תתקשר תוך שעה — תגובה מהירה = סיכוי סגירה גבוה\n';
+                            dmText += '• שאל: מה קרה? מתי? יש תיעוד?\n';
+                            dmText += '• פגישת ייעוץ: 780₪ + מע"מ\n';
+                            dmText += '\nלידוביץ 📋';
+                            try {
+                                await botSend(assigneePhone + '@c.us', dmText);
+                                log('sent', '📋 Call prep DM → ' + assignee);
+                            } catch (dmErr) {
+                                log('error', 'Call prep DM failed: ' + dmErr.message);
+                            }
                         }
                     }
                 }
@@ -722,10 +795,11 @@ async function handleMessage(msg) {
             // 4. Detect status update
             var statusUpdate = detectStatusUpdate(body);
             if (statusUpdate) {
-                // Find relevant lead for this sender
+                // Find relevant lead for this sender (match by first or full name)
                 var senderLead = null;
                 for (var si = 0; si < recentLeads.length; si++) {
-                    if (recentLeads[si].assignedTo === senderName) {
+                    var la = recentLeads[si].assignedTo || '';
+                    if (la === senderName || la === senderFullName || la === (senderFullName || senderName)) {
                         senderLead = recentLeads[si];
                         break;
                     }
@@ -1303,8 +1377,12 @@ async function handleMessage(msg) {
         log('turn', convo.senderName + ' → ' + result.status + (result.formData.clientName ? ' (' + result.formData.clientName + ')' : ''));
 
         // Handle status
+        if (!result || !result.status) {
+            log('warn', 'No result/status from Claude — ignoring');
+            return;
+        }
         // VALIDATION: If Claude says confirmed but paymentMethod is missing, push back
-        if ((result.status === 'confirmed' || result.status === 'ready') && !result.formData.paymentMethod) {
+        if ((result.status === 'confirmed' || result.status === 'ready') && result.formData && !result.formData.paymentMethod) {
             log('warn', 'Blocked ' + result.status + ' — missing paymentMethod. Pushing back to collecting.');
             convo.history.push({
                 role: 'user',

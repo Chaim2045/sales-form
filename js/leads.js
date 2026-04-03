@@ -526,11 +526,15 @@ function openLeadModal(docId) {
         scoreEl.style.display = 'none';
     }
 
-    // AI Analysis
+    // AI Analysis (enhanced)
     var aiBox = document.getElementById('ldModalAI');
     if (record.aiReason) {
-        document.getElementById('ldModalAIContent').innerHTML = '<p>' + escapeHTML(record.aiReason) + '</p>' +
-            (record.aiAction ? '<p style="margin-top:6px;font-weight:500;">💡 ' + escapeHTML(record.aiAction) + '</p>' : '');
+        var aiHtml = '<p>' + escapeHTML(record.aiReason) + '</p>';
+        if (record.aiAction) aiHtml += '<p style="margin-top:6px;font-weight:500;">💡 ' + escapeHTML(record.aiAction) + '</p>';
+        if (record.aiEstimatedValue) aiHtml += '<p style="margin-top:6px;">💰 הערכת שווי: <strong>' + escapeHTML(record.aiEstimatedValue) + '</strong></p>';
+        if (record.aiCallPrep) aiHtml += '<div style="margin-top:8px;padding:8px;background:rgba(59,130,246,0.04);border-radius:6px;"><div style="font-size:11px;font-weight:600;color:var(--accent);margin-bottom:4px;">📋 הכנה לשיחה:</div><p style="margin:0;">' + escapeHTML(record.aiCallPrep) + '</p></div>';
+        if (record.aiLegalContext) aiHtml += '<div style="margin-top:6px;font-size:12px;color:var(--text-tertiary);">⚖️ ' + escapeHTML(record.aiLegalContext) + '</div>';
+        document.getElementById('ldModalAIContent').innerHTML = aiHtml;
         aiBox.style.display = '';
     } else {
         aiBox.style.display = 'none';
@@ -639,6 +643,9 @@ function scoreLead() {
                 aiSuggestedAssignee: data.suggestedAssignee || '',
                 aiUrgency: data.urgency || '',
                 aiAction: data.action || '',
+                aiCallPrep: data.callPrep || '',
+                aiEstimatedValue: data.estimatedValue || '',
+                aiLegalContext: data.legalContext || '',
                 aiScoredAt: firebase.firestore.FieldValue.serverTimestamp()
             }).then(function() {
                 openLeadModal(currentLeadDocId);
@@ -1060,7 +1067,9 @@ function processAutoScoreQueue() {
             return db.collection('leads').doc(docId).update({
                 aiScore: data.score, aiReason: data.reason || '', aiCategory: data.category || '',
                 aiSuggestedAssignee: data.suggestedAssignee || '', aiUrgency: data.urgency || '',
-                aiAction: data.action || '', aiScoredAt: firebase.firestore.FieldValue.serverTimestamp()
+                aiAction: data.action || '', aiCallPrep: data.callPrep || '',
+                aiEstimatedValue: data.estimatedValue || '', aiLegalContext: data.legalContext || '',
+                aiScoredAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
     }).catch(function(err) {
