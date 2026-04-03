@@ -496,3 +496,75 @@
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+/* ==================== Analytics Dashboard ==================== */
+
+.ld-analytics {
+    margin-bottom: 16px;
+}
+
+.ld-analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.ld-analytics-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.ld-analytics-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.ld-analytics-body {
+    padding-top: 12px;
+}
+
+.ld-charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.ld-chart-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    min-height: 200px;
+}
+
+.ld-chart-card.ld-chart-wide {
+    grid-column: span 2;
+}
+
+.ld-chart-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+    .ld-charts-grid {
+        grid-template-columns: 1fr;
+    }
+    .ld-chart-card.ld-chart-wide {
+        grid-column: span 1;
+    }
+}
+
+@media (max-width: 500px) {
+    .ld-chart-card {
+        min-height: 180px;
+        padding: 10px;
+    }
+}

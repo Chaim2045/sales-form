@@ -35,6 +35,7 @@
 
     <!-- PDF.js for OCR PDF support -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 
     <!-- Environment Configuration -->
     <script src="env-config.js"></script>
@@ -1458,6 +1459,40 @@
             <div class="bm-stat"><div class="bm-stat-value" id="ldStatActive" style="color:var(--warning);">0</div><div class="bm-stat-label">בטיפול</div></div>
             <div class="bm-stat"><div class="bm-stat-value" id="ldStatClosed" style="color:var(--success);">0</div><div class="bm-stat-label">נסגרו</div></div>
             <div class="bm-stat"><div class="bm-stat-value" id="ldStatConversion">0%</div><div class="bm-stat-label">המרה</div></div>
+        </div>
+
+        <!-- Analytics Dashboard -->
+        <div id="ldAnalytics" class="ld-analytics">
+            <div class="ld-analytics-header">
+                <h3 class="ld-analytics-title">אנליטיקס</h3>
+                <button class="bm-export-btn ld-analytics-toggle" onclick="toggleAnalytics()">
+                    <span id="ldAnalyticsToggleIcon">▼</span> גרפים
+                </button>
+            </div>
+            <div id="ldAnalyticsBody" class="ld-analytics-body" style="display:none;">
+                <div class="ld-charts-grid">
+                    <div class="ld-chart-card ld-chart-wide">
+                        <div class="ld-chart-title">לידים לפי שבוע</div>
+                        <canvas id="ldChartWeekly"></canvas>
+                    </div>
+                    <div class="ld-chart-card">
+                        <div class="ld-chart-title">פילוח לפי מקור</div>
+                        <canvas id="ldChartSources"></canvas>
+                    </div>
+                    <div class="ld-chart-card">
+                        <div class="ld-chart-title">פילוח לפי סטטוס</div>
+                        <canvas id="ldChartStatus"></canvas>
+                    </div>
+                    <div class="ld-chart-card ld-chart-wide">
+                        <div class="ld-chart-title">ביצועי עובדים</div>
+                        <canvas id="ldChartAssignees"></canvas>
+                    </div>
+                    <div class="ld-chart-card ld-chart-wide">
+                        <div class="ld-chart-title">אחוז המרה לפי מקור</div>
+                        <canvas id="ldChartConversion"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Toolbar -->

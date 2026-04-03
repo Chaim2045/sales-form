@@ -80,6 +80,12 @@ function loadLeadsData() {
                 populateLeadsFilters();
                 updateLeadsSummary(leadsRecords);
                 renderLeadsView();
+                // Refresh charts if analytics panel is open (invalidate cache to reload)
+                var analyticsBody = document.getElementById('ldAnalyticsBody');
+                if (analyticsBody && analyticsBody.style.display !== 'none') {
+                    leadsAllRecords = null;
+                    loadAllLeadsForAnalytics();
+                }
             }, function(error) {
                 console.error('Leads listener error:', error);
                 if (loading) loading.innerHTML = '<p style="color:var(--error);">שגיאה בטעינת לידים</p>';
@@ -643,4 +649,341 @@ function renderScoreBadge(score) {
 function escapeHTML(str) {
     if (!str) return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ==================== Analytics Dashboard ====================
+
+var leadsChartsInitialized = false;
+var leadsChartInstances = {};
+var leadsAllRecords = null; // Full dataset for analytics (loaded once)
+
+function toggleAnalytics() {
+    var body = document.getElementById('ldAnalyticsBody');
+    var icon = document.getElementById('ldAnalyticsToggleIcon');
+    if (!body) return;
+
+    if (body.style.display === 'none') {
+        body.style.display = '';
+        icon.textContent = '▲';
+        loadAllLeadsForAnalytics();
+    } else {
+        body.style.display = 'none';
+        icon.textContent = '▼';
+    }
+}
+
+function loadAllLeadsForAnalytics() {
+    // If already loaded, just render
+    if (leadsAllRecords) {
+        renderLeadsCharts(leadsAllRecords);
+        return;
+    }
+
+    // Load ALL leads (no limit) for full analytics
+    db.collection('leads').orderBy('createdAt', 'desc').get().then(function(snapshot) {
+        leadsAllRecords = [];
+        snapshot.forEach(function(doc) {
+            leadsAllRecords.push(Object.assign({ id: doc.id }, doc.data()));
+        });
+        console.log('[Analytics] Loaded ' + leadsAllRecords.length + ' leads for charts');
+        renderLeadsCharts(leadsAllRecords);
+    }).catch(function(err) {
+        console.error('[Analytics] Load error:', err);
+        // Fallback to current dataset
+        renderLeadsCharts(leadsRecords);
+    });
+}
+
+function renderLeadsCharts(records) {
+    if (typeof Chart === 'undefined') return;
+    if (!records || records.length === 0) return;
+
+    // Set global Chart.js defaults for RTL
+    Chart.defaults.font.family = "'Heebo', sans-serif";
+    Chart.defaults.font.size = 12;
+
+    renderWeeklyChart(records);
+    renderSourcesChart(records);
+    renderStatusChart(records);
+    renderAssigneesChart(records);
+    renderConversionChart(records);
+    leadsChartsInitialized = true;
+}
+
+// Destroy existing chart before creating new one
+function getChartCtx(canvasId) {
+    if (leadsChartInstances[canvasId]) {
+        leadsChartInstances[canvasId].destroy();
+    }
+    var canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    return canvas.getContext('2d');
+}
+
+// ---- Chart 1: Leads per week (bar) ----
+function renderWeeklyChart(records) {
+    var ctx = getChartCtx('ldChartWeekly');
+    if (!ctx) return;
+
+    // Group by week
+    var weekMap = {};
+    var now = new Date();
+    records.forEach(function(r) {
+        var d = r.createdAt;
+        if (!d) return;
+        if (d.toDate) d = d.toDate();
+        else if (typeof d === 'string') d = new Date(d);
+        if (isNaN(d.getTime())) return;
+
+        // Week start (Sunday)
+        var weekStart = new Date(d);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        var key = weekStart.toISOString().substring(0, 10);
+        weekMap[key] = (weekMap[key] || 0) + 1;
+    });
+
+    // Sort by date, take last 12 weeks
+    var sorted = Object.keys(weekMap).sort();
+    var last12 = sorted.slice(-12);
+
+    var labels = last12.map(function(k) {
+        var d = new Date(k);
+        return d.getDate() + '/' + (d.getMonth() + 1);
+    });
+    var data = last12.map(function(k) { return weekMap[k]; });
+
+    leadsChartInstances['ldChartWeekly'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'לידים',
+                data: data,
+                backgroundColor: 'rgba(59,130,246,0.6)',
+                borderColor: '#3b82f6',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+// ---- Chart 2: Sources (doughnut) ----
+function renderSourcesChart(records) {
+    var ctx = getChartCtx('ldChartSources');
+    if (!ctx) return;
+
+    var sourceMap = {};
+    records.forEach(function(r) {
+        var src = r.source || 'לא ידוע';
+        // Normalize common sources
+        if (src === 'crm-import') src = 'CRM ישן';
+        else if (src === 'email') src = 'אימייל';
+        else if (src === 'whatsapp') src = 'וואטסאפ';
+        sourceMap[src] = (sourceMap[src] || 0) + 1;
+    });
+
+    // Sort by count, take top 8
+    var sorted = Object.entries(sourceMap).sort(function(a, b) { return b[1] - a[1]; });
+    var top = sorted.slice(0, 8);
+    if (sorted.length > 8) {
+        var otherCount = sorted.slice(8).reduce(function(s, e) { return s + e[1]; }, 0);
+        top.push(['אחר', otherCount]);
+    }
+
+    var colors = ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1', '#94a3b8'];
+
+    leadsChartInstances['ldChartSources'] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: top.map(function(e) { return e[0]; }),
+            datasets: [{
+                data: top.map(function(e) { return e[1]; }),
+                backgroundColor: colors.slice(0, top.length),
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { padding: 12, font: { size: 11 } } }
+            }
+        }
+    });
+}
+
+// ---- Chart 3: Status distribution (doughnut) ----
+function renderStatusChart(records) {
+    var ctx = getChartCtx('ldChartStatus');
+    if (!ctx) return;
+
+    var statusMap = {};
+    records.forEach(function(r) {
+        var st = r.status || 'new';
+        var label = LEAD_STATUS_LABELS[st] || st;
+        statusMap[label] = (statusMap[label] || 0) + 1;
+    });
+
+    var statusColors = {
+        '🆕 חדש': '#3b82f6',
+        '👤 שויך': '#8b5cf6',
+        '📞 נוצר קשר': '#f59e0b',
+        '🔄 פולואפ': '#06b6d4',
+        '📵 לא ענה': '#6b7280',
+        '✅ נסגר': '#10b981',
+        '❌ לא רלוונטי': '#ef4444'
+    };
+
+    var labels = Object.keys(statusMap);
+    var data = labels.map(function(l) { return statusMap[l]; });
+    var bgColors = labels.map(function(l) { return statusColors[l] || '#94a3b8'; });
+
+    leadsChartInstances['ldChartStatus'] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: bgColors,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { padding: 12, font: { size: 11 } } }
+            }
+        }
+    });
+}
+
+// ---- Chart 4: Assignee performance (horizontal bar) ----
+function renderAssigneesChart(records) {
+    var ctx = getChartCtx('ldChartAssignees');
+    if (!ctx) return;
+
+    var assigneeMap = {};
+    var closedMap = {};
+    records.forEach(function(r) {
+        var a = r.assignedTo || '';
+        if (!a) return;
+        assigneeMap[a] = (assigneeMap[a] || 0) + 1;
+        if (r.status === 'closed') closedMap[a] = (closedMap[a] || 0) + 1;
+    });
+
+    // Sort by total, take top 10
+    var sorted = Object.entries(assigneeMap).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
+
+    var labels = sorted.map(function(e) { return e[0]; });
+    var totalData = sorted.map(function(e) { return e[1]; });
+    var closedData = labels.map(function(l) { return closedMap[l] || 0; });
+
+    leadsChartInstances['ldChartAssignees'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'סה"כ לידים',
+                    data: totalData,
+                    backgroundColor: 'rgba(59,130,246,0.6)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'נסגרו בהצלחה',
+                    data: closedData,
+                    backgroundColor: 'rgba(16,185,129,0.6)',
+                    borderColor: '#10b981',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { font: { size: 11 } } }
+            },
+            scales: {
+                x: { beginAtZero: true, ticks: { precision: 0 } },
+                y: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+// ---- Chart 5: Conversion rate by source (bar) ----
+function renderConversionChart(records) {
+    var ctx = getChartCtx('ldChartConversion');
+    if (!ctx) return;
+
+    var sourceTotal = {};
+    var sourceClosed = {};
+    records.forEach(function(r) {
+        var src = r.source || 'לא ידוע';
+        if (src === 'crm-import') src = 'CRM ישן';
+        else if (src === 'email') src = 'אימייל';
+        else if (src === 'whatsapp') src = 'וואטסאפ';
+        sourceTotal[src] = (sourceTotal[src] || 0) + 1;
+        if (r.status === 'closed') sourceClosed[src] = (sourceClosed[src] || 0) + 1;
+    });
+
+    // Only sources with 5+ leads, sorted by conversion rate
+    var entries = Object.entries(sourceTotal)
+        .filter(function(e) { return e[1] >= 5; })
+        .map(function(e) {
+            var closed = sourceClosed[e[0]] || 0;
+            return { source: e[0], total: e[1], closed: closed, rate: Math.round((closed / e[1]) * 100) };
+        })
+        .sort(function(a, b) { return b.rate - a.rate; })
+        .slice(0, 10);
+
+    var labels = entries.map(function(e) { return e.source + ' (' + e.total + ')'; });
+    var data = entries.map(function(e) { return e.rate; });
+
+    var barColors = data.map(function(r) {
+        if (r >= 10) return 'rgba(16,185,129,0.7)';
+        if (r >= 5) return 'rgba(245,158,11,0.7)';
+        return 'rgba(239,68,68,0.5)';
+    });
+
+    leadsChartInstances['ldChartConversion'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'אחוז המרה %',
+                data: data,
+                backgroundColor: barColors,
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, max: 100, ticks: { callback: function(v) { return v + '%'; } } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
 }
