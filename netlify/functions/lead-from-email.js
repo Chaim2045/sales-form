@@ -24,23 +24,27 @@ async function parseEmailWithClaude(emailBody, emailSubject, emailFrom) {
     var anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) return null;
 
-    var prompt = 'אתה מחלץ פרטי לידים ממיילים שמגיעים למשרד עו"ד.\n\n' +
+    var prompt = 'אתה מחלץ פרטי לידים ממיילים שמגיעים למשרד עו"ד גיא הרשקוביץ.\n\n' +
         'המייל הבא הגיע:\n' +
         'מאת: ' + (emailFrom || 'לא ידוע') + '\n' +
         'נושא: ' + (emailSubject || 'ללא נושא') + '\n' +
         'תוכן:\n' + (emailBody || '').substring(0, 1500) + '\n\n' +
         'חלץ את הפרטים הבאים והחזר JSON בלבד:\n' +
         '{\n' +
-        '  "name": "שם הפונה (לא שם השולח אלא שם הלקוח הפוטנציאלי)",\n' +
+        '  "name": "שם הפונה אם יש (לא שם השולח/האתר)",\n' +
         '  "phone": "מספר טלפון (פורמט: 05X-XXXXXXX)",\n' +
         '  "email": "מייל אם יש",\n' +
         '  "subject": "נושא הפנייה בקצרה (3-5 מילים)",\n' +
-        '  "summary": "סיכום קצר של מה הלקוח צריך (משפט אחד)",\n' +
+        '  "summary": "סיכום קצר (משפט אחד)",\n' +
         '  "isLead": true/false,\n' +
         '  "score": 1-10\n' +
         '}\n\n' +
-        'אם זה לא ליד (ספאם, ניוזלטר, פרסום, מייל פנימי) — החזר isLead: false.\n' +
-        'אם אין טלפון במייל, שים null.\n' +
+        'חשוב מאוד:\n' +
+        '- מיילים מ-din.co.il, mishpati.co.il, lawguide.co.il — אלה התראות על לקוחות פוטנציאליים. זה תמיד ליד! (isLead: true)\n' +
+        '- "שיחה שלא נענתה" עם מספר טלפון = ליד חם! (score: 7+, subject: "שיחה שלא נענתה")\n' +
+        '- "פנייה חדשה" / "טופס יצירת קשר" = ליד (isLead: true)\n' +
+        '- אם יש רק טלפון בלי שם — name = null, אבל עדיין isLead: true אם זה מאתר לידים\n' +
+        '- רק ספאם, ניוזלטר, פרסום, או מיילים שאין בהם מספר טלפון או פנייה = isLead: false\n' +
         'JSON בלבד, בלי טקסט מחוץ ל-JSON.';
 
     var requestBody = JSON.stringify({
