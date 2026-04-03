@@ -44,9 +44,12 @@ function showLeadsManagement() {
     document.getElementById('leadsManagement').classList.add('active');
 
     // Init My Leads mode
+    // Master sees all + toggle. Regular user sees only their leads, no toggle.
+    var isMaster = currentUserRole === 'master';
     var toggleBtn = document.getElementById('ldToggleMy');
-    if (currentUserRole === 'master') {
+    if (isMaster) {
         if (toggleBtn) toggleBtn.style.display = '';
+        // Master starts with "all leads" by default
     } else if (currentUser) {
         leadsMyMode = true;
         if (toggleBtn) toggleBtn.style.display = 'none';

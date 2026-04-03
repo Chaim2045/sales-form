@@ -11,10 +11,10 @@ var ROLE_LABELS = {
 };
 
 var DEFAULT_PERMISSIONS = {
-    master: { salesForm: true, billingManagement: true, salesManagement: true, activityLog: true, userManagement: true },
-    office_manager: { salesForm: true, billingManagement: true, salesManagement: true, activityLog: false, userManagement: false },
-    salesperson: { salesForm: true, billingManagement: false, salesManagement: true, activityLog: false, userManagement: false },
-    accountant: { salesForm: false, billingManagement: true, salesManagement: true, activityLog: false, userManagement: false }
+    master: { salesForm: true, billingManagement: true, salesManagement: true, activityLog: true, userManagement: true, leadsManagement: true },
+    office_manager: { salesForm: true, billingManagement: true, salesManagement: true, activityLog: false, userManagement: false, leadsManagement: true },
+    salesperson: { salesForm: true, billingManagement: false, salesManagement: true, activityLog: false, userManagement: false, leadsManagement: true },
+    accountant: { salesForm: false, billingManagement: true, salesManagement: true, activityLog: false, userManagement: false, leadsManagement: false }
 };
 
 function showUserManagement() {
@@ -86,7 +86,7 @@ function renderUsersTable() {
         html += '</td>';
 
         // Permission toggles
-        var permKeys = ['salesForm', 'billingManagement', 'salesManagement', 'activityLog', 'userManagement'];
+        var permKeys = ['salesForm', 'billingManagement', 'salesManagement', 'activityLog', 'userManagement', 'leadsManagement'];
         permKeys.forEach(function(perm) {
             var checked = perms[perm] ? 'checked' : '';
             html += '<td style="text-align:center;">';
