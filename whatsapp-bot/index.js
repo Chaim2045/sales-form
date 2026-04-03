@@ -393,53 +393,107 @@ setInterval(async function() {
             if (!m.phone) continue;
 
             var hoursUntil = (m.meetingDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-            var phoneDigits = (m.phone || '').replace(/[\s\-]/g, '');
-            if (phoneDigits.startsWith('0')) phoneDigits = '972' + phoneDigits.substring(1);
-            var clientChatId = phoneDigits + '@c.us';
-
-            var dateStr = m.meetingDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
-            var timeStr = m.meetingDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
             var isOnline = m.meetingType === 'online';
-            var firstName = m.name ? ' ' + m.name.split(' ')[0] : '';
 
-            // Location text based on meeting type
-            var locationText = isOnline
-                ? '💻 הפגישה תתקיים בגוגל מיט.' + (m.meetLink ? '\n🔗 ' + m.meetLink : '\nקישור יישלח סמוך לפגישה.')
-                : '📍 מגדל מידטאון, קומה 39, תל אביב';
+            // Format meeting date in Israel time
+            var meetIsrael = new Date(m.meetingDate.getTime() + 3 * 3600000);
+            var dayNamesHeb = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+            var dateDisplay = 'יום ' + dayNamesHeb[meetIsrael.getUTCDay()] + ', ' + meetIsrael.getUTCDate() + '.' + ('0' + (meetIsrael.getUTCMonth() + 1)).slice(-2);
+            var timeDisplay = ('0' + meetIsrael.getUTCHours()).slice(-2) + ':' + ('0' + meetIsrael.getUTCMinutes()).slice(-2);
 
-            // Reminder 1: 12-36 hours before
+            // Reminder 1: 12-36 hours before → ask approval in leads group
             if (!m.reminder1Sent && hoursUntil > 6 && hoursUntil <= 36) {
-                var msg1 = 'שלום' + firstName + '! 😊\n';
-                msg1 += 'תזכורת: מחר יש לך פגישה' + (isOnline ? '' : ' במשרד') + ' עו"ד גיא הרשקוביץ.\n';
-                msg1 += '📅 ' + dateStr + ', ' + timeStr + '\n';
-                msg1 += locationText + '\n';
-                msg1 += 'מחכים לך! 😊\n';
-                msg1 += 'משרד עו"ד גיא הרשקוביץ ושות\'';
+                if (cachedLeadsGroupChatId) {
+                    var askMsg = '🔔 *תזכורת פגישה — מחר*\n';
+                    askMsg += '👤 ' + (m.name || m.phone) + '\n';
+                    askMsg += '📅 ' + dateDisplay + ' בשעה ' + timeDisplay + '\n';
+                    askMsg += (isOnline ? '💻 גוגל מיט' : '📍 מגדל מידטאון, קומה 39') + '\n';
+                    askMsg += '👨‍💼 אחראי: ' + (m.assignedTo || '—') + '\n\n';
+                    askMsg += '*לשלוח תזכורת ללקוח/ה?*\nכתוב *כן* או *לא*\nלידוביץ 📋';
+                    await botSend(cachedLeadsGroupChatId, askMsg);
 
-                try {
-                    await botSend(clientChatId, msg1);
+                    // Store as pending approval
+                    recentLeads.unshift({
+                        docId: m.docId,
+                        lead: { name: m.name, phone: m.phone },
+                        timestamp: Date.now(),
+                        assignedTo: m.assignedTo,
+                        pendingReminderApproval: true,
+                        reminderNum: 1,
+                        meetingDate: m.meetingDate.getTime(),
+                        meetingType: m.meetingType,
+                        meetLink: m.meetLink,
+                        nudgeCount: 0,
+                        nudgeTime: Date.now()
+                    });
+
+                    // Mark as "asked" so we don't ask again next cycle
                     await markMeetingReminderSent(m.docId, 1);
-                    log('sent', '📅 Meeting reminder 1 (' + (isOnline ? 'online' : 'physical') + ') → ' + (m.name || m.phone));
-                } catch (e) {
-                    log('error', 'Meeting reminder 1 failed: ' + e.message);
+                    log('msg', '🔔 Reminder 1 approval requested: ' + (m.name || m.phone));
                 }
             }
 
-            // Reminder 2: morning of meeting (0-6 hours before)
+            // Reminder 2: morning of meeting (0-6 hours before) → ask approval
             if (!m.reminder2Sent && hoursUntil > 0.5 && hoursUntil <= 6) {
-                var msg2 = 'בוקר טוב' + firstName + '! ☀️\n';
-                msg2 += 'היום פגישה ב-' + timeStr + '.\n';
-                msg2 += locationText + '\n';
-                if (!isOnline) msg2 += '📞 לשאלות: 03-5228085\n';
-                msg2 += 'נתראה! 😊';
+                if (cachedLeadsGroupChatId) {
+                    var askMsg2 = '🔔 *תזכורת פגישה — היום!*\n';
+                    askMsg2 += '👤 ' + (m.name || m.phone) + '\n';
+                    askMsg2 += '🕐 ' + timeDisplay + '\n';
+                    askMsg2 += (isOnline ? '💻 גוגל מיט' : '📍 דרך מנחם בגין 144, ת"א') + '\n\n';
+                    askMsg2 += '*לשלוח תזכורת ללקוח/ה?*\nכתוב *כן* או *לא*\nלידוביץ 📋';
+                    await botSend(cachedLeadsGroupChatId, askMsg2);
 
-                try {
-                    await botSend(clientChatId, msg2);
+                    recentLeads.unshift({
+                        docId: m.docId,
+                        lead: { name: m.name, phone: m.phone },
+                        timestamp: Date.now(),
+                        assignedTo: m.assignedTo,
+                        pendingReminderApproval: true,
+                        reminderNum: 2,
+                        meetingDate: m.meetingDate.getTime(),
+                        meetingType: m.meetingType,
+                        meetLink: m.meetLink,
+                        nudgeCount: 0,
+                        nudgeTime: Date.now()
+                    });
+
                     await markMeetingReminderSent(m.docId, 2);
-                    log('sent', '📅 Meeting reminder 2 (' + (isOnline ? 'online' : 'physical') + ') → ' + (m.name || m.phone));
-                } catch (e) {
-                    log('error', 'Meeting reminder 2 failed: ' + e.message);
+                    log('msg', '🔔 Reminder 2 approval requested: ' + (m.name || m.phone));
                 }
+            }
+        }
+
+        // Nudge: check for unanswered approval requests (30 min old)
+        for (var ni = 0; ni < recentLeads.length; ni++) {
+            var rl = recentLeads[ni];
+            if (!rl.pendingReminderApproval) continue;
+            var minutesSinceAsk = (Date.now() - rl.nudgeTime) / 60000;
+
+            if (minutesSinceAsk >= 30 && rl.nudgeCount === 0 && cachedLeadsGroupChatId) {
+                // First nudge — ask again in group
+                await botSend(cachedLeadsGroupChatId, '⏳ עדיין ממתין לאישור — לשלוח תזכורת ל-*' + (rl.lead.name || 'הלקוח') + '*?\nכתוב *כן* או *לא*\nלידוביץ 📋');
+                rl.nudgeCount = 1;
+                rl.nudgeTime = Date.now();
+                log('msg', '🔔 Nudge 1: ' + (rl.lead.name || rl.docId));
+            } else if (minutesSinceAsk >= 30 && rl.nudgeCount === 1) {
+                // Second nudge — DM to assignee
+                var nudgePhone = null;
+                var staffKeys = Object.keys(STAFF_NAMES);
+                for (var nk = 0; nk < staffKeys.length; nk++) {
+                    if (STAFF_NAMES[staffKeys[nk]] === rl.assignedTo || STAFF_FULL_NAMES[staffKeys[nk]] === rl.assignedTo) {
+                        nudgePhone = staffKeys[nk]; break;
+                    }
+                }
+                if (nudgePhone) {
+                    await botSend(nudgePhone + '@c.us', '⏳ ממתין לאישור — לשלוח תזכורת ל-*' + (rl.lead.name || 'הלקוח') + '*?\nענה בקבוצת הלידים: *כן* או *לא*\nלידוביץ 📋');
+                }
+                rl.nudgeCount = 2;
+                rl.nudgeTime = Date.now();
+                log('msg', '🔔 Nudge 2 (DM): ' + (rl.lead.name || rl.docId) + ' → ' + rl.assignedTo);
+            } else if (rl.nudgeCount >= 2 && minutesSinceAsk >= 30) {
+                // Give up — don't send reminder
+                rl.pendingReminderApproval = false;
+                log('warn', '🔕 Reminder expired (no approval): ' + (rl.lead.name || rl.docId));
             }
         }
     } catch (e) {
@@ -900,15 +954,54 @@ async function handleMessage(msg) {
                     pendingLead.pendingReminderApproval = false;
 
                     if (trimmedBody === 'כן' || trimmedBody === 'yes') {
-                        // Approved — enable reminders (set to false = not yet sent)
-                        await markMeetingReminderSent(pendingLead.docId, 0); // special: reset both to false
-                        await botSend(chatId, '✅ תזכורות יישלחו ל-' + (pendingLead.lead.name || 'הלקוח') + ' אוטומטית.\nלידוביץ 📋');
-                        log('msg', '🔔 Reminder approved for ' + (pendingLead.lead.name || pendingLead.docId));
+                        // Approved — send reminder NOW to client
+                        var clientPhone = (pendingLead.lead.phone || '').replace(/[\s\-]/g, '');
+                        if (clientPhone.startsWith('0')) clientPhone = '972' + clientPhone.substring(1);
+                        var clientWaId = clientPhone + '@c.us';
+
+                        // Format meeting info
+                        var mDate = new Date(pendingLead.meetingDate + 3 * 3600000);
+                        var mDayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+                        var mDateStr = 'יום ' + mDayNames[mDate.getUTCDay()] + ', ' + mDate.getUTCDate() + '.' + ('0' + (mDate.getUTCMonth() + 1)).slice(-2);
+                        var mTimeStr = ('0' + mDate.getUTCHours()).slice(-2) + ':' + ('0' + mDate.getUTCMinutes()).slice(-2);
+                        var mIsOnline = pendingLead.meetingType === 'online';
+                        var assignee = pendingLead.assignedTo || 'חיים פרץ';
+
+                        var clientName = pendingLead.lead.name || '';
+                        var firstName = clientName ? clientName.split(' ')[0] : '';
+
+                        var reminderMsg = 'שלום' + (firstName ? ' ' + firstName : '') + ',\n\n';
+
+                        if (pendingLead.reminderNum === 2) {
+                            // Morning reminder
+                            reminderMsg += 'פגישת הייעוץ המשפטי שלך עם עו"ד גיא הרשקוביץ מתקיימת היום בשעה ' + mTimeStr + '.\n\n';
+                        } else {
+                            // Day before reminder
+                            reminderMsg += 'תזכורת לפגישת ייעוץ משפטי עם עו"ד גיא הרשקוביץ.\n\n';
+                            reminderMsg += '📅 ' + mDateStr + ' בשעה ' + mTimeStr + '\n';
+                        }
+
+                        if (mIsOnline) {
+                            reminderMsg += '💻 הפגישה תתקיים בגוגל מיט.';
+                            if (pendingLead.meetLink) reminderMsg += '\n🔗 ' + pendingLead.meetLink;
+                            else reminderMsg += '\nקישור יישלח סמוך למועד הפגישה.';
+                        } else {
+                            reminderMsg += '📍 דרך מנחם בגין 144, תל אביב\nמגדל מידטאון, קומה 39';
+                        }
+
+                        reminderMsg += '\n\nנתראה בפגישה!\n\n' + assignee + ',\nמשרד עו"ד הרשקוביץ ושות\'';
+
+                        try {
+                            await botSend(clientWaId, reminderMsg);
+                            await botSend(chatId, '✅ תזכורת נשלחה ל-' + (clientName || 'הלקוח') + '.\nלידוביץ 📋');
+                            log('sent', '📅 Reminder sent to client: ' + (clientName || clientPhone));
+                        } catch (sendErr) {
+                            await botSend(chatId, '❌ שגיאה בשליחת תזכורת: ' + sendErr.message + '\nלידוביץ 📋');
+                            log('error', 'Reminder send failed: ' + sendErr.message);
+                        }
                     } else {
-                        // Denied — disable reminders by marking as already sent
-                        await markMeetingReminderSent(pendingLead.docId, 1);
-                        await markMeetingReminderSent(pendingLead.docId, 2);
-                        await botSend(chatId, '❌ תזכורות בוטלו.\nלידוביץ 📋');
+                        // Denied
+                        await botSend(chatId, '❌ תזכורת בוטלה.\nלידוביץ 📋');
                         log('msg', '🔕 Reminder cancelled for ' + (pendingLead.lead.name || pendingLead.docId));
                     }
                     return;

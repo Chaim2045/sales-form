@@ -1,0 +1,1730 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>טופס מכר — עיצוב חדש | דמו</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&family=Frank+Ruhl+Libre:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   TOFES OFFICE — Full Redesign Demo
+   Design System: "Legal Elegance"
+
+   Concept: Warm neutral palette with brass/gold
+   accents. Serif headings for authority, clean
+   sans-serif body. Subtle textures, generous
+   whitespace, and purposeful micro-animations.
+   ═══════════════════════════════════════════ */
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    /* ── Core Palette ── */
+    --ink:        #1a1a2e;
+    --ink-soft:   #2d2d44;
+    --ink-muted:  #4a4a6a;
+    --ink-light:  #7a7a96;
+    --ink-faint:  #b0b0c4;
+
+    /* Warm neutral surfaces */
+    --surface-0:  #faf9f7;     /* page bg */
+    --surface-1:  #ffffff;     /* cards */
+    --surface-2:  #f5f3ef;     /* elevated sections */
+    --surface-3:  #ece9e3;     /* dividers, subtle bg */
+
+    /* Brass/Gold accent — legal authority */
+    --brass:      #b8953e;
+    --brass-light:#d4b668;
+    --brass-glow: rgba(184,149,62,0.12);
+    --brass-ring: rgba(184,149,62,0.2);
+
+    /* Functional accent (actions) */
+    --action:     #2563eb;
+    --action-hover:#1d4ed8;
+    --action-soft: rgba(37,99,235,0.08);
+    --action-ring: rgba(37,99,235,0.15);
+
+    /* Semantic */
+    --success:    #059669;
+    --success-bg: rgba(5,150,105,0.06);
+    --error:      #dc2626;
+    --error-bg:   rgba(220,38,38,0.06);
+    --warning:    #d97706;
+    --warning-bg: rgba(217,119,6,0.06);
+
+    /* Shadows — warm tinted */
+    --shadow-sm:  0 1px 3px rgba(26,26,46,0.04);
+    --shadow-md:  0 4px 20px rgba(26,26,46,0.06);
+    --shadow-lg:  0 8px 40px rgba(26,26,46,0.08);
+    --shadow-xl:  0 16px 64px rgba(26,26,46,0.12);
+    --shadow-brass: 0 4px 24px rgba(184,149,62,0.15);
+
+    /* Radius */
+    --r-sm: 6px;
+    --r-md: 10px;
+    --r-lg: 14px;
+    --r-xl: 20px;
+
+    /* Fonts */
+    --font-display: 'Frank Ruhl Libre', 'David Libre', Georgia, serif;
+    --font-body:    'Heebo', -apple-system, sans-serif;
+
+    /* Timing */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+body {
+    font-family: var(--font-body);
+    background: var(--surface-0);
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--ink-faint); border-radius: 3px; }
+
+/* ═══════════ DEMO NAVIGATION ═══════════ */
+.demo-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: rgba(26,26,46,0.95);
+    backdrop-filter: blur(12px);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    height: 48px;
+    gap: 4px;
+    direction: ltr;
+}
+.demo-nav-title {
+    color: var(--brass-light);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    margin-left: 16px;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+}
+.demo-nav button {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.6);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.demo-nav button:hover {
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.85);
+}
+.demo-nav button.active {
+    background: var(--brass);
+    border-color: var(--brass);
+    color: #fff;
+}
+
+/* ═══════════ SCREENS ═══════════ */
+.screen {
+    display: none;
+    padding-top: 48px;
+    min-height: 100vh;
+}
+.screen.active { display: block; }
+
+/* ═══════════════════════════════
+   1. LOGIN SCREEN
+   ═══════════════════════════════ */
+.login-screen {
+    display: none;
+    min-height: 100vh;
+    padding-top: 48px;
+    background: var(--ink);
+    position: relative;
+    overflow: hidden;
+}
+.login-screen.active { display: flex; }
+
+/* Animated background */
+.login-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+.login-bg::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -30%;
+    width: 80vw;
+    height: 80vw;
+    background: radial-gradient(circle, rgba(184,149,62,0.08) 0%, transparent 70%);
+    animation: loginGlow 8s ease-in-out infinite alternate;
+}
+.login-bg::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -20%;
+    width: 60vw;
+    height: 60vw;
+    background: radial-gradient(circle, rgba(37,99,235,0.05) 0%, transparent 70%);
+    animation: loginGlow 10s ease-in-out infinite alternate-reverse;
+}
+@keyframes loginGlow {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(30px, -20px) scale(1.05); }
+}
+/* Grid pattern */
+.login-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 48px 48px;
+}
+
+.login-container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 40px 20px;
+    width: 100%;
+}
+
+.login-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--r-xl);
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 400px;
+    backdrop-filter: blur(20px);
+    animation: cardEnter 0.6s var(--ease-out) both;
+}
+@keyframes cardEnter {
+    from { opacity: 0; transform: translateY(32px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Brass line accent */
+.login-card::before {
+    content: '';
+    display: block;
+    width: 48px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--brass), var(--brass-light));
+    border-radius: 2px;
+    margin: 0 auto 32px;
+}
+
+.login-logo {
+    display: block;
+    max-width: 100px;
+    height: auto;
+    margin: 0 auto 24px;
+    filter: brightness(0) invert(1);
+    opacity: 0.9;
+}
+.login-title {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 4px;
+    letter-spacing: -0.01em;
+}
+.login-subtitle {
+    font-size: 14px;
+    color: rgba(255,255,255,0.4);
+    text-align: center;
+    margin-bottom: 36px;
+    font-weight: 300;
+    letter-spacing: 0.02em;
+}
+
+.login-field {
+    margin-bottom: 20px;
+}
+.login-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 8px;
+    letter-spacing: 0.03em;
+}
+.login-input-wrap {
+    position: relative;
+}
+.login-input {
+    width: 100%;
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--r-md);
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.login-input::placeholder {
+    color: rgba(255,255,255,0.2);
+}
+.login-input:focus {
+    outline: none;
+    border-color: var(--brass);
+    box-shadow: 0 0 0 3px var(--brass-ring);
+}
+.login-input[type="email"] {
+    direction: ltr;
+    text-align: left;
+}
+
+.pw-toggle {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.3);
+    cursor: pointer;
+    padding: 4px;
+    transition: color 0.15s;
+}
+.pw-toggle:hover { color: rgba(255,255,255,0.6); }
+
+.login-submit {
+    width: 100%;
+    padding: 14px;
+    margin-top: 8px;
+    background: linear-gradient(135deg, var(--brass), var(--brass-light));
+    color: var(--ink);
+    border: none;
+    border-radius: var(--r-md);
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s;
+    letter-spacing: 0.02em;
+}
+.login-submit:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-brass);
+}
+.login-submit:active {
+    transform: scale(0.98);
+}
+
+.login-error-msg {
+    color: #f87171;
+    font-size: 13px;
+    text-align: center;
+    margin-top: 14px;
+    min-height: 20px;
+}
+
+.login-footer {
+    text-align: center;
+    margin-top: 28px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 0.04em;
+}
+
+/* ═══════════════════════════════
+   2. DASHBOARD / HOME
+   ═══════════════════════════════ */
+.dashboard {
+    padding: 80px 24px 120px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+/* Welcome header */
+.dash-welcome {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 36px;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.dash-greeting {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.2;
+}
+.dash-date {
+    font-size: 14px;
+    color: var(--ink-light);
+    margin-top: 4px;
+    font-weight: 400;
+}
+.dash-quick-add {
+    display: flex;
+    gap: 8px;
+}
+.dash-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: var(--r-md);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+}
+.dash-action-btn.primary {
+    background: var(--action);
+    color: #fff;
+}
+.dash-action-btn.primary:hover {
+    background: var(--action-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(37,99,235,0.25);
+}
+.dash-action-btn.secondary {
+    background: var(--surface-1);
+    color: var(--ink-soft);
+    border: 1px solid var(--surface-3);
+}
+.dash-action-btn.secondary:hover {
+    border-color: var(--ink-faint);
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--surface-3);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    margin-bottom: 32px;
+    box-shadow: var(--shadow-sm);
+}
+.stat-card {
+    background: var(--surface-1);
+    padding: 24px 20px;
+    position: relative;
+}
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 2px;
+    background: var(--brass);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.stat-card:hover::before { opacity: 1; }
+
+.stat-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-light);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+}
+.stat-value {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+.stat-change {
+    font-size: 12px;
+    font-weight: 500;
+    margin-top: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.stat-change.up { color: var(--success); }
+.stat-change.down { color: var(--error); }
+
+/* Dashboard content grid */
+.dash-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.dash-panel {
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+}
+.dash-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--surface-3);
+}
+.dash-panel-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+}
+.dash-panel-link {
+    font-size: 12px;
+    color: var(--action);
+    text-decoration: none;
+    font-weight: 500;
+}
+.dash-panel-link:hover { text-decoration: underline; }
+
+/* Recent sales list */
+.recent-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(0,0,0,0.03);
+    transition: background 0.1s;
+}
+.recent-item:last-child { border-bottom: none; }
+.recent-item:hover { background: var(--surface-2); }
+
+.recent-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--brass-glow);
+    color: var(--brass);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+.recent-info { flex: 1; min-width: 0; }
+.recent-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+}
+.recent-type {
+    font-size: 12px;
+    color: var(--ink-light);
+}
+.recent-amount {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Payment alerts */
+.alert-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(0,0,0,0.03);
+}
+.alert-item:last-child { border-bottom: none; }
+.alert-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+.alert-dot.overdue { background: var(--error); }
+.alert-dot.upcoming { background: var(--warning); }
+.alert-content { flex: 1; }
+.alert-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+}
+.alert-detail {
+    font-size: 12px;
+    color: var(--ink-light);
+    margin-top: 2px;
+}
+.alert-amount {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+/* ═══════════════════════════════
+   3. SALES FORM
+   ═══════════════════════════════ */
+.form-screen {
+    padding: 72px 24px 120px;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+/* Progress steps */
+.form-progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 40px;
+    position: relative;
+}
+.form-step-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+}
+.form-step-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--surface-3);
+    background: var(--surface-1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink-faint);
+    transition: all 0.3s var(--ease-out);
+}
+.form-step-indicator.active .form-step-circle {
+    border-color: var(--brass);
+    color: var(--brass);
+    box-shadow: 0 0 0 4px var(--brass-glow);
+}
+.form-step-indicator.completed .form-step-circle {
+    background: var(--brass);
+    border-color: var(--brass);
+    color: #fff;
+}
+.form-step-label {
+    margin-top: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-faint);
+    transition: color 0.3s;
+}
+.form-step-indicator.active .form-step-label {
+    color: var(--brass);
+}
+.form-step-indicator.completed .form-step-label {
+    color: var(--ink-muted);
+}
+.form-step-line {
+    flex: 1;
+    height: 2px;
+    background: var(--surface-3);
+    margin: 0 12px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+    min-width: 40px;
+}
+.form-step-line .fill {
+    position: absolute;
+    inset: 0;
+    background: var(--brass);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.4s var(--ease-out);
+}
+.form-step-line.filled .fill {
+    transform: scaleX(1);
+}
+
+/* Form card */
+.form-card {
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: var(--r-xl);
+    padding: 40px 36px;
+    box-shadow: var(--shadow-md);
+    animation: formIn 0.4s var(--ease-out) both;
+}
+@keyframes formIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.form-section-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 8px;
+}
+.form-section-subtitle {
+    font-size: 14px;
+    color: var(--ink-light);
+    margin-bottom: 32px;
+}
+
+/* Form fields */
+.field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.field-group {
+    margin-bottom: 22px;
+}
+.field-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    margin-bottom: 6px;
+}
+.field-label .required {
+    color: var(--error);
+    margin-right: 2px;
+}
+.field-input {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--surface-0);
+    border: 1px solid var(--surface-3);
+    border-radius: var(--r-sm);
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--ink);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field-input:focus {
+    outline: none;
+    border-color: var(--brass);
+    box-shadow: 0 0 0 3px var(--brass-ring);
+    background: var(--surface-1);
+}
+.field-input::placeholder {
+    color: var(--ink-faint);
+}
+.field-input[type="email"],
+.field-input[type="tel"] {
+    direction: ltr;
+    text-align: left;
+}
+
+select.field-input {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%237a7a96' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 12px center;
+    padding-left: 32px;
+}
+textarea.field-input {
+    min-height: 100px;
+    resize: vertical;
+}
+
+/* Chips */
+.chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+.chip {
+    padding: 8px 18px;
+    border-radius: 100px;
+    border: 1px solid var(--surface-3);
+    background: var(--surface-1);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.chip:hover {
+    border-color: var(--brass);
+    color: var(--ink-soft);
+}
+.chip.selected {
+    background: var(--brass-glow);
+    border-color: var(--brass);
+    color: var(--brass);
+    font-weight: 600;
+}
+
+/* VAT display */
+.vat-display {
+    background: var(--surface-2);
+    border: 1px solid var(--surface-3);
+    border-radius: var(--r-md);
+    padding: 18px;
+    margin-top: 16px;
+}
+.vat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 14px;
+    color: var(--ink-muted);
+}
+.vat-row:last-child {
+    border-top: 1px solid var(--surface-3);
+    margin-top: 8px;
+    padding-top: 12px;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--ink);
+}
+.vat-row span:last-child {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Radio cards (payment methods) */
+.radio-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+}
+.radio-card {
+    position: relative;
+    padding: 16px 14px;
+    border: 1px solid var(--surface-3);
+    border-radius: var(--r-md);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+}
+.radio-card:hover {
+    border-color: var(--ink-faint);
+}
+.radio-card.selected {
+    border-color: var(--brass);
+    background: var(--brass-glow);
+}
+.radio-card input { display: none; }
+.radio-card-icon {
+    font-size: 20px;
+    margin-bottom: 6px;
+    display: block;
+    /* These would be SVG icons in production */
+}
+.radio-card-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-muted);
+}
+.radio-card.selected .radio-card-label {
+    color: var(--brass);
+    font-weight: 600;
+}
+
+/* Form buttons */
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 36px;
+}
+.btn {
+    flex: 1;
+    padding: 14px 24px;
+    border-radius: var(--r-md);
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    min-height: 48px;
+}
+.btn-primary {
+    background: var(--action);
+    color: #fff;
+}
+.btn-primary:hover {
+    background: var(--action-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(37,99,235,0.3);
+}
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-secondary {
+    background: var(--surface-1);
+    color: var(--ink-muted);
+    border: 1px solid var(--surface-3);
+}
+.btn-secondary:hover {
+    border-color: var(--ink-faint);
+    background: var(--surface-2);
+}
+
+.btn-brass {
+    background: linear-gradient(135deg, var(--brass), var(--brass-light));
+    color: var(--ink);
+}
+.btn-brass:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-brass);
+}
+
+/* ═══════════════════════════════
+   4. BILLING MANAGEMENT
+   ═══════════════════════════════ */
+.billing-screen {
+    padding: 72px 24px 120px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.billing-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.billing-title {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+/* Toolbar */
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.toolbar-search {
+    flex: 1;
+    min-width: 200px;
+    max-width: 280px;
+    padding: 9px 14px;
+    padding-right: 36px;
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: var(--r-md);
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--ink);
+    transition: border-color 0.15s;
+}
+.toolbar-search:focus {
+    outline: none;
+    border-color: var(--brass);
+    box-shadow: 0 0 0 3px var(--brass-ring);
+}
+.filter-pill {
+    padding: 7px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--surface-3);
+    background: var(--surface-1);
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    cursor: pointer;
+    transition: all 0.1s;
+}
+.filter-pill:hover {
+    border-color: var(--ink-faint);
+}
+.filter-pill.active {
+    background: var(--ink);
+    color: #fff;
+    border-color: var(--ink);
+}
+
+/* Table */
+.data-table-wrap {
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.data-table th {
+    padding: 12px 16px;
+    text-align: right;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-light);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--surface-3);
+    background: var(--surface-2);
+}
+.data-table td {
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--ink);
+    border-bottom: 1px solid rgba(0,0,0,0.03);
+    vertical-align: middle;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: rgba(0,0,0,0.01); }
+
+.table-name {
+    font-weight: 500;
+    color: var(--ink);
+}
+.table-sub {
+    font-size: 12px;
+    color: var(--ink-light);
+    margin-top: 2px;
+}
+.table-amount {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Progress bar in table */
+.progress-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.progress-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--surface-3);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.progress-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--brass);
+    transition: width 0.4s var(--ease-out);
+}
+.progress-text {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    white-space: nowrap;
+    min-width: 36px;
+}
+
+/* Badges */
+.badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.badge-active {
+    background: var(--success-bg);
+    color: var(--success);
+}
+.badge-overdue {
+    background: var(--error-bg);
+    color: var(--error);
+}
+.badge-paused {
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
+/* Table actions */
+.table-actions {
+    display: flex;
+    gap: 6px;
+}
+.table-btn {
+    padding: 5px 12px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--surface-3);
+    background: var(--surface-1);
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    cursor: pointer;
+    transition: all 0.1s;
+}
+.table-btn:hover {
+    border-color: var(--ink-faint);
+    color: var(--ink);
+}
+
+/* ═══════════════════════════════
+   5. BOTTOM NAV
+   ═══════════════════════════════ */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid var(--surface-3);
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    padding: 0 16px;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-item {
+    flex: 1;
+    max-width: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 10px 4px 8px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: var(--font-body);
+    color: var(--ink-light);
+    transition: color 0.15s;
+    position: relative;
+}
+.nav-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 24px;
+    height: 2px;
+    background: var(--brass);
+    border-radius: 0 0 2px 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.nav-item:hover { color: var(--ink-muted); }
+.nav-item.active {
+    color: var(--brass);
+}
+.nav-item.active::before { opacity: 1; }
+.nav-icon {
+    width: 22px;
+    height: 22px;
+}
+.nav-label {
+    font-size: 10px;
+    font-weight: 500;
+}
+
+/* Notification badge on nav */
+.nav-badge {
+    position: absolute;
+    top: 6px;
+    right: calc(50% - 18px);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--error);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ═══════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════ */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .dash-grid {
+        grid-template-columns: 1fr;
+    }
+    .radio-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .field-row {
+        grid-template-columns: 1fr;
+    }
+    .billing-screen {
+        padding: 60px 16px 100px;
+    }
+}
+
+@media (max-width: 500px) {
+    .login-card {
+        padding: 36px 24px;
+    }
+    .dash-greeting {
+        font-size: 22px;
+    }
+    .stat-value {
+        font-size: 22px;
+    }
+    .form-card {
+        padding: 28px 20px;
+        border-radius: var(--r-lg);
+    }
+    .form-section-title {
+        font-size: 19px;
+    }
+    .radio-cards {
+        grid-template-columns: 1fr 1fr;
+    }
+    .chip {
+        padding: 6px 14px;
+        font-size: 12px;
+    }
+}
+
+/* ═══════════ DEMO SPECIFIC ═══════════ */
+.demo-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--brass-glow);
+    color: var(--brass);
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 4px;
+    margin-right: 8px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ Demo Navigation Bar ═══════ -->
+<nav class="demo-nav">
+    <span class="demo-nav-title">TOFES OFFICE — Redesign Demo</span>
+    <button class="active" onclick="showScreen('login')">Login</button>
+    <button onclick="showScreen('dashboard')">Dashboard</button>
+    <button onclick="showScreen('form')">Sales Form</button>
+    <button onclick="showScreen('billing')">Billing</button>
+</nav>
+
+<!-- ═══════════════════════════════════
+     SCREEN 1: LOGIN
+     ═══════════════════════════════════ -->
+<div id="screen-login" class="login-screen active">
+    <div class="login-bg">
+        <div class="login-grid"></div>
+    </div>
+    <div class="login-container">
+        <div class="login-card">
+            <img src="assets/logo.png" alt="לוגו משרד עו״ד גיא הרשקוביץ" class="login-logo" onerror="this.style.display='none'">
+            <h1 class="login-title">כניסה למערכת</h1>
+            <p class="login-subtitle">משרד עו"ד גיא הרשקוביץ ושות'</p>
+
+            <div class="login-field">
+                <label class="login-label" for="demo-email">אימייל</label>
+                <div class="login-input-wrap">
+                    <input type="email" id="demo-email" class="login-input" placeholder="you@ghlawoffice.co.il" autocomplete="username">
+                </div>
+            </div>
+
+            <div class="login-field">
+                <label class="login-label" for="demo-password">סיסמה</label>
+                <div class="login-input-wrap">
+                    <input type="password" id="demo-password" class="login-input" placeholder="••••••••" autocomplete="current-password">
+                    <button type="button" class="pw-toggle" aria-label="הצג סיסמה">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <button class="login-submit" onclick="showScreen('dashboard')">כניסה</button>
+            <div class="login-error-msg"></div>
+
+            <p class="login-footer">מערכת מאובטחת | גרסה 2.0</p>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     SCREEN 2: DASHBOARD
+     ═══════════════════════════════════ -->
+<div id="screen-dashboard" class="screen">
+    <div class="dashboard">
+        <div class="dash-welcome">
+            <div>
+                <h1 class="dash-greeting">בוקר טוב, חיים</h1>
+                <p class="dash-date">יום שבת, 29 במרץ 2026 · 10:42</p>
+            </div>
+            <div class="dash-quick-add">
+                <button class="dash-action-btn primary" onclick="showScreen('form')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    טופס מכר חדש
+                </button>
+                <button class="dash-action-btn secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                    חיוב חוזר
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">מכירות החודש</div>
+                <div class="stat-value">₪147,200</div>
+                <div class="stat-change up">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                    +12% מהחודש הקודם
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">עסקאות פתוחות</div>
+                <div class="stat-value">23</div>
+                <div class="stat-change">
+                    <span style="color:var(--ink-light)">8 חדשות השבוע</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">חיובים חוזרים</div>
+                <div class="stat-value">₪38,400</div>
+                <div class="stat-change up">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                    +3 לקוחות חדשים
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">באיחור תשלום</div>
+                <div class="stat-value" style="color:var(--error)">4</div>
+                <div class="stat-change down">
+                    ₪12,600 חוב כולל
+                </div>
+            </div>
+        </div>
+
+        <!-- Content grid -->
+        <div class="dash-grid">
+            <div class="dash-panel">
+                <div class="dash-panel-header">
+                    <span class="dash-panel-title">מכירות אחרונות</span>
+                    <a href="#" class="dash-panel-link" onclick="showScreen('billing');return false">הצג הכל →</a>
+                </div>
+                <div class="recent-item">
+                    <div class="recent-avatar">ד.כ</div>
+                    <div class="recent-info">
+                        <div class="recent-name">דוד כהן</div>
+                        <div class="recent-type">ריטיינר · כרטיס אשראי</div>
+                    </div>
+                    <div class="recent-amount">₪18,500</div>
+                </div>
+                <div class="recent-item">
+                    <div class="recent-avatar">ש.ל</div>
+                    <div class="recent-info">
+                        <div class="recent-name">שרה לוי</div>
+                        <div class="recent-type">פגישת ייעוץ · מזומן</div>
+                    </div>
+                    <div class="recent-amount">₪2,800</div>
+                </div>
+                <div class="recent-item">
+                    <div class="recent-avatar">א.ב</div>
+                    <div class="recent-info">
+                        <div class="recent-name">אברהם בן-דוד</div>
+                        <div class="recent-type">הליך משפטי · שיקים</div>
+                    </div>
+                    <div class="recent-amount">₪45,000</div>
+                </div>
+                <div class="recent-item">
+                    <div class="recent-avatar">מ.ר</div>
+                    <div class="recent-info">
+                        <div class="recent-name">מיכל רוזנברג</div>
+                        <div class="recent-type">תוכנית שעות · העברה</div>
+                    </div>
+                    <div class="recent-amount">₪9,200</div>
+                </div>
+            </div>
+
+            <div class="dash-panel">
+                <div class="dash-panel-header">
+                    <span class="dash-panel-title">התראות תשלום</span>
+                    <span style="font-size:12px;color:var(--error);font-weight:600;">4 פתוחות</span>
+                </div>
+                <div class="alert-item">
+                    <div class="alert-dot overdue"></div>
+                    <div class="alert-content">
+                        <div class="alert-title">יוסף מזרחי</div>
+                        <div class="alert-detail">באיחור 12 יום · חיוב חודשי</div>
+                    </div>
+                    <div class="alert-amount">₪4,200</div>
+                </div>
+                <div class="alert-item">
+                    <div class="alert-dot overdue"></div>
+                    <div class="alert-content">
+                        <div class="alert-title">רחל אביב</div>
+                        <div class="alert-detail">באיחור 5 ימים · שיק חוזר</div>
+                    </div>
+                    <div class="alert-amount">₪3,400</div>
+                </div>
+                <div class="alert-item">
+                    <div class="alert-dot upcoming"></div>
+                    <div class="alert-content">
+                        <div class="alert-title">עמית גולן</div>
+                        <div class="alert-detail">מחר · חיוב אשראי חודשי</div>
+                    </div>
+                    <div class="alert-amount">₪2,500</div>
+                </div>
+                <div class="alert-item">
+                    <div class="alert-dot upcoming"></div>
+                    <div class="alert-content">
+                        <div class="alert-title">נועה פרידמן</div>
+                        <div class="alert-detail">בעוד 3 ימים · ריטיינר</div>
+                    </div>
+                    <div class="alert-amount">₪5,000</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     SCREEN 3: SALES FORM
+     ═══════════════════════════════════ -->
+<div id="screen-form" class="screen">
+    <div class="form-screen">
+        <!-- Progress -->
+        <div class="form-progress">
+            <div class="form-step-indicator completed">
+                <div class="form-step-circle">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <span class="form-step-label">פרטי לקוח</span>
+            </div>
+            <div class="form-step-line filled"><div class="fill"></div></div>
+            <div class="form-step-indicator active">
+                <div class="form-step-circle">2</div>
+                <span class="form-step-label">העסקה</span>
+            </div>
+            <div class="form-step-line"><div class="fill"></div></div>
+            <div class="form-step-indicator">
+                <div class="form-step-circle">3</div>
+                <span class="form-step-label">תשלום</span>
+            </div>
+            <div class="form-step-line"><div class="fill"></div></div>
+            <div class="form-step-indicator">
+                <div class="form-step-circle">4</div>
+                <span class="form-step-label">סיכום</span>
+            </div>
+        </div>
+
+        <!-- Form Card (Step 2 shown) -->
+        <div class="form-card">
+            <h2 class="form-section-title">פרטי העסקה</h2>
+            <p class="form-section-subtitle">בחרו את סוג העסקה והזינו את הסכום</p>
+
+            <label class="field-label">סוג העסקה</label>
+            <div class="chip-group">
+                <button class="chip" onclick="selectChip(this)">פגישת ייעוץ</button>
+                <button class="chip selected" onclick="selectChip(this)">ריטיינר</button>
+                <button class="chip" onclick="selectChip(this)">תוכנית שעות</button>
+                <button class="chip" onclick="selectChip(this)">הליך משפטי — תקרת שעות</button>
+                <button class="chip" onclick="selectChip(this)">הליך משפטי — פיקס</button>
+                <button class="chip" onclick="selectChip(this)">אחר</button>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label" for="desc">תיאור העסקה <span class="required">*</span></label>
+                <textarea class="field-input" id="desc" placeholder="תיאור קצר של השירות המשפטי...">ליווי משפטי שוטף — ריטיינר חודשי</textarea>
+            </div>
+
+            <div class="field-row">
+                <div class="field-group">
+                    <label class="field-label" for="amount">סכום לפני מע"מ <span class="required">*</span></label>
+                    <input type="text" class="field-input" id="amount" value="₪ 15,000" style="direction:ltr;text-align:left;">
+                </div>
+                <div class="field-group">
+                    <label class="field-label">מע"מ (18%)</label>
+                    <input type="text" class="field-input" value="₪ 2,700" readonly style="direction:ltr;text-align:left;background:var(--surface-2);color:var(--ink-light);">
+                </div>
+            </div>
+
+            <div class="vat-display">
+                <div class="vat-row">
+                    <span>סכום לפני מע"מ</span>
+                    <span>₪15,000</span>
+                </div>
+                <div class="vat-row">
+                    <span>מע"מ (18%)</span>
+                    <span>₪2,700</span>
+                </div>
+                <div class="vat-row">
+                    <span>סה"כ כולל מע"מ</span>
+                    <span>₪17,700</span>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-secondary">→ הקודם</button>
+                <button class="btn btn-primary">הבא ←</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     SCREEN 4: BILLING MANAGEMENT
+     ═══════════════════════════════════ -->
+<div id="screen-billing" class="screen">
+    <div class="billing-screen">
+        <div class="billing-header">
+            <h1 class="billing-title">ניהול חיובים חוזרים</h1>
+            <div style="display:flex;gap:8px;">
+                <button class="dash-action-btn secondary">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    ייצוא
+                </button>
+                <button class="dash-action-btn primary">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    חיוב חדש
+                </button>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <input type="search" class="toolbar-search" placeholder="חיפוש לקוח...">
+            <button class="filter-pill active">הכל</button>
+            <button class="filter-pill" onclick="this.classList.toggle('active')">פעיל</button>
+            <button class="filter-pill" onclick="this.classList.toggle('active')">באיחור</button>
+            <button class="filter-pill" onclick="this.classList.toggle('active')">הושלם</button>
+        </div>
+
+        <!-- Table -->
+        <div class="data-table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>לקוח</th>
+                        <th>סכום חודשי</th>
+                        <th>התקדמות</th>
+                        <th>תאריך חיוב</th>
+                        <th>סטטוס</th>
+                        <th>פעולות</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <div class="table-name">דוד כהן</div>
+                            <div class="table-sub">054-7812345 · ריטיינר</div>
+                        </td>
+                        <td class="table-amount">₪5,900</td>
+                        <td>
+                            <div class="progress-bar-wrap">
+                                <div class="progress-bar"><div class="progress-bar-fill" style="width:75%"></div></div>
+                                <span class="progress-text">9/12</span>
+                            </div>
+                        </td>
+                        <td>1 בכל חודש</td>
+                        <td><span class="badge badge-active">פעיל</span></td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="table-btn">תשלומים</button>
+                                <button class="table-btn">⋯</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="table-name">שרה לוי</div>
+                            <div class="table-sub">052-9876543 · חיוב חודשי</div>
+                        </td>
+                        <td class="table-amount">₪3,200</td>
+                        <td>
+                            <div class="progress-bar-wrap">
+                                <div class="progress-bar"><div class="progress-bar-fill" style="width:40%"></div></div>
+                                <span class="progress-text">4/10</span>
+                            </div>
+                        </td>
+                        <td>15 בכל חודש</td>
+                        <td><span class="badge badge-overdue">באיחור</span></td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="table-btn">תשלומים</button>
+                                <button class="table-btn">⋯</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="table-name">אברהם בן-דוד</div>
+                            <div class="table-sub">050-1234567 · הליך משפטי</div>
+                        </td>
+                        <td class="table-amount">₪8,500</td>
+                        <td>
+                            <div class="progress-bar-wrap">
+                                <div class="progress-bar"><div class="progress-bar-fill" style="width:100%"></div></div>
+                                <span class="progress-text">6/6</span>
+                            </div>
+                        </td>
+                        <td>10 בכל חודש</td>
+                        <td><span class="badge badge-active">הושלם</span></td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="table-btn">תשלומים</button>
+                                <button class="table-btn">⋯</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="table-name">מיכל רוזנברג</div>
+                            <div class="table-sub">058-5551234 · ריטיינר</div>
+                        </td>
+                        <td class="table-amount">₪4,600</td>
+                        <td>
+                            <div class="progress-bar-wrap">
+                                <div class="progress-bar"><div class="progress-bar-fill" style="width:17%"></div></div>
+                                <span class="progress-text">2/12</span>
+                            </div>
+                        </td>
+                        <td>5 בכל חודש</td>
+                        <td><span class="badge badge-active">פעיל</span></td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="table-btn">תשלומים</button>
+                                <button class="table-btn">⋯</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="table-name">יוסף מזרחי</div>
+                            <div class="table-sub">053-6543210 · חיוב חודשי</div>
+                        </td>
+                        <td class="table-amount">₪4,200</td>
+                        <td>
+                            <div class="progress-bar-wrap">
+                                <div class="progress-bar"><div class="progress-bar-fill" style="width:50%"></div></div>
+                                <span class="progress-text">3/6</span>
+                            </div>
+                        </td>
+                        <td>20 בכל חודש</td>
+                        <td><span class="badge badge-overdue">באיחור</span></td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="table-btn">תשלומים</button>
+                                <button class="table-btn">⋯</button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════ Bottom Navigation ═══════ -->
+<div class="bottom-nav" id="bottomNav" style="display:none;">
+    <button class="nav-item active" onclick="showScreen('dashboard')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span class="nav-label">ראשי</span>
+    </button>
+    <button class="nav-item" onclick="showScreen('form')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+        <span class="nav-label">טופס מכר</span>
+    </button>
+    <button class="nav-item" onclick="showScreen('billing')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        <span class="nav-label">חיובים</span>
+        <span class="nav-badge">2</span>
+    </button>
+    <button class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span class="nav-label">פעילות</span>
+    </button>
+    <button class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span class="nav-label">משתמשים</span>
+    </button>
+</div>
+
+<script>
+function showScreen(name) {
+    // Hide all screens
+    document.querySelectorAll('.screen, .login-screen').forEach(s => s.classList.remove('active'));
+    // Show target
+    document.getElementById('screen-' + name).classList.add('active');
+    // Update demo nav
+    document.querySelectorAll('.demo-nav button').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    // Show/hide bottom nav
+    document.getElementById('bottomNav').style.display = name === 'login' ? 'none' : 'flex';
+    // Update bottom nav active state
+    var navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(n => n.classList.remove('active'));
+    var map = { dashboard: 0, form: 1, billing: 2 };
+    if (map[name] !== undefined) navItems[map[name]].classList.add('active');
+    // Scroll to top
+    window.scrollTo(0, 0);
+}
+
+function selectChip(el) {
+    el.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+}
+
+// Filter pills
+document.querySelectorAll('.filter-pill').forEach(pill => {
+    pill.addEventListener('click', function() {
+        if (this.textContent === 'הכל') {
+            this.parentElement.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+            this.classList.add('active');
+        } else {
+            this.parentElement.querySelector('.filter-pill:first-child').classList.remove('active');
+            this.classList.toggle('active');
+            // If none active, activate "all"
+            var anyActive = this.parentElement.querySelectorAll('.filter-pill.active').length;
+            if (!anyActive) this.parentElement.querySelector('.filter-pill:first-child').classList.add('active');
+        }
+    });
+});
+</script>
+
+</body>
+</html>

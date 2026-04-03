@@ -67,9 +67,10 @@ service cloud.firestore {
     }
 
     // ─── Leads CRM ───
+    // create is open (webhook + bot write without auth, protected by secret)
     match /leads/{docId} {
       allow read: if isActive();
-      allow create: if isAuth();
+      allow create: if true;
       allow update: if isActive();
       allow delete: if isMaster();
     }

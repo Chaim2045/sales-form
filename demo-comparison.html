@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>דמו השוואה — לפני ואחרי Frontend Design</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Heebo', sans-serif;
+            background: #0f0f0f;
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        /* === TOP BANNER === */
+        .banner {
+            text-align: center;
+            padding: 40px 20px 30px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .banner h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .banner p {
+            color: rgba(255,255,255,0.5);
+            font-size: 15px;
+        }
+
+        /* === TOGGLE === */
+        .toggle-container {
+            display: flex;
+            justify-content: center;
+            gap: 0;
+            padding: 24px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: #0f0f0f;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .toggle-btn {
+            padding: 12px 32px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: transparent;
+            color: rgba(255,255,255,0.5);
+            font-family: 'Heebo', sans-serif;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .toggle-btn:first-child { border-radius: 0 8px 8px 0; }
+        .toggle-btn:last-child { border-radius: 8px 0 0 8px; }
+        .toggle-btn.active {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        /* === COMPARISON AREA === */
+        .comparison {
+            display: flex;
+            gap: 40px;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+            justify-content: center;
+        }
+        .side {
+            flex: 1;
+            max-width: 480px;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .side-label {
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+        .label-before {
+            background: rgba(239,68,68,0.1);
+            color: #f87171;
+            border: 1px solid rgba(239,68,68,0.2);
+        }
+        .label-after {
+            background: rgba(34,197,94,0.1);
+            color: #4ade80;
+            border: 1px solid rgba(34,197,94,0.2);
+        }
+
+        /* ======================= */
+        /* === BEFORE (Current) === */
+        /* ======================= */
+        .before-login {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 40px 32px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            direction: rtl;
+        }
+        .before-login .logo-placeholder {
+            width: 80px;
+            height: 80px;
+            background: #f3f4f6;
+            border-radius: 12px;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            font-size: 12px;
+        }
+        .before-login h2 {
+            font-family: 'Heebo', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            color: rgba(0,0,0,0.88);
+            margin-bottom: 4px;
+        }
+        .before-login .subtitle {
+            color: rgba(0,0,0,0.55);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+        .before-login .form-group {
+            text-align: right;
+            margin-bottom: 16px;
+        }
+        .before-login label {
+            display: block;
+            font-size: 13px;
+            color: rgba(0,0,0,0.55);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .before-login input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 6px;
+            font-size: 15px;
+            font-family: 'Heebo', sans-serif;
+            direction: ltr;
+            text-align: left;
+            background: #fff;
+            color: #333;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .before-login input:focus {
+            border-color: #3b82f6;
+        }
+        .before-login .btn {
+            width: 100%;
+            padding: 12px;
+            background: #3b82f6;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: 'Heebo', sans-serif;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .before-login .btn-quick {
+            width: 100%;
+            padding: 12px;
+            background: none;
+            color: #3b82f6;
+            border: 2px solid #3b82f6;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: 'Heebo', sans-serif;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        /* ======================= */
+        /* === AFTER (Upgraded) === */
+        /* ======================= */
+        .after-login {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            direction: rtl;
+        }
+        .after-login .bg-layer {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(160deg, #0c1222 0%, #162040 40%, #1a1040 70%, #0c1222 100%);
+            z-index: 0;
+        }
+        .after-login .bg-glow {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+            top: -80px;
+            left: -80px;
+            z-index: 1;
+        }
+        .after-login .bg-glow-2 {
+            position: absolute;
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, rgba(168,85,247,0.1) 0%, transparent 70%);
+            bottom: -60px;
+            right: -60px;
+            z-index: 1;
+        }
+        .after-login .content {
+            position: relative;
+            z-index: 2;
+            padding: 48px 36px;
+            text-align: center;
+        }
+        .after-login .logo-ring {
+            width: 88px;
+            height: 88px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.2));
+            border: 1px solid rgba(255,255,255,0.08);
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(12px);
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+        .after-login .logo-ring span {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .after-login h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 24px;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+            letter-spacing: -0.3px;
+        }
+        .after-login .subtitle {
+            color: rgba(255,255,255,0.4);
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 300;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 32px;
+        }
+        .after-login .form-group {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+        .after-login label {
+            display: block;
+            font-size: 12px;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .after-login input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            direction: ltr;
+            text-align: left;
+            background: rgba(255,255,255,0.04);
+            color: #e2e8f0;
+            outline: none;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(8px);
+        }
+        .after-login input::placeholder {
+            color: rgba(255,255,255,0.2);
+        }
+        .after-login input:focus {
+            border-color: rgba(129,140,248,0.4);
+            background: rgba(255,255,255,0.06);
+            box-shadow: 0 0 0 3px rgba(129,140,248,0.1);
+        }
+        .after-login .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: 'Heebo', sans-serif;
+            cursor: pointer;
+            margin-top: 8px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+        }
+        .after-login .btn-primary::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.1) 50%, transparent 60%);
+            transform: translateX(-100%);
+            transition: transform 0.6s ease;
+        }
+        .after-login .btn-primary:hover::before {
+            transform: translateX(100%);
+        }
+        .after-login .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(99,102,241,0.3);
+        }
+        .after-login .btn-biometric {
+            width: 100%;
+            padding: 13px;
+            background: rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.6);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: 'Heebo', sans-serif;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .after-login .btn-biometric:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.12);
+            color: rgba(255,255,255,0.8);
+        }
+        .after-login .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0;
+        }
+        .after-login .divider::before,
+        .after-login .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,0.06);
+        }
+        .after-login .divider span {
+            font-size: 11px;
+            color: rgba(255,255,255,0.2);
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .after-login .footer-text {
+            margin-top: 24px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.15);
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* === FEATURES LIST === */
+        .features {
+            max-width: 1200px;
+            margin: 60px auto 40px;
+            padding: 0 20px;
+        }
+        .features h3 {
+            text-align: center;
+            font-size: 20px;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 30px;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        .feature-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .feature-card .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .tag-before {
+            background: rgba(239,68,68,0.1);
+            color: #f87171;
+        }
+        .tag-after {
+            background: rgba(34,197,94,0.1);
+            color: #4ade80;
+        }
+        .feature-card h4 {
+            font-size: 15px;
+            color: rgba(255,255,255,0.85);
+            margin-bottom: 6px;
+        }
+        .feature-card p {
+            font-size: 13px;
+            color: rgba(255,255,255,0.4);
+            line-height: 1.6;
+        }
+
+        /* === RESPONSIVE === */
+        @media (max-width: 900px) {
+            .comparison { flex-direction: column; align-items: center; }
+            .side { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="banner">
+        <h1>דמו השוואה — Frontend Design Plugin</h1>
+        <p>הסגנון הנוכחי של TOFES OFFICE מול מה שהפלאגין מייצר</p>
+    </div>
+
+    <div class="comparison">
+        <!-- BEFORE -->
+        <div class="side">
+            <div class="side-label label-before">לפני — הסגנון הנוכחי (Default)</div>
+            <div class="before-login">
+                <div class="logo-placeholder">לוגו</div>
+                <h2>כניסה למערכת</h2>
+                <p class="subtitle">משרד עו"ד גיא הרשקוביץ ושות'</p>
+                <div class="form-group">
+                    <label>אימייל</label>
+                    <input type="email" placeholder="example@ghlawoffice.co.il" readonly>
+                </div>
+                <div class="form-group">
+                    <label>סיסמה</label>
+                    <input type="password" placeholder="הזן סיסמה" value="••••••••" readonly>
+                </div>
+                <button class="btn">כניסה</button>
+                <button class="btn-quick">🔒 כניסה מהירה</button>
+            </div>
+        </div>
+
+        <!-- AFTER -->
+        <div class="side">
+            <div class="side-label label-after">אחרי — עם Frontend Design Plugin</div>
+            <div class="after-login">
+                <div class="bg-layer"></div>
+                <div class="bg-glow"></div>
+                <div class="bg-glow-2"></div>
+                <div class="content">
+                    <div class="logo-ring">
+                        <span>GH</span>
+                    </div>
+                    <h2>כניסה למערכת</h2>
+                    <p class="subtitle">Guy Hershkowitz & Co.</p>
+
+                    <div class="form-group">
+                        <label>כתובת אימייל</label>
+                        <input type="email" placeholder="example@ghlawoffice.co.il" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>סיסמה</label>
+                        <input type="password" placeholder="הזן סיסמה" value="••••••••" readonly>
+                    </div>
+
+                    <button class="btn-primary">כניסה למערכת</button>
+
+                    <div class="divider"><span>או</span></div>
+
+                    <button class="btn-biometric">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        כניסה ביומטרית מהירה
+                    </button>
+
+                    <p class="footer-text">מערכת מאובטחת · הצפנת AES-256 · משרד עו"ד גיא הרשקוביץ ושות'</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FEATURES COMPARISON -->
+    <div class="features">
+        <h3>מה ההבדל בפועל?</h3>
+        <div class="features-grid">
+            <div class="feature-card">
+                <span class="tag tag-before">לפני</span>
+                <h4>פונט אחיד — Heebo בלבד</h4>
+                <p>פונט אחד לכל דבר. כותרות, תוויות, כפתורים — הכל נראה אותו דבר. אין היררכיה ויזואלית.</p>
+            </div>
+            <div class="feature-card">
+                <span class="tag tag-after">אחרי</span>
+                <h4>שילוב פונטים מקצועי</h4>
+                <p>Playfair Display לכותרות (אלגנטי), Inter לתוויות (נקי), Heebo לעברית. כל אלמנט עם אופי משלו.</p>
+            </div>
+            <div class="feature-card">
+                <span class="tag tag-before">לפני</span>
+                <h4>צבע אחד — כחול #3b82f6</h4>
+                <p>כפתור כחול, בורדר כחול, הכל כחול. "AI slop" קלאסי שנראה כמו כל אפליקציה שנייה.</p>
+            </div>
+            <div class="feature-card">
+                <span class="tag tag-after">אחרי</span>
+                <h4>פלטת צבעים עם עומק</h4>
+                <p>גרדיאנטים מחושבים, glow effects עדינים, שכבות שקיפות. מרגיש premium ולא "תבנית חינמית".</p>
+            </div>
+            <div class="feature-card">
+                <span class="tag tag-before">לפני</span>
+                <h4>רקע לבן שטוח</h4>
+                <p>קופסה לבנה עם צל קל. אין אופי, אין אווירה. נראה כמו טופס ממשלתי.</p>
+            </div>
+            <div class="feature-card">
+                <span class="tag tag-after">אחרי</span>
+                <h4>אווירה ואופי</h4>
+                <p>רקע כהה עם glow effects, backdrop-filter, אנימציית float עדינה על הלוגו. מרגיש כמו אפליקציה יוקרתית.</p>
+            </div>
+            <div class="feature-card">
+                <span class="tag tag-before">לפני</span>
+                <h4>אין אנימציות</h4>
+                <p>הכל סטטי. לוחצים כפתור — שום דבר לא קורה ויזואלית. אין תחושת אינטראקציה.</p>
+            </div>
+            <div class="feature-card">
+                <span class="tag tag-after">אחרי</span>
+                <h4>מיקרו-אנימציות חכמות</h4>
+                <p>Hover עם shimmer effect על כפתורים, focus glow על שדות קלט, לוגו שצף. הכל מרגיש חי.</p>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

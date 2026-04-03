@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>טופס מכר — Bento Grid | דמו</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   TOFES OFFICE — Bento Grid Demo
+
+   Concept: Apple Keynote-style Bento layout.
+   Variable-size tiles, data-dense but breathable.
+   Reveal-on-scroll animations, rich micro-interactions.
+   Dark base with luminous accent surfaces.
+   ═══════════════════════════════════════════ */
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+    --bg:       #0c0c0e;
+    --bg-1:     #141416;
+    --bg-2:     #1c1c20;
+    --bg-3:     #26262b;
+    --bg-glass: rgba(28,28,32,0.75);
+
+    --fg:       #f5f5f7;
+    --fg-2:     rgba(245,245,247,0.6);
+    --fg-3:     rgba(245,245,247,0.35);
+    --fg-4:     rgba(245,245,247,0.15);
+    --fg-ghost: rgba(245,245,247,0.05);
+
+    --border:   rgba(255,255,255,0.06);
+    --border-h: rgba(255,255,255,0.1);
+
+    /* Accent palette — multi-color for bento variety */
+    --blue:     #3b82f6;
+    --blue-s:   rgba(59,130,255,0.12);
+    --purple:   #a855f7;
+    --purple-s: rgba(168,85,247,0.12);
+    --green:    #22c55e;
+    --green-s:  rgba(34,197,94,0.12);
+    --amber:    #f59e0b;
+    --amber-s:  rgba(245,158,11,0.12);
+    --red:      #ef4444;
+    --red-s:    rgba(239,68,68,0.12);
+    --cyan:     #06b6d4;
+    --cyan-s:   rgba(6,182,212,0.12);
+    --pink:     #ec4899;
+    --pink-s:   rgba(236,72,153,0.12);
+
+    --sh-glow:  0 0 60px rgba(59,130,255,0.08);
+    --sh-card:  0 1px 2px rgba(0,0,0,0.3), 0 0 0 1px var(--border);
+    --sh-up:    0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px var(--border);
+
+    --font: 'Heebo', 'Inter', system-ui, sans-serif;
+    --r:    16px;
+    --r-s:  10px;
+    --r-xs: 6px;
+    --ease: cubic-bezier(0.22,1,0.36,1);
+}
+
+body{
+    font-family:var(--font);background:var(--bg);color:var(--fg);
+    line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+
+/* Scrollbar */
+*{scrollbar-width:thin;scrollbar-color:var(--fg-4) transparent}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--fg-4);border-radius:3px}
+
+/* ═══════ DEMO BAR ═══════ */
+.dbar{
+    position:fixed;top:0;left:0;right:0;z-index:9999;
+    background:rgba(12,12,14,0.85);backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--border);height:44px;
+    display:flex;align-items:center;padding:0 16px;gap:2px;
+}
+.dbar-l{
+    font-size:11px;font-weight:700;color:var(--blue);
+    letter-spacing:0.06em;text-transform:uppercase;
+    margin-left:14px;white-space:nowrap;
+}
+.dbar button{
+    background:transparent;border:none;color:var(--fg-3);
+    padding:6px 12px;border-radius:8px;font-family:var(--font);
+    font-size:12px;font-weight:500;cursor:pointer;
+    transition:color .12s,background .12s;
+}
+.dbar button:hover{color:var(--fg);background:var(--fg-ghost)}
+.dbar button.on{color:var(--fg);background:var(--bg-2)}
+
+/* ═══════ SCREENS ═══════ */
+.scr{display:none;padding-top:44px;min-height:100vh}
+.scr.on{display:block}
+
+/* ═══════════════════════════════
+   1. LOGIN
+   ═══════════════════════════════ */
+.login{display:none;min-height:100vh;padding-top:44px;background:var(--bg);position:relative;overflow:hidden}
+.login.on{display:flex;flex-direction:column}
+
+/* Ambient glow */
+.login-glow{
+    position:absolute;top:20%;right:-10%;
+    width:500px;height:500px;
+    background:radial-gradient(circle,rgba(59,130,255,0.07) 0%,transparent 70%);
+    filter:blur(60px);pointer-events:none;
+    animation:drift 12s ease-in-out infinite alternate;
+}
+.login-glow-2{
+    position:absolute;bottom:10%;left:-5%;
+    width:400px;height:400px;
+    background:radial-gradient(circle,rgba(168,85,247,0.06) 0%,transparent 70%);
+    filter:blur(60px);pointer-events:none;
+    animation:drift 15s ease-in-out infinite alternate-reverse;
+}
+@keyframes drift{
+    from{transform:translate(0,0)}
+    to{transform:translate(20px,-30px)}
+}
+
+.login-center{
+    flex:1;display:flex;align-items:center;justify-content:center;
+    padding:32px 20px 80px;position:relative;z-index:1;
+}
+.login-card{
+    width:100%;max-width:380px;
+    background:var(--bg-glass);backdrop-filter:blur(24px);
+    border:1px solid var(--border-h);border-radius:24px;
+    padding:48px 36px;
+    animation:cardUp .6s var(--ease) both;
+}
+@keyframes cardUp{
+    from{opacity:0;transform:translateY(30px) scale(.97)}
+    to{opacity:1;transform:translateY(0) scale(1)}
+}
+
+.login-card h1{
+    font-size:28px;font-weight:800;letter-spacing:-.02em;
+    text-align:center;margin-bottom:4px;
+}
+.login-card .sub{
+    text-align:center;font-size:14px;color:var(--fg-3);
+    margin-bottom:36px;font-weight:400;
+}
+
+.lfg{margin-bottom:18px}
+.llbl{display:block;font-size:11px;font-weight:600;color:var(--fg-2);margin-bottom:6px;letter-spacing:.03em;text-transform:uppercase}
+.linp-w{position:relative}
+.linp{
+    width:100%;padding:13px 14px;
+    background:var(--bg-2);border:1px solid var(--border-h);
+    border-radius:var(--r-s);font-family:var(--font);
+    font-size:14px;color:var(--fg);
+    transition:border-color .15s,box-shadow .15s;
+}
+.linp::placeholder{color:var(--fg-4)}
+.linp:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,255,.2)}
+.linp.eml{direction:ltr;text-align:left}
+
+.pw-eye{
+    position:absolute;left:10px;top:50%;transform:translateY(-50%);
+    background:none;border:none;color:var(--fg-4);cursor:pointer;padding:4px;
+}
+.pw-eye:hover{color:var(--fg-2)}
+
+.login-btn{
+    width:100%;padding:13px;margin-top:6px;
+    background:linear-gradient(135deg,var(--blue),var(--purple));
+    color:#fff;border:none;border-radius:var(--r-s);
+    font-family:var(--font);font-size:14px;font-weight:700;
+    cursor:pointer;transition:transform .1s,box-shadow .2s;
+}
+.login-btn:hover{box-shadow:0 4px 24px rgba(59,130,255,.3)}
+.login-btn:active{transform:scale(.98)}
+
+.login-foot{text-align:center;margin-top:28px;font-size:11px;color:var(--fg-4)}
+
+/* ═══════════════════════════════
+   2. DASHBOARD — BENTO GRID
+   ═══════════════════════════════ */
+.dash{
+    padding:68px 24px 120px;max-width:1200px;margin:0 auto;
+}
+
+.dash-top{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    margin-bottom:28px;flex-wrap:wrap;gap:14px;
+}
+.dash-hi{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1.15}
+.dash-dt{font-size:13px;color:var(--fg-3);margin-top:4px}
+.dash-btns{display:flex;gap:8px}
+
+.btn{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:9px 18px;border-radius:var(--r-s);font-family:var(--font);
+    font-size:13px;font-weight:600;cursor:pointer;
+    transition:all .15s;border:none;
+}
+.btn-g{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff}
+.btn-g:hover{box-shadow:0 4px 20px rgba(59,130,255,.25);transform:translateY(-1px)}
+.btn-o{background:var(--bg-2);color:var(--fg-2);border:1px solid var(--border-h)}
+.btn-o:hover{border-color:var(--fg-4);color:var(--fg)}
+
+/* ──── BENTO GRID ──── */
+.bento{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    grid-auto-rows:minmax(100px,auto);
+    gap:12px;
+}
+
+/* Tile base */
+.tile{
+    background:var(--bg-1);border:1px solid var(--border);
+    border-radius:var(--r);padding:22px;
+    position:relative;overflow:hidden;
+    transition:border-color .2s,transform .25s var(--ease),box-shadow .25s;
+    /* Reveal animation */
+    opacity:0;transform:translateY(20px);
+    animation:tileIn .5s var(--ease) both;
+}
+.tile:hover{
+    border-color:var(--border-h);
+    transform:translateY(-2px);
+    box-shadow:var(--sh-up);
+}
+@keyframes tileIn{
+    to{opacity:1;transform:translateY(0)}
+}
+
+/* Staggered delays */
+.tile:nth-child(1){animation-delay:0s}
+.tile:nth-child(2){animation-delay:.06s}
+.tile:nth-child(3){animation-delay:.12s}
+.tile:nth-child(4){animation-delay:.18s}
+.tile:nth-child(5){animation-delay:.24s}
+.tile:nth-child(6){animation-delay:.3s}
+.tile:nth-child(7){animation-delay:.36s}
+.tile:nth-child(8){animation-delay:.42s}
+.tile:nth-child(9){animation-delay:.48s}
+.tile:nth-child(10){animation-delay:.54s}
+
+/* Tile accent glow (top edge) */
+.tile::before{
+    content:'';position:absolute;top:0;right:0;left:0;height:1px;
+    background:linear-gradient(90deg,transparent,var(--tile-accent,var(--blue)),transparent);
+    opacity:0;transition:opacity .3s;
+}
+.tile:hover::before{opacity:.6}
+
+/* Spanning */
+.tile-2x{grid-column:span 2}
+.tile-3x{grid-column:span 3}
+.tile-2h{grid-row:span 2}
+.tile-big{grid-column:span 2;grid-row:span 2}
+
+/* Tile header */
+.tile-hd{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:14px;
+}
+.tile-title{font-size:12px;font-weight:600;color:var(--fg-2);letter-spacing:.02em}
+.tile-badge{
+    font-size:10px;font-weight:700;padding:3px 8px;
+    border-radius:20px;letter-spacing:.02em;
+}
+
+/* Metric tile */
+.tile-metric .mv{
+    font-size:36px;font-weight:800;letter-spacing:-.03em;
+    line-height:1;font-variant-numeric:tabular-nums;
+}
+.tile-metric .ml{
+    font-size:12px;color:var(--fg-3);margin-top:6px;
+}
+.tile-metric .md{
+    display:inline-flex;align-items:center;gap:3px;
+    font-size:11px;font-weight:600;margin-top:10px;
+    padding:3px 8px;border-radius:20px;
+}
+.md-up{background:var(--green-s);color:var(--green)}
+.md-dn{background:var(--red-s);color:var(--red)}
+.md-nu{background:var(--fg-ghost);color:var(--fg-3)}
+
+/* Chart placeholder */
+.mini-chart{
+    display:flex;align-items:flex-end;gap:3px;
+    height:48px;margin-top:14px;
+}
+.mini-bar{
+    flex:1;border-radius:3px 3px 0 0;
+    background:var(--blue);opacity:.4;
+    transition:opacity .2s,height .4s var(--ease);
+    min-width:0;
+}
+.mini-bar:last-child{opacity:.8}
+.tile:hover .mini-bar{opacity:.7}
+.tile:hover .mini-bar:last-child{opacity:1}
+
+/* Ring chart */
+.ring-wrap{
+    display:flex;align-items:center;gap:20px;margin-top:12px;
+}
+.ring{
+    width:80px;height:80px;position:relative;flex-shrink:0;
+}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:6;stroke-linecap:round}
+.ring .ring-bg{stroke:var(--bg-3)}
+.ring .ring-fg{
+    stroke:var(--green);
+    stroke-dasharray:226;
+    stroke-dashoffset:56;
+    transition:stroke-dashoffset .8s var(--ease);
+}
+.ring-center{
+    position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;font-size:18px;font-weight:800;
+}
+.ring-legend{display:flex;flex-direction:column;gap:6px}
+.ring-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg-2)}
+.ring-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* List tile */
+.tile-list-item{
+    display:flex;align-items:center;gap:12px;
+    padding:10px 0;border-bottom:1px solid var(--fg-ghost);
+    transition:background .08s;
+}
+.tile-list-item:last-child{border-bottom:none}
+.tl-av{
+    width:32px;height:32px;border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;flex-shrink:0;
+}
+.tl-info{flex:1;min-width:0}
+.tl-name{font-size:13px;font-weight:500}
+.tl-meta{font-size:11px;color:var(--fg-3);margin-top:1px}
+.tl-val{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Alert dot */
+.adot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.adot-r{background:var(--red)}
+.adot-a{background:var(--amber)}
+
+/* Heatmap */
+.heatmap{
+    display:grid;grid-template-columns:repeat(7,1fr);gap:3px;
+    margin-top:12px;
+}
+.hm-cell{
+    aspect-ratio:1;border-radius:3px;background:var(--bg-3);
+    transition:background .15s;
+}
+.hm-1{background:rgba(59,130,255,.15)}
+.hm-2{background:rgba(59,130,255,.3)}
+.hm-3{background:rgba(59,130,255,.5)}
+.hm-4{background:rgba(59,130,255,.75)}
+
+/* Sparkline */
+.sparkline{margin-top:14px;height:40px;position:relative}
+.sparkline svg{width:100%;height:100%}
+.spark-line{fill:none;stroke:var(--purple);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.spark-area{fill:url(#sparkGrad);opacity:.3}
+.spark-dot{
+    position:absolute;top:4px;left:12px;
+    width:6px;height:6px;border-radius:50%;
+    background:var(--purple);box-shadow:0 0 8px var(--purple);
+}
+
+/* Progress bars */
+.prog-row{
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:10px;
+}
+.prog-label{font-size:12px;color:var(--fg-2);min-width:60px}
+.prog-bar{flex:1;height:6px;background:var(--bg-3);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;transition:width .6s var(--ease)}
+.prog-val{font-size:11px;font-weight:600;color:var(--fg-2);min-width:36px;text-align:left;font-variant-numeric:tabular-nums}
+
+/* Quick action grid */
+.qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.qa-btn{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:6px;padding:16px 8px;background:var(--bg-2);border:1px solid var(--border);
+    border-radius:var(--r-s);cursor:pointer;transition:all .15s;
+}
+.qa-btn:hover{background:var(--bg-3);border-color:var(--border-h);transform:translateY(-1px)}
+.qa-btn svg{opacity:.5}
+.qa-btn:hover svg{opacity:.8}
+.qa-btn span{font-size:11px;font-weight:500;color:var(--fg-2)}
+
+/* Calendar mini */
+.cal-row{display:flex;gap:6px;margin-bottom:6px}
+.cal-day{
+    flex:1;text-align:center;padding:6px 2px;
+    border-radius:var(--r-xs);font-size:11px;font-weight:500;
+    color:var(--fg-3);transition:background .1s;
+}
+.cal-day.today{background:var(--blue);color:#fff;font-weight:700;border-radius:50%}
+.cal-day.has-event{color:var(--fg);position:relative}
+.cal-day.has-event::after{
+    content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);
+    width:4px;height:4px;border-radius:50%;background:var(--amber);
+}
+
+/* ═══════════════════════════════
+   3. SALES FORM
+   ═══════════════════════════════ */
+.form-scr{padding:68px 24px 120px;max-width:640px;margin:0 auto}
+
+.steps{display:flex;align-items:center;margin-bottom:36px}
+.step{display:flex;flex-direction:column;align-items:center}
+.step-dot{
+    width:34px;height:34px;border-radius:50%;
+    border:2px solid var(--bg-3);background:var(--bg-1);
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;color:var(--fg-4);
+    transition:all .25s var(--ease);
+}
+.step.done .step-dot{background:var(--blue);border-color:var(--blue);color:#fff}
+.step.now .step-dot{border-color:var(--blue);color:var(--blue);box-shadow:0 0 0 4px rgba(59,130,255,.2)}
+.step-txt{margin-top:6px;font-size:10px;font-weight:500;color:var(--fg-4)}
+.step.done .step-txt{color:var(--fg-2)}
+.step.now .step-txt{color:var(--blue);font-weight:600}
+.step-ln{flex:1;height:2px;background:var(--bg-3);margin:0 8px;margin-bottom:18px;position:relative;overflow:hidden;min-width:20px}
+.step-ln i{position:absolute;inset:0;background:var(--blue);transform:scaleX(0);transform-origin:right;transition:transform .4s var(--ease)}
+.step-ln.ok i{transform:scaleX(1)}
+
+.fcard{
+    background:var(--bg-1);border:1px solid var(--border);
+    border-radius:20px;padding:36px 32px;box-shadow:var(--sh-card);
+    animation:cardUp .4s var(--ease) both;
+}
+.fcard h2{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px}
+.fcard .fsub{font-size:14px;color:var(--fg-3);margin-bottom:30px}
+
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fg{margin-bottom:18px}
+.fl{display:block;font-size:11px;font-weight:600;color:var(--fg-2);margin-bottom:6px;letter-spacing:.02em;text-transform:uppercase}
+.fl .req{color:var(--red);margin-right:2px}
+.fi{
+    width:100%;padding:11px 13px;background:var(--bg-2);
+    border:1px solid var(--border-h);border-radius:var(--r-s);
+    font-family:var(--font);font-size:14px;color:var(--fg);
+    transition:border-color .12s,box-shadow .12s;
+}
+.fi:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,255,.2)}
+.fi::placeholder{color:var(--fg-4)}
+.fi[readonly]{color:var(--fg-3);background:var(--bg-3)}
+textarea.fi{min-height:90px;resize:vertical}
+.fi.ltr{direction:ltr;text-align:left}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px}
+.chip{
+    padding:7px 16px;border-radius:999px;border:1px solid var(--border-h);
+    background:var(--bg-1);font-family:var(--font);font-size:12px;
+    font-weight:500;color:var(--fg-3);cursor:pointer;transition:all .12s;
+}
+.chip:hover{border-color:var(--fg-4);color:var(--fg)}
+.chip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+.vbox{background:var(--bg-2);border-radius:var(--r-s);padding:16px;margin-top:10px}
+.vr{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:var(--fg-2)}
+.vr span:last-child{font-variant-numeric:tabular-nums}
+.vr.tot{border-top:1px solid var(--border);margin-top:8px;padding-top:10px;font-weight:700;font-size:15px;color:var(--fg)}
+
+.brow{display:flex;gap:10px;margin-top:30px}
+.bb{
+    flex:1;padding:12px;border-radius:var(--r-s);font-family:var(--font);
+    font-size:14px;font-weight:600;cursor:pointer;display:flex;
+    align-items:center;justify-content:center;gap:6px;border:none;
+    min-height:46px;transition:all .12s;
+}
+.bb-g{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff}
+.bb-g:hover{box-shadow:0 4px 20px rgba(59,130,255,.3);transform:translateY(-1px)}
+.bb-g:active{transform:scale(.98)}
+.bb-o{background:var(--bg-2);color:var(--fg-2);border:1px solid var(--border-h)}
+.bb-o:hover{border-color:var(--fg-4)}
+
+/* ═══════════════════════════════
+   4. BILLING
+   ═══════════════════════════════ */
+.bill-scr{padding:68px 24px 120px;max-width:1200px;margin:0 auto}
+.bill-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;flex-wrap:wrap;gap:12px}
+.bill-h{font-size:22px;font-weight:800;letter-spacing:-.02em}
+
+.tbar{display:flex;align-items:center;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tbar-s{
+    flex:1;min-width:180px;max-width:260px;padding:9px 13px;
+    background:var(--bg-1);border:1px solid var(--border-h);
+    border-radius:var(--r-s);font-family:var(--font);font-size:13px;
+    color:var(--fg);transition:border-color .12s;
+}
+.tbar-s:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,255,.2)}
+.pill{
+    padding:6px 14px;border-radius:999px;border:1px solid var(--border-h);
+    background:var(--bg-1);font-family:var(--font);font-size:12px;
+    font-weight:500;color:var(--fg-3);cursor:pointer;transition:all .1s;
+}
+.pill:hover{border-color:var(--fg-4);color:var(--fg-2)}
+.pill.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+.tw{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{
+    padding:10px 16px;text-align:right;font-size:11px;font-weight:500;
+    color:var(--fg-3);letter-spacing:.03em;text-transform:uppercase;
+    border-bottom:1px solid var(--border);background:var(--bg-2);
+}
+.tbl td{padding:13px 16px;font-size:13px;color:var(--fg);border-bottom:1px solid var(--fg-ghost);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--fg-ghost)}
+
+.tn{font-weight:500}
+.ts{font-size:11px;color:var(--fg-3);margin-top:2px}
+.ta{font-weight:600;font-variant-numeric:tabular-nums}
+
+.pbar-w{display:flex;align-items:center;gap:10px}
+.pbar{flex:1;height:3px;background:var(--bg-3);border-radius:2px;overflow:hidden}
+.pbar-f{height:100%;border-radius:2px;background:var(--blue);transition:width .4s var(--ease)}
+.pbar-t{font-size:11px;font-weight:600;color:var(--fg-3);min-width:32px;text-align:left;font-variant-numeric:tabular-nums}
+
+.bdg{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600}
+.bdg-g{background:var(--green-s);color:var(--green)}
+.bdg-r{background:var(--red-s);color:var(--red)}
+.bdg-a{background:var(--amber-s);color:var(--amber)}
+.bdg-n{background:var(--fg-ghost);color:var(--fg-3)}
+
+.tacts{display:flex;gap:4px}
+.tbtn{
+    padding:5px 11px;border-radius:var(--r-xs);border:1px solid var(--border-h);
+    background:var(--bg-1);font-family:var(--font);font-size:11px;
+    font-weight:500;color:var(--fg-3);cursor:pointer;transition:all .1s;
+}
+.tbtn:hover{border-color:var(--fg-4);color:var(--fg)}
+
+/* ═══════════════════════════════
+   5. BOTTOM NAV
+   ═══════════════════════════════ */
+.bnav{
+    position:fixed;bottom:0;left:0;right:0;z-index:1000;
+    background:rgba(12,12,14,.88);backdrop-filter:blur(16px);
+    border-top:1px solid var(--border);display:none;
+    justify-content:center;padding:0 12px;
+    padding-bottom:env(safe-area-inset-bottom,0);
+}
+.bnav.vis{display:flex}
+.ni{
+    flex:1;max-width:88px;display:flex;flex-direction:column;
+    align-items:center;gap:2px;padding:8px 4px 6px;
+    background:none;border:none;color:var(--fg-3);
+    font-family:var(--font);cursor:pointer;transition:color .1s;
+    position:relative;
+}
+.ni:hover{color:var(--fg-2)}
+.ni.on{color:var(--blue)}
+.ni.on::after{content:'';position:absolute;top:0;width:20px;height:2px;background:var(--blue);border-radius:0 0 2px 2px}
+.ni svg{width:20px;height:20px}
+.ni span{font-size:10px;font-weight:500}
+.ni .nbdg{
+    position:absolute;top:4px;right:calc(50% - 16px);
+    width:14px;height:14px;border-radius:50%;background:var(--red);
+    color:#fff;font-size:8px;font-weight:700;display:flex;
+    align-items:center;justify-content:center;
+}
+
+/* ═══════ RESPONSIVE ═══════ */
+@media(max-width:900px){
+    .bento{grid-template-columns:repeat(2,1fr)}
+    .tile-2x,.tile-3x{grid-column:span 2}
+    .tile-big{grid-column:span 2}
+}
+@media(max-width:600px){
+    .bento{grid-template-columns:1fr}
+    .tile-2x,.tile-3x,.tile-big{grid-column:span 1}
+    .tile-big{grid-row:span 1}
+    .frow{grid-template-columns:1fr}
+    .fcard{padding:28px 20px;border-radius:var(--r)}
+    .dash-hi{font-size:24px}
+    .ring-wrap{flex-direction:column;align-items:flex-start}
+}
+</style>
+</head>
+<body>
+
+<!-- Demo bar -->
+<nav class="dbar">
+    <span class="dbar-l">Bento Grid</span>
+    <button class="on" onclick="go('login')">Login</button>
+    <button onclick="go('dash')">Dashboard</button>
+    <button onclick="go('form')">Form</button>
+    <button onclick="go('bill')">Billing</button>
+</nav>
+
+<!-- ══════════ LOGIN ══════════ -->
+<div id="s-login" class="login on">
+    <div class="login-glow"></div>
+    <div class="login-glow-2"></div>
+    <div class="login-center">
+        <div class="login-card">
+            <h1>כניסה למערכת</h1>
+            <p class="sub">משרד עו"ד גיא הרשקוביץ ושות'</p>
+            <div class="lfg">
+                <label class="llbl">אימייל</label>
+                <div class="linp-w"><input type="email" class="linp eml" placeholder="you@ghlawoffice.co.il"></div>
+            </div>
+            <div class="lfg">
+                <label class="llbl">סיסמה</label>
+                <div class="linp-w">
+                    <input type="password" id="bpw" class="linp" placeholder="••••••••">
+                    <button class="pw-eye" onclick="var i=document.getElementById('bpw');i.type=i.type==='password'?'text':'password'">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </div>
+            </div>
+            <button class="login-btn" onclick="go('dash')">כניסה</button>
+            <p class="login-foot">מערכת מאובטחת · v2.0</p>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ DASHBOARD ══════════ -->
+<div id="s-dash" class="scr">
+<div class="dash">
+    <div class="dash-top">
+        <div>
+            <h1 class="dash-hi">בוקר טוב, חיים</h1>
+            <p class="dash-dt">שבת, 29 מרץ 2026 · 10:42</p>
+        </div>
+        <div class="dash-btns">
+            <button class="btn btn-g" onclick="go('form')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                טופס מכר
+            </button>
+            <button class="btn btn-o">חיוב חוזר</button>
+        </div>
+    </div>
+
+    <!-- ════ BENTO ════ -->
+    <div class="bento">
+
+        <!-- TILE 1: Revenue — big metric (2x wide) -->
+        <div class="tile tile-2x tile-metric" style="--tile-accent:var(--blue)">
+            <div class="tile-hd">
+                <span class="tile-title">הכנסות החודש</span>
+                <span class="tile-badge md-up">↑ 12%</span>
+            </div>
+            <div class="mv">₪147,200</div>
+            <div class="ml">לעומת ₪131,400 בחודש הקודם</div>
+            <div class="mini-chart">
+                <div class="mini-bar" style="height:35%"></div>
+                <div class="mini-bar" style="height:50%"></div>
+                <div class="mini-bar" style="height:42%"></div>
+                <div class="mini-bar" style="height:65%"></div>
+                <div class="mini-bar" style="height:55%"></div>
+                <div class="mini-bar" style="height:48%"></div>
+                <div class="mini-bar" style="height:72%"></div>
+                <div class="mini-bar" style="height:60%"></div>
+                <div class="mini-bar" style="height:80%"></div>
+                <div class="mini-bar" style="height:68%"></div>
+                <div class="mini-bar" style="height:75%"></div>
+                <div class="mini-bar" style="height:90%"></div>
+            </div>
+        </div>
+
+        <!-- TILE 2: Open deals -->
+        <div class="tile tile-metric" style="--tile-accent:var(--purple)">
+            <div class="tile-hd">
+                <span class="tile-title">עסקאות פתוחות</span>
+            </div>
+            <div class="mv">23</div>
+            <div class="ml">8 חדשות השבוע</div>
+            <div class="sparkline">
+                <svg viewBox="0 0 200 40" preserveAspectRatio="none">
+                    <defs><linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--purple)" stop-opacity=".3"/><stop offset="100%" stop-color="var(--purple)" stop-opacity="0"/></linearGradient></defs>
+                    <path class="spark-area" d="M0 35 Q20 30 40 28 T80 22 T120 25 T160 15 T200 10 V40 H0Z"/>
+                    <path class="spark-line" d="M0 35 Q20 30 40 28 T80 22 T120 25 T160 15 T200 10"/>
+                </svg>
+                <div class="spark-dot"></div>
+            </div>
+        </div>
+
+        <!-- TILE 3: Overdue -->
+        <div class="tile tile-metric" style="--tile-accent:var(--red)">
+            <div class="tile-hd">
+                <span class="tile-title">באיחור תשלום</span>
+                <span class="tile-badge" style="background:var(--red-s);color:var(--red)">דחוף</span>
+            </div>
+            <div class="mv" style="color:var(--red)">4</div>
+            <div class="ml">₪12,600 חוב כולל</div>
+            <div class="md md-dn" style="margin-top:10px">↓ ₪3,200 מהשבוע שעבר</div>
+        </div>
+
+        <!-- TILE 4: Collection rate ring chart (2-row tall) -->
+        <div class="tile tile-2h" style="--tile-accent:var(--green)">
+            <div class="tile-hd">
+                <span class="tile-title">שיעור גבייה</span>
+            </div>
+            <div class="ring-wrap">
+                <div class="ring">
+                    <svg viewBox="0 0 80 80">
+                        <circle class="ring-bg" cx="40" cy="40" r="36"/>
+                        <circle class="ring-fg" cx="40" cy="40" r="36"/>
+                    </svg>
+                    <div class="ring-center">75%</div>
+                </div>
+                <div class="ring-legend">
+                    <div class="ring-item"><div class="ring-dot" style="background:var(--green)"></div>שולם: ₪110,400</div>
+                    <div class="ring-item"><div class="ring-dot" style="background:var(--amber)"></div>ממתין: ₪24,200</div>
+                    <div class="ring-item"><div class="ring-dot" style="background:var(--red)"></div>באיחור: ₪12,600</div>
+                </div>
+            </div>
+            <div style="margin-top:20px">
+                <div class="prog-row">
+                    <span class="prog-label">אשראי</span>
+                    <div class="prog-bar"><div class="prog-fill" style="width:82%;background:var(--blue)"></div></div>
+                    <span class="prog-val">82%</span>
+                </div>
+                <div class="prog-row">
+                    <span class="prog-label">שיקים</span>
+                    <div class="prog-bar"><div class="prog-fill" style="width:65%;background:var(--purple)"></div></div>
+                    <span class="prog-val">65%</span>
+                </div>
+                <div class="prog-row">
+                    <span class="prog-label">העברה</span>
+                    <div class="prog-bar"><div class="prog-fill" style="width:90%;background:var(--green)"></div></div>
+                    <span class="prog-val">90%</span>
+                </div>
+                <div class="prog-row">
+                    <span class="prog-label">מזומן</span>
+                    <div class="prog-bar"><div class="prog-fill" style="width:100%;background:var(--cyan)"></div></div>
+                    <span class="prog-val">100%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TILE 5: Recent sales (2x wide) -->
+        <div class="tile tile-2x" style="--tile-accent:var(--cyan)">
+            <div class="tile-hd">
+                <span class="tile-title">מכירות אחרונות</span>
+                <a href="#" style="font-size:12px;color:var(--blue);text-decoration:none;font-weight:500" onclick="go('bill');return false">הכל →</a>
+            </div>
+            <div class="tile-list-item">
+                <div class="tl-av" style="background:var(--blue-s);color:var(--blue)">ד.כ</div>
+                <div class="tl-info"><div class="tl-name">דוד כהן</div><div class="tl-meta">ריטיינר · אשראי · היום</div></div>
+                <div class="tl-val">₪18,500</div>
+            </div>
+            <div class="tile-list-item">
+                <div class="tl-av" style="background:var(--purple-s);color:var(--purple)">ש.ל</div>
+                <div class="tl-info"><div class="tl-name">שרה לוי</div><div class="tl-meta">ייעוץ · מזומן · אתמול</div></div>
+                <div class="tl-val">₪2,800</div>
+            </div>
+            <div class="tile-list-item">
+                <div class="tl-av" style="background:var(--green-s);color:var(--green)">א.ב</div>
+                <div class="tl-info"><div class="tl-name">אברהם בן-דוד</div><div class="tl-meta">הליך משפטי · שיקים · 27/3</div></div>
+                <div class="tl-val">₪45,000</div>
+            </div>
+            <div class="tile-list-item">
+                <div class="tl-av" style="background:var(--amber-s);color:var(--amber)">מ.ר</div>
+                <div class="tl-info"><div class="tl-name">מיכל רוזנברג</div><div class="tl-meta">שעות · העברה · 26/3</div></div>
+                <div class="tl-val">₪9,200</div>
+            </div>
+        </div>
+
+        <!-- TILE 6: Recurring billing metric -->
+        <div class="tile tile-metric" style="--tile-accent:var(--green)">
+            <div class="tile-hd">
+                <span class="tile-title">חיובים חוזרים</span>
+            </div>
+            <div class="mv">₪38,400</div>
+            <div class="ml">18 לקוחות פעילים</div>
+            <div class="md md-up" style="margin-top:10px">+3 לקוחות חדשים</div>
+        </div>
+
+        <!-- TILE 7: Alerts (2-row tall) -->
+        <div class="tile tile-2h" style="--tile-accent:var(--red)">
+            <div class="tile-hd">
+                <span class="tile-title">התראות</span>
+                <span class="tile-badge" style="background:var(--red-s);color:var(--red)">4</span>
+            </div>
+            <div class="tile-list-item">
+                <div class="adot adot-r"></div>
+                <div class="tl-info"><div class="tl-name">יוסף מזרחי</div><div class="tl-meta">באיחור 12 יום · חודשי</div></div>
+                <div class="tl-val">₪4,200</div>
+            </div>
+            <div class="tile-list-item">
+                <div class="adot adot-r"></div>
+                <div class="tl-info"><div class="tl-name">רחל אביב</div><div class="tl-meta">באיחור 5 ימים · שיק חוזר</div></div>
+                <div class="tl-val">₪3,400</div>
+            </div>
+            <div class="tile-list-item">
+                <div class="adot adot-a"></div>
+                <div class="tl-info"><div class="tl-name">עמית גולן</div><div class="tl-meta">מחר · אשראי חודשי</div></div>
+                <div class="tl-val">₪2,500</div>
+            </div>
+            <div class="tile-list-item">
+                <div class="adot adot-a"></div>
+                <div class="tl-info"><div class="tl-name">נועה פרידמן</div><div class="tl-meta">בעוד 3 ימים · ריטיינר</div></div>
+                <div class="tl-val">₪5,000</div>
+            </div>
+        </div>
+
+        <!-- TILE 8: Activity heatmap -->
+        <div class="tile" style="--tile-accent:var(--cyan)">
+            <div class="tile-hd">
+                <span class="tile-title">פעילות — 4 שבועות</span>
+            </div>
+            <div class="heatmap">
+                <div class="hm-cell hm-1"></div><div class="hm-cell"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-3"></div><div class="hm-cell"></div><div class="hm-cell"></div>
+                <div class="hm-cell hm-2"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-4"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-3"></div><div class="hm-cell"></div>
+                <div class="hm-cell"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-4"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-1"></div>
+                <div class="hm-cell hm-1"></div><div class="hm-cell hm-2"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-1"></div><div class="hm-cell hm-4"></div><div class="hm-cell hm-3"></div><div class="hm-cell hm-2"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:10px;color:var(--fg-4)">
+                <span>פחות</span>
+                <div style="display:flex;gap:3px;align-items:center">
+                    <div style="width:10px;height:10px;border-radius:2px;background:var(--bg-3)"></div>
+                    <div style="width:10px;height:10px;border-radius:2px" class="hm-1"></div>
+                    <div style="width:10px;height:10px;border-radius:2px" class="hm-2"></div>
+                    <div style="width:10px;height:10px;border-radius:2px" class="hm-3"></div>
+                    <div style="width:10px;height:10px;border-radius:2px" class="hm-4"></div>
+                </div>
+                <span>יותר</span>
+            </div>
+        </div>
+
+        <!-- TILE 9: Quick actions -->
+        <div class="tile" style="--tile-accent:var(--amber)">
+            <div class="tile-hd">
+                <span class="tile-title">פעולות מהירות</span>
+            </div>
+            <div class="qa-grid">
+                <button class="qa-btn" onclick="go('form')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                    <span>טופס מכר</span>
+                </button>
+                <button class="qa-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    <span>חיוב חוזר</span>
+                </button>
+                <button class="qa-btn" onclick="go('bill')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                    <span>לקוחות</span>
+                </button>
+                <button class="qa-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    <span>דוחות</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- TILE 10: Mini calendar -->
+        <div class="tile" style="--tile-accent:var(--pink)">
+            <div class="tile-hd">
+                <span class="tile-title">מרץ 2026</span>
+                <span style="font-size:11px;color:var(--fg-3)">שבוע 13</span>
+            </div>
+            <div style="display:flex;gap:6px;margin-bottom:8px">
+                <span style="flex:1;text-align:center;font-size:10px;color:var(--fg-4);font-weight:500">א</span>
+                <span style="flex:1;text-align:center;font-size:10px;color:var(--fg-4);font-weight:500">ב</span>
+                <span style="flex:1;text-align:center;font-size:10px;color:var(--fg-4);font-weight:500">ג</span>
+                <span style="flex:1;text-align:center;font-size:10px;color:var(--fg-4);font-weight:500">ד</span>
+                <span style="flex:1;text-align:center;font-size:10px;color:var(--fg-4);font-weight:500">ה</span>
+                <span style="flex:1;text-align:center;font-size:10px;color:var(--fg-4);font-weight:500">ו</span>
+                <span style="flex:1;text-align:center;font-size:10px;color:var(--fg-4);font-weight:500">ש</span>
+            </div>
+            <div class="cal-row">
+                <div class="cal-day">23</div><div class="cal-day">24</div><div class="cal-day has-event">25</div><div class="cal-day">26</div><div class="cal-day has-event">27</div><div class="cal-day">28</div><div class="cal-day today">29</div>
+            </div>
+            <div class="cal-row">
+                <div class="cal-day">30</div><div class="cal-day has-event">31</div><div class="cal-day" style="color:var(--fg-4)">1</div><div class="cal-day" style="color:var(--fg-4)">2</div><div class="cal-day" style="color:var(--fg-4)">3</div><div class="cal-day" style="color:var(--fg-4)">4</div><div class="cal-day" style="color:var(--fg-4)">5</div>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--fg-ghost);font-size:11px;color:var(--fg-3)">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                    <div style="width:4px;height:4px;border-radius:50%;background:var(--amber)"></div>
+                    25/3 — חיוב דוד כהן
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                    <div style="width:4px;height:4px;border-radius:50%;background:var(--amber)"></div>
+                    27/3 — שיק אברהם בן-דוד
+                </div>
+                <div style="display:flex;align-items:center;gap:6px">
+                    <div style="width:4px;height:4px;border-radius:50%;background:var(--amber)"></div>
+                    31/3 — ריטיינר נועה פרידמן
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /bento -->
+</div>
+</div>
+
+<!-- ══════════ FORM ══════════ -->
+<div id="s-form" class="scr">
+<div class="form-scr">
+    <div class="steps">
+        <div class="step done">
+            <div class="step-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <span class="step-txt">לקוח</span>
+        </div>
+        <div class="step-ln ok"><i></i></div>
+        <div class="step now">
+            <div class="step-dot">2</div>
+            <span class="step-txt">עסקה</span>
+        </div>
+        <div class="step-ln"><i></i></div>
+        <div class="step">
+            <div class="step-dot">3</div>
+            <span class="step-txt">תשלום</span>
+        </div>
+        <div class="step-ln"><i></i></div>
+        <div class="step">
+            <div class="step-dot">4</div>
+            <span class="step-txt">סיכום</span>
+        </div>
+    </div>
+
+    <div class="fcard">
+        <h2>פרטי העסקה</h2>
+        <p class="fsub">בחרו סוג עסקה והזינו סכום</p>
+
+        <label class="fl">סוג עסקה</label>
+        <div class="chips">
+            <button class="chip" onclick="pickChip(this)">פגישת ייעוץ</button>
+            <button class="chip on" onclick="pickChip(this)">ריטיינר</button>
+            <button class="chip" onclick="pickChip(this)">תוכנית שעות</button>
+            <button class="chip" onclick="pickChip(this)">הליך — תקרה</button>
+            <button class="chip" onclick="pickChip(this)">הליך — פיקס</button>
+            <button class="chip" onclick="pickChip(this)">אחר</button>
+        </div>
+
+        <div class="fg">
+            <label class="fl">תיאור <span class="req">*</span></label>
+            <textarea class="fi" placeholder="תיאור קצר...">ליווי משפטי שוטף — ריטיינר חודשי</textarea>
+        </div>
+
+        <div class="frow">
+            <div class="fg"><label class="fl">לפני מע"מ <span class="req">*</span></label><input class="fi ltr" value="₪ 15,000"></div>
+            <div class="fg"><label class="fl">מע"מ 18%</label><input class="fi ltr" value="₪ 2,700" readonly></div>
+        </div>
+
+        <div class="vbox">
+            <div class="vr"><span>לפני מע"מ</span><span>₪15,000</span></div>
+            <div class="vr"><span>מע"מ 18%</span><span>₪2,700</span></div>
+            <div class="vr tot"><span>סה"כ</span><span>₪17,700</span></div>
+        </div>
+
+        <div class="brow">
+            <button class="bb bb-o">← הקודם</button>
+            <button class="bb bb-g">הבא →</button>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- ══════════ BILLING ══════════ -->
+<div id="s-bill" class="scr">
+<div class="bill-scr">
+    <div class="bill-top">
+        <h1 class="bill-h">חיובים חוזרים</h1>
+        <div style="display:flex;gap:8px">
+            <button class="btn btn-o"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ייצוא</button>
+            <button class="btn btn-g"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> חיוב חדש</button>
+        </div>
+    </div>
+    <div class="tbar">
+        <input type="search" class="tbar-s" placeholder="חיפוש...">
+        <button class="pill on">הכל</button>
+        <button class="pill">פעיל</button>
+        <button class="pill">באיחור</button>
+        <button class="pill">הושלם</button>
+    </div>
+    <div class="tw">
+        <table class="tbl">
+            <thead><tr><th>לקוח</th><th>סכום חודשי</th><th>התקדמות</th><th>חיוב</th><th>סטטוס</th><th></th></tr></thead>
+            <tbody>
+                <tr><td><div class="tn">דוד כהן</div><div class="ts">054-7812345 · ריטיינר</div></td><td class="ta">₪5,900</td><td><div class="pbar-w"><div class="pbar"><div class="pbar-f" style="width:75%"></div></div><span class="pbar-t">9/12</span></div></td><td>1 בחודש</td><td><span class="bdg bdg-g">פעיל</span></td><td><div class="tacts"><button class="tbtn">תשלומים</button><button class="tbtn">⋯</button></div></td></tr>
+                <tr><td><div class="tn">שרה לוי</div><div class="ts">052-9876543 · חודשי</div></td><td class="ta">₪3,200</td><td><div class="pbar-w"><div class="pbar"><div class="pbar-f" style="width:40%"></div></div><span class="pbar-t">4/10</span></div></td><td>15 בחודש</td><td><span class="bdg bdg-r">באיחור</span></td><td><div class="tacts"><button class="tbtn">תשלומים</button><button class="tbtn">⋯</button></div></td></tr>
+                <tr><td><div class="tn">אברהם בן-דוד</div><div class="ts">050-1234567 · הליך</div></td><td class="ta">₪8,500</td><td><div class="pbar-w"><div class="pbar"><div class="pbar-f" style="width:100%"></div></div><span class="pbar-t">6/6</span></div></td><td>10 בחודש</td><td><span class="bdg bdg-n">הושלם</span></td><td><div class="tacts"><button class="tbtn">תשלומים</button><button class="tbtn">⋯</button></div></td></tr>
+                <tr><td><div class="tn">מיכל רוזנברג</div><div class="ts">058-5551234 · ריטיינר</div></td><td class="ta">₪4,600</td><td><div class="pbar-w"><div class="pbar"><div class="pbar-f" style="width:17%"></div></div><span class="pbar-t">2/12</span></div></td><td>5 בחודש</td><td><span class="bdg bdg-g">פעיל</span></td><td><div class="tacts"><button class="tbtn">תשלומים</button><button class="tbtn">⋯</button></div></td></tr>
+                <tr><td><div class="tn">יוסף מזרחי</div><div class="ts">053-6543210 · חודשי</div></td><td class="ta">₪4,200</td><td><div class="pbar-w"><div class="pbar"><div class="pbar-f" style="width:50%"></div></div><span class="pbar-t">3/6</span></div></td><td>20 בחודש</td><td><span class="bdg bdg-r">באיחור</span></td><td><div class="tacts"><button class="tbtn">תשלומים</button><button class="tbtn">⋯</button></div></td></tr>
+                <tr><td><div class="tn">עמית גולן</div><div class="ts">054-3332211 · ריטיינר</div></td><td class="ta">₪2,500</td><td><div class="pbar-w"><div class="pbar"><div class="pbar-f" style="width:58%"></div></div><span class="pbar-t">7/12</span></div></td><td>1 בחודש</td><td><span class="bdg bdg-a">ממתין</span></td><td><div class="tacts"><button class="tbtn">תשלומים</button><button class="tbtn">⋯</button></div></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</div>
+
+<!-- Bottom nav -->
+<div class="bnav" id="bn">
+    <button class="ni on" onclick="go('dash')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ראשי</span></button>
+    <button class="ni" onclick="go('form')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg><span>טופס</span></button>
+    <button class="ni" onclick="go('bill')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg><span>חיובים</span><span class="nbdg">2</span></button>
+    <button class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>פעילות</span></button>
+    <button class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>משתמשים</span></button>
+</div>
+
+<script>
+function go(id){
+    document.querySelectorAll('.scr,.login').forEach(s=>s.classList.remove('on'));
+    document.getElementById('s-'+id).classList.add('on');
+    document.querySelectorAll('.dbar button').forEach(b=>b.classList.remove('on'));
+    if(event&&event.target.tagName==='BUTTON')event.target.classList.add('on');
+    document.getElementById('bn').classList.toggle('vis',id!=='login');
+    var nis=document.querySelectorAll('.ni');
+    nis.forEach(n=>n.classList.remove('on'));
+    ({dash:0,form:1,bill:2})[id]!==undefined&&nis[({dash:0,form:1,bill:2})[id]].classList.add('on');
+    window.scrollTo(0,0);
+    // Re-trigger tile animations
+    if(id==='dash'){
+        document.querySelectorAll('.tile').forEach((t,i)=>{
+            t.style.animation='none';
+            t.offsetHeight; // reflow
+            t.style.animation='tileIn .5s var(--ease) '+(i*.06)+'s both';
+        });
+    }
+}
+function pickChip(el){el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));el.classList.add('on')}
+document.querySelectorAll('.pill').forEach(p=>{
+    p.addEventListener('click',function(){
+        var pr=this.parentElement;
+        if(this.textContent==='הכל'){pr.querySelectorAll('.pill').forEach(x=>x.classList.remove('on'));this.classList.add('on')}
+        else{pr.querySelector('.pill:first-child').classList.remove('on');this.classList.toggle('on');if(!pr.querySelectorAll('.pill.on').length)pr.querySelector('.pill:first-child').classList.add('on')}
+    });
+});
+</script>
+</body>
+</html>

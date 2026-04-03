@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>טופס מכר — Modern 2026 | דמו</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=IBM+Plex+Sans+Hebrew:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   TOFES OFFICE — Modern 2026 Demo
+
+   Concept: "Invisible Interface"
+   Ultra-clean, zero-ornament, content-first.
+   Monochrome + single tint. Big type hierarchy.
+   OS-native feel. No decorative elements.
+   Inspired by Linear, Vercel, Arc, Raycast.
+   ═══════════════════════════════════════════ */
+
+*, *::before, *::after {
+    margin: 0; padding: 0; box-sizing: border-box;
+}
+
+:root {
+    /* Monochrome — no gray, pure opacity */
+    --fg:         #0a0a0a;
+    --fg-2:       rgba(10,10,10,0.65);
+    --fg-3:       rgba(10,10,10,0.4);
+    --fg-4:       rgba(10,10,10,0.2);
+    --fg-ghost:   rgba(10,10,10,0.06);
+
+    --bg:         #fafafa;
+    --bg-card:    #ffffff;
+    --bg-raised:  #f4f4f5;
+    --bg-inset:   #efeff1;
+
+    --border:     rgba(10,10,10,0.07);
+    --border-h:   rgba(10,10,10,0.12);
+
+    /* Single tint — electric indigo */
+    --tint:       #5b5cff;
+    --tint-hover: #4647e6;
+    --tint-soft:  rgba(91,92,255,0.08);
+    --tint-ring:  rgba(91,92,255,0.18);
+
+    /* Semantic */
+    --green:      #00a870;
+    --green-soft: rgba(0,168,112,0.08);
+    --red:        #e5484d;
+    --red-soft:   rgba(229,72,77,0.08);
+    --amber:      #f5a623;
+    --amber-soft: rgba(245,166,35,0.08);
+
+    /* Elevation */
+    --sh-1: 0 1px 2px rgba(0,0,0,0.03);
+    --sh-2: 0 2px 8px rgba(0,0,0,0.04), 0 0 0 1px var(--border);
+    --sh-3: 0 8px 30px rgba(0,0,0,0.06), 0 0 0 1px var(--border);
+    --sh-4: 0 16px 50px rgba(0,0,0,0.08), 0 0 0 1px var(--border);
+
+    /* Type */
+    --font: 'IBM Plex Sans Hebrew', 'Heebo', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+    /* Radius — tight, modern */
+    --r-xs: 4px;
+    --r-s:  8px;
+    --r-m:  12px;
+    --r-l:  16px;
+    --r-xl: 20px;
+    --r-full: 9999px;
+
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Dark mode (auto) ── */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --fg:        #ececec;
+        --fg-2:      rgba(236,236,236,0.6);
+        --fg-3:      rgba(236,236,236,0.36);
+        --fg-4:      rgba(236,236,236,0.16);
+        --fg-ghost:  rgba(236,236,236,0.05);
+
+        --bg:        #0a0a0a;
+        --bg-card:   #141414;
+        --bg-raised: #1a1a1a;
+        --bg-inset:  #111111;
+
+        --border:    rgba(255,255,255,0.07);
+        --border-h:  rgba(255,255,255,0.12);
+
+        --tint:      #7b7cff;
+        --tint-hover:#6a6bf0;
+        --tint-soft: rgba(123,124,255,0.1);
+        --tint-ring: rgba(123,124,255,0.2);
+
+        --sh-1: 0 1px 2px rgba(0,0,0,0.2);
+        --sh-2: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 1px var(--border);
+        --sh-3: 0 8px 30px rgba(0,0,0,0.4), 0 0 0 1px var(--border);
+        --sh-4: 0 16px 50px rgba(0,0,0,0.5), 0 0 0 1px var(--border);
+    }
+}
+
+body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+}
+
+/* Scrollbar */
+* { scrollbar-width: thin; scrollbar-color: var(--fg-4) transparent; }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--fg-4); border-radius: 3px; }
+
+/* ═══════════ DEMO SWITCHER ═══════════ */
+.demo-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    height: 44px;
+    display: flex; align-items: center;
+    padding: 0 16px; gap: 2px;
+}
+.demo-bar-label {
+    font-size: 11px; font-weight: 600;
+    color: var(--tint);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-left: 14px;
+    white-space: nowrap;
+}
+.demo-bar button {
+    background: transparent; border: none;
+    color: var(--fg-3); padding: 6px 12px;
+    border-radius: var(--r-s); font-family: var(--font);
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    transition: color 0.12s, background 0.12s;
+}
+.demo-bar button:hover { color: var(--fg); background: var(--fg-ghost); }
+.demo-bar button.on { color: var(--fg); background: var(--bg-raised); }
+
+/* ═══════════ SCREENS ═══════════ */
+.scr { display:none; padding-top:44px; min-height:100vh; }
+.scr.on { display:block; }
+
+/* ═══════════════════════════════
+   1. LOGIN
+   ═══════════════════════════════ */
+.login-scr {
+    display:none; min-height:100vh; padding-top:44px;
+    background: var(--bg);
+}
+.login-scr.on { display:flex; flex-direction:column; }
+
+.login-wrap {
+    flex:1; display:flex; align-items:center; justify-content:center;
+    padding: 32px 20px 64px;
+}
+.login-box {
+    width: 100%; max-width: 360px;
+    animation: up 0.5s var(--ease) both;
+}
+@keyframes up {
+    from { opacity:0; transform:translateY(20px); }
+    to   { opacity:1; transform:translateY(0); }
+}
+
+.login-heading {
+    font-size: 32px; font-weight: 800; letter-spacing: -0.03em;
+    line-height: 1.1; margin-bottom: 6px;
+}
+.login-sub {
+    font-size: 15px; color: var(--fg-3); margin-bottom: 40px;
+    font-weight: 400;
+}
+
+.login-fg { margin-bottom: 18px; }
+.login-lbl {
+    display:block; font-size:12px; font-weight:600;
+    color: var(--fg-2); margin-bottom:6px;
+    letter-spacing: 0.01em;
+}
+.login-inp-wrap { position: relative; }
+.login-inp {
+    width:100%; padding:12px 14px;
+    background: var(--bg-card); border:1px solid var(--border-h);
+    border-radius: var(--r-s); font-family:var(--font);
+    font-size:14px; color:var(--fg);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.login-inp::placeholder { color: var(--fg-4); }
+.login-inp:focus {
+    outline:none; border-color:var(--tint);
+    box-shadow: 0 0 0 3px var(--tint-ring);
+}
+.login-inp.eml { direction:ltr; text-align:left; }
+
+.pw-eye {
+    position:absolute; left:10px; top:50%; transform:translateY(-50%);
+    background:none; border:none; color:var(--fg-4); cursor:pointer;
+    padding:4px; border-radius:var(--r-xs);
+    transition: color 0.12s;
+}
+.pw-eye:hover { color:var(--fg-2); }
+
+.login-go {
+    width:100%; padding:13px; margin-top:6px;
+    background:var(--fg); color:var(--bg);
+    border:none; border-radius:var(--r-s);
+    font-family:var(--font); font-size:14px; font-weight:600;
+    cursor:pointer; transition: opacity 0.12s, transform 0.1s;
+}
+.login-go:hover { opacity:0.85; }
+.login-go:active { transform:scale(0.98); }
+
+.login-foot {
+    text-align:center; margin-top:32px;
+    font-size:11px; color:var(--fg-4);
+}
+
+/* ═══════════════════════════════
+   2. DASHBOARD
+   ═══════════════════════════════ */
+.dash {
+    padding: 72px 28px 120px;
+    max-width: 1120px; margin:0 auto;
+}
+
+.dash-top {
+    display:flex; justify-content:space-between; align-items:flex-end;
+    margin-bottom:36px; flex-wrap:wrap; gap:16px;
+}
+.dash-hello {
+    font-size:28px; font-weight:800; letter-spacing:-0.03em;
+    line-height:1.15;
+}
+.dash-time {
+    font-size:13px; color:var(--fg-3); margin-top:4px; font-weight:400;
+}
+.dash-acts { display:flex; gap:8px; }
+
+/* Buttons */
+.b {
+    display:inline-flex; align-items:center; gap:7px;
+    padding:9px 16px; border-radius:var(--r-s);
+    font-family:var(--font); font-size:13px; font-weight:500;
+    cursor:pointer; transition: all 0.12s; border:none;
+}
+.b-p { background:var(--fg); color:var(--bg); }
+.b-p:hover { opacity:0.85; }
+.b-s { background:var(--bg-card); color:var(--fg-2); border:1px solid var(--border-h); }
+.b-s:hover { border-color:var(--fg-4); color:var(--fg); }
+.b-t { background:var(--tint); color:#fff; }
+.b-t:hover { background:var(--tint-hover); }
+
+/* Metric row */
+.metrics {
+    display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+    background:var(--border); border-radius:var(--r-m); overflow:hidden;
+    margin-bottom:28px;
+}
+.metric {
+    background:var(--bg-card); padding:22px 20px;
+}
+.metric-label {
+    font-size:11px; font-weight:500; color:var(--fg-3);
+    letter-spacing:0.04em; text-transform:uppercase;
+    margin-bottom:8px;
+}
+.metric-val {
+    font-size:30px; font-weight:800; letter-spacing:-0.03em;
+    line-height:1; font-variant-numeric:tabular-nums;
+}
+.metric-delta {
+    font-size:11px; font-weight:600; margin-top:8px;
+    display:inline-flex; align-items:center; gap:3px;
+    padding:2px 7px; border-radius:var(--r-full);
+}
+.metric-delta.up { background:var(--green-soft); color:var(--green); }
+.metric-delta.dn { background:var(--red-soft); color:var(--red); }
+.metric-delta.nu { background:var(--fg-ghost); color:var(--fg-3); }
+
+/* Two-column */
+.dash-cols {
+    display:grid; grid-template-columns:1.2fr 1fr; gap:16px;
+}
+
+/* Panel */
+.panel {
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--r-m); overflow:hidden;
+}
+.panel-hd {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 18px; border-bottom:1px solid var(--border);
+}
+.panel-title { font-size:13px; font-weight:600; color:var(--fg); }
+.panel-link {
+    font-size:12px; color:var(--tint); text-decoration:none;
+    font-weight:500;
+}
+.panel-link:hover { text-decoration:underline; }
+
+/* List row */
+.lrow {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 18px; border-bottom:1px solid var(--fg-ghost);
+    transition: background 0.08s;
+}
+.lrow:last-child { border-bottom:none; }
+.lrow:hover { background:var(--fg-ghost); }
+
+.lrow-av {
+    width:32px; height:32px; border-radius:var(--r-s);
+    background:var(--bg-raised); display:flex;
+    align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; color:var(--fg-2);
+    flex-shrink:0;
+}
+.lrow-info { flex:1; min-width:0; }
+.lrow-name { font-size:13px; font-weight:500; color:var(--fg); }
+.lrow-meta { font-size:11px; color:var(--fg-3); margin-top:1px; }
+.lrow-val {
+    font-size:13px; font-weight:600; color:var(--fg);
+    font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+
+/* Alert dot */
+.adot {
+    width:7px; height:7px; border-radius:50%; flex-shrink:0;
+}
+.adot-r { background:var(--red); }
+.adot-a { background:var(--amber); }
+
+/* ═══════════════════════════════
+   3. SALES FORM
+   ═══════════════════════════════ */
+.form-scr {
+    padding:72px 28px 120px;
+    max-width:640px; margin:0 auto;
+}
+
+/* Step bar */
+.steps {
+    display:flex; align-items:center; margin-bottom:40px;
+}
+.step {
+    display:flex; flex-direction:column; align-items:center;
+}
+.step-dot {
+    width:32px; height:32px; border-radius:50%;
+    border:2px solid var(--border-h); background:var(--bg-card);
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; color:var(--fg-4);
+    transition:all 0.25s var(--ease);
+}
+.step.done .step-dot {
+    background:var(--fg); border-color:var(--fg); color:var(--bg);
+}
+.step.now .step-dot {
+    border-color:var(--tint); color:var(--tint);
+    box-shadow:0 0 0 4px var(--tint-ring);
+}
+.step-txt {
+    margin-top:7px; font-size:10px; font-weight:500;
+    color:var(--fg-4); letter-spacing:0.02em;
+}
+.step.done .step-txt { color:var(--fg-2); }
+.step.now .step-txt { color:var(--tint); font-weight:600; }
+
+.step-line {
+    flex:1; height:2px; background:var(--border);
+    margin:0 10px; margin-bottom:20px; position:relative;
+    overflow:hidden; min-width:24px;
+}
+.step-line i {
+    position:absolute; inset:0; background:var(--fg);
+    transform:scaleX(0); transform-origin:right;
+    transition:transform 0.4s var(--ease);
+}
+.step-line.filled i { transform:scaleX(1); }
+
+/* Form card */
+.fcard {
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--r-l); padding:36px 32px;
+    box-shadow:var(--sh-2);
+    animation: up 0.35s var(--ease) both;
+}
+.fcard-title {
+    font-size:22px; font-weight:800; letter-spacing:-0.02em;
+    margin-bottom:4px;
+}
+.fcard-sub {
+    font-size:14px; color:var(--fg-3); margin-bottom:32px;
+}
+
+/* Fields */
+.frow { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.fg { margin-bottom:20px; }
+.fl {
+    display:block; font-size:12px; font-weight:600;
+    color:var(--fg-2); margin-bottom:6px;
+}
+.fl .req { color:var(--red); margin-right:2px; }
+.fi {
+    width:100%; padding:11px 13px;
+    background:var(--bg); border:1px solid var(--border-h);
+    border-radius:var(--r-s); font-family:var(--font);
+    font-size:14px; color:var(--fg);
+    transition: border-color 0.12s, box-shadow 0.12s;
+}
+.fi:focus {
+    outline:none; border-color:var(--tint);
+    box-shadow:0 0 0 3px var(--tint-ring);
+}
+.fi::placeholder { color:var(--fg-4); }
+.fi[readonly] { background:var(--bg-raised); color:var(--fg-3); }
+textarea.fi { min-height:90px; resize:vertical; }
+.fi.ltr { direction:ltr; text-align:left; }
+
+/* Chips */
+.chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:24px; }
+.chip {
+    padding:7px 16px; border-radius:var(--r-full);
+    border:1px solid var(--border-h); background:var(--bg-card);
+    font-family:var(--font); font-size:12px; font-weight:500;
+    color:var(--fg-2); cursor:pointer;
+    transition:all 0.12s;
+}
+.chip:hover { border-color:var(--fg-4); color:var(--fg); }
+.chip.on {
+    background:var(--fg); color:var(--bg); border-color:var(--fg);
+}
+
+/* VAT */
+.vat-box {
+    background:var(--bg-raised); border-radius:var(--r-s);
+    padding:16px; margin-top:12px;
+}
+.vat-r {
+    display:flex; justify-content:space-between;
+    padding:5px 0; font-size:13px; color:var(--fg-2);
+}
+.vat-r span:last-child { font-variant-numeric:tabular-nums; }
+.vat-r.total {
+    border-top:1px solid var(--border);
+    margin-top:8px; padding-top:10px;
+    font-weight:700; font-size:15px; color:var(--fg);
+}
+
+/* Payment cards */
+.pay-grid {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
+    margin-bottom:24px;
+}
+.pay-opt {
+    padding:14px 10px; border:1px solid var(--border-h);
+    border-radius:var(--r-s); text-align:center;
+    cursor:pointer; transition:all 0.12s;
+}
+.pay-opt:hover { border-color:var(--fg-4); }
+.pay-opt.on {
+    border-color:var(--tint); background:var(--tint-soft);
+}
+.pay-opt input { display:none; }
+.pay-ico {
+    display:block; margin-bottom:4px;
+    font-size:11px; font-weight:500; color:var(--fg-3);
+}
+.pay-opt.on .pay-ico { color:var(--tint); }
+.pay-name {
+    font-size:12px; font-weight:500; color:var(--fg-2);
+}
+.pay-opt.on .pay-name { color:var(--tint); font-weight:600; }
+
+/* Buttons row */
+.brow { display:flex; gap:10px; margin-top:32px; }
+.bb {
+    flex:1; padding:12px 20px; border-radius:var(--r-s);
+    font-family:var(--font); font-size:14px; font-weight:600;
+    cursor:pointer; display:flex; align-items:center;
+    justify-content:center; gap:6px; border:none;
+    min-height:46px; transition:all 0.12s;
+}
+.bb-p { background:var(--fg); color:var(--bg); }
+.bb-p:hover { opacity:0.85; }
+.bb-p:active { transform:scale(0.98); }
+.bb-s {
+    background:var(--bg-card); color:var(--fg-2);
+    border:1px solid var(--border-h);
+}
+.bb-s:hover { border-color:var(--fg-4); }
+.bb-t { background:var(--tint); color:#fff; }
+.bb-t:hover { background:var(--tint-hover); }
+
+/* ═══════════════════════════════
+   4. BILLING TABLE
+   ═══════════════════════════════ */
+.bill-scr {
+    padding:72px 28px 120px; max-width:1180px; margin:0 auto;
+}
+.bill-top {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:24px; flex-wrap:wrap; gap:12px;
+}
+.bill-h {
+    font-size:22px; font-weight:800; letter-spacing:-0.02em;
+}
+
+.tbar {
+    display:flex; align-items:center; gap:6px;
+    margin-bottom:14px; flex-wrap:wrap;
+}
+.tbar-search {
+    flex:1; min-width:180px; max-width:260px;
+    padding:9px 13px; background:var(--bg-card);
+    border:1px solid var(--border-h); border-radius:var(--r-s);
+    font-family:var(--font); font-size:13px; color:var(--fg);
+    transition:border-color 0.12s;
+}
+.tbar-search:focus {
+    outline:none; border-color:var(--tint);
+    box-shadow:0 0 0 3px var(--tint-ring);
+}
+.pill {
+    padding:6px 13px; border-radius:var(--r-full);
+    border:1px solid var(--border-h); background:var(--bg-card);
+    font-family:var(--font); font-size:12px; font-weight:500;
+    color:var(--fg-3); cursor:pointer; transition:all 0.1s;
+}
+.pill:hover { border-color:var(--fg-4); color:var(--fg-2); }
+.pill.on { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+
+/* Table */
+.tw {
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--r-m); overflow:hidden; box-shadow:var(--sh-1);
+}
+.tbl { width:100%; border-collapse:collapse; }
+.tbl th {
+    padding:10px 16px; text-align:right;
+    font-size:11px; font-weight:500; color:var(--fg-3);
+    letter-spacing:0.03em; text-transform:uppercase;
+    border-bottom:1px solid var(--border);
+    background:var(--bg-raised);
+}
+.tbl td {
+    padding:13px 16px; font-size:13px; color:var(--fg);
+    border-bottom:1px solid var(--fg-ghost); vertical-align:middle;
+}
+.tbl tr:last-child td { border-bottom:none; }
+.tbl tr:hover td { background:var(--fg-ghost); }
+
+.tn { font-weight:500; }
+.ts { font-size:11px; color:var(--fg-3); margin-top:2px; }
+.ta { font-weight:600; font-variant-numeric:tabular-nums; }
+
+/* Progress */
+.pbar-w { display:flex; align-items:center; gap:10px; }
+.pbar {
+    flex:1; height:3px; background:var(--bg-raised);
+    border-radius:2px; overflow:hidden;
+}
+.pbar-f {
+    height:100%; border-radius:2px; background:var(--tint);
+    transition:width 0.4s var(--ease);
+}
+.pbar-t {
+    font-size:11px; font-weight:600; color:var(--fg-3);
+    min-width:32px; text-align:left;
+    font-variant-numeric:tabular-nums;
+}
+
+/* Badge */
+.bdg {
+    display:inline-block; padding:2px 9px;
+    border-radius:var(--r-full); font-size:11px; font-weight:600;
+}
+.bdg-g { background:var(--green-soft); color:var(--green); }
+.bdg-r { background:var(--red-soft); color:var(--red); }
+.bdg-a { background:var(--amber-soft); color:var(--amber); }
+.bdg-n { background:var(--fg-ghost); color:var(--fg-3); }
+
+.tacts { display:flex; gap:4px; }
+.tbtn {
+    padding:5px 11px; border-radius:var(--r-xs);
+    border:1px solid var(--border-h); background:var(--bg-card);
+    font-family:var(--font); font-size:11px; font-weight:500;
+    color:var(--fg-3); cursor:pointer; transition:all 0.1s;
+}
+.tbtn:hover { border-color:var(--fg-4); color:var(--fg); }
+
+/* ═══════════════════════════════
+   5. BOTTOM NAV
+   ═══════════════════════════════ */
+.bnav {
+    position:fixed; bottom:0; left:0; right:0; z-index:1000;
+    background:var(--bg-card); border-top:1px solid var(--border);
+    display:none; justify-content:center; padding:0 12px;
+    padding-bottom:env(safe-area-inset-bottom,0);
+}
+.bnav.vis { display:flex; }
+.ni {
+    flex:1; max-width:88px; display:flex; flex-direction:column;
+    align-items:center; gap:2px; padding:8px 4px 6px;
+    background:none; border:none; color:var(--fg-3);
+    font-family:var(--font); cursor:pointer;
+    transition:color 0.1s; position:relative;
+}
+.ni:hover { color:var(--fg-2); }
+.ni.on { color:var(--tint); }
+.ni.on::after {
+    content:''; position:absolute; top:0;
+    width:20px; height:2px; background:var(--tint);
+    border-radius:0 0 2px 2px;
+}
+.ni svg { width:20px; height:20px; }
+.ni span { font-size:10px; font-weight:500; }
+.ni .nbdg {
+    position:absolute; top:4px; right:calc(50% - 16px);
+    width:14px; height:14px; border-radius:50%;
+    background:var(--red); color:#fff; font-size:8px;
+    font-weight:700; display:flex; align-items:center;
+    justify-content:center;
+}
+
+/* ═══════════════════════════════
+   6. RESPONSIVE
+   ═══════════════════════════════ */
+@media (max-width:768px) {
+    .metrics { grid-template-columns:repeat(2,1fr); }
+    .dash-cols { grid-template-columns:1fr; }
+    .pay-grid { grid-template-columns:repeat(2,1fr); }
+    .frow { grid-template-columns:1fr; }
+    .bill-scr { padding:60px 16px 100px; }
+}
+@media (max-width:500px) {
+    .login-heading { font-size:26px; }
+    .dash-hello { font-size:22px; }
+    .metric-val { font-size:24px; }
+    .fcard { padding:28px 20px; border-radius:var(--r-m); }
+    .fcard-title { font-size:19px; }
+    .pay-grid { grid-template-columns:1fr 1fr; }
+    .chips .chip { padding:6px 12px; font-size:11px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Demo bar -->
+<nav class="demo-bar">
+    <span class="demo-bar-label">Modern 2026</span>
+    <button class="on" onclick="go('login')">Login</button>
+    <button onclick="go('dash')">Dashboard</button>
+    <button onclick="go('form')">Form</button>
+    <button onclick="go('bill')">Billing</button>
+</nav>
+
+<!-- ══════════ LOGIN ══════════ -->
+<div id="s-login" class="login-scr on">
+    <div class="login-wrap">
+        <div class="login-box">
+            <h1 class="login-heading">כניסה למערכת</h1>
+            <p class="login-sub">משרד עו"ד גיא הרשקוביץ ושות'</p>
+
+            <div class="login-fg">
+                <label class="login-lbl" for="d-email">אימייל</label>
+                <div class="login-inp-wrap">
+                    <input type="email" id="d-email" class="login-inp eml" placeholder="you@ghlawoffice.co.il" autocomplete="username">
+                </div>
+            </div>
+            <div class="login-fg">
+                <label class="login-lbl" for="d-pw">סיסמה</label>
+                <div class="login-inp-wrap">
+                    <input type="password" id="d-pw" class="login-inp" placeholder="••••••••" autocomplete="current-password">
+                    <button type="button" class="pw-eye" aria-label="הצג סיסמה" onclick="togglePw()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <button class="login-go" onclick="go('dash')">כניסה</button>
+            <p class="login-foot">מערכת מאובטחת · v2.0</p>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ DASHBOARD ══════════ -->
+<div id="s-dash" class="scr">
+    <div class="dash">
+        <div class="dash-top">
+            <div>
+                <h1 class="dash-hello">בוקר טוב, חיים</h1>
+                <p class="dash-time">שבת, 29 מרץ 2026 · 10:42</p>
+            </div>
+            <div class="dash-acts">
+                <button class="b b-p" onclick="go('form')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    טופס מכר
+                </button>
+                <button class="b b-s">חיוב חוזר</button>
+            </div>
+        </div>
+
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-label">מכירות החודש</div>
+                <div class="metric-val">₪147,200</div>
+                <span class="metric-delta up">↑ 12%</span>
+            </div>
+            <div class="metric">
+                <div class="metric-label">עסקאות פתוחות</div>
+                <div class="metric-val">23</div>
+                <span class="metric-delta nu">8 חדשות</span>
+            </div>
+            <div class="metric">
+                <div class="metric-label">חיובים חוזרים</div>
+                <div class="metric-val">₪38,400</div>
+                <span class="metric-delta up">↑ 3 לקוחות</span>
+            </div>
+            <div class="metric">
+                <div class="metric-label">באיחור</div>
+                <div class="metric-val" style="color:var(--red)">4</div>
+                <span class="metric-delta dn">₪12,600</span>
+            </div>
+        </div>
+
+        <div class="dash-cols">
+            <div class="panel">
+                <div class="panel-hd">
+                    <span class="panel-title">מכירות אחרונות</span>
+                    <a href="#" class="panel-link" onclick="go('bill');return false">הכל →</a>
+                </div>
+                <div class="lrow">
+                    <div class="lrow-av">ד.כ</div>
+                    <div class="lrow-info"><div class="lrow-name">דוד כהן</div><div class="lrow-meta">ריטיינר · אשראי</div></div>
+                    <div class="lrow-val">₪18,500</div>
+                </div>
+                <div class="lrow">
+                    <div class="lrow-av">ש.ל</div>
+                    <div class="lrow-info"><div class="lrow-name">שרה לוי</div><div class="lrow-meta">ייעוץ · מזומן</div></div>
+                    <div class="lrow-val">₪2,800</div>
+                </div>
+                <div class="lrow">
+                    <div class="lrow-av">א.ב</div>
+                    <div class="lrow-info"><div class="lrow-name">אברהם בן-דוד</div><div class="lrow-meta">הליך משפטי · שיקים</div></div>
+                    <div class="lrow-val">₪45,000</div>
+                </div>
+                <div class="lrow">
+                    <div class="lrow-av">מ.ר</div>
+                    <div class="lrow-info"><div class="lrow-name">מיכל רוזנברג</div><div class="lrow-meta">שעות · העברה</div></div>
+                    <div class="lrow-val">₪9,200</div>
+                </div>
+                <div class="lrow">
+                    <div class="lrow-av">נ.פ</div>
+                    <div class="lrow-info"><div class="lrow-name">נועה פרידמן</div><div class="lrow-meta">ריטיינר · אשראי</div></div>
+                    <div class="lrow-val">₪5,000</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-hd">
+                    <span class="panel-title">התראות</span>
+                    <span style="font-size:11px;color:var(--red);font-weight:600;">4</span>
+                </div>
+                <div class="lrow">
+                    <div class="adot adot-r"></div>
+                    <div class="lrow-info"><div class="lrow-name">יוסף מזרחי</div><div class="lrow-meta">באיחור 12 יום · חודשי</div></div>
+                    <div class="lrow-val">₪4,200</div>
+                </div>
+                <div class="lrow">
+                    <div class="adot adot-r"></div>
+                    <div class="lrow-info"><div class="lrow-name">רחל אביב</div><div class="lrow-meta">באיחור 5 ימים · שיק חוזר</div></div>
+                    <div class="lrow-val">₪3,400</div>
+                </div>
+                <div class="lrow">
+                    <div class="adot adot-a"></div>
+                    <div class="lrow-info"><div class="lrow-name">עמית גולן</div><div class="lrow-meta">מחר · אשראי חודשי</div></div>
+                    <div class="lrow-val">₪2,500</div>
+                </div>
+                <div class="lrow">
+                    <div class="adot adot-a"></div>
+                    <div class="lrow-info"><div class="lrow-name">נועה פרידמן</div><div class="lrow-meta">בעוד 3 ימים · ריטיינר</div></div>
+                    <div class="lrow-val">₪5,000</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ FORM ══════════ -->
+<div id="s-form" class="scr">
+    <div class="form-scr">
+        <div class="steps">
+            <div class="step done">
+                <div class="step-dot">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <span class="step-txt">לקוח</span>
+            </div>
+            <div class="step-line filled"><i></i></div>
+            <div class="step now">
+                <div class="step-dot">2</div>
+                <span class="step-txt">עסקה</span>
+            </div>
+            <div class="step-line"><i></i></div>
+            <div class="step">
+                <div class="step-dot">3</div>
+                <span class="step-txt">תשלום</span>
+            </div>
+            <div class="step-line"><i></i></div>
+            <div class="step">
+                <div class="step-dot">4</div>
+                <span class="step-txt">סיכום</span>
+            </div>
+        </div>
+
+        <div class="fcard">
+            <h2 class="fcard-title">פרטי העסקה</h2>
+            <p class="fcard-sub">בחרו סוג עסקה והזינו סכום</p>
+
+            <label class="fl">סוג עסקה</label>
+            <div class="chips">
+                <button class="chip" onclick="pickChip(this)">פגישת ייעוץ</button>
+                <button class="chip on" onclick="pickChip(this)">ריטיינר</button>
+                <button class="chip" onclick="pickChip(this)">תוכנית שעות</button>
+                <button class="chip" onclick="pickChip(this)">הליך — תקרת שעות</button>
+                <button class="chip" onclick="pickChip(this)">הליך — פיקס</button>
+                <button class="chip" onclick="pickChip(this)">אחר</button>
+            </div>
+
+            <div class="fg">
+                <label class="fl">תיאור <span class="req">*</span></label>
+                <textarea class="fi" placeholder="תיאור קצר של השירות...">ליווי משפטי שוטף — ריטיינר חודשי</textarea>
+            </div>
+
+            <div class="frow">
+                <div class="fg">
+                    <label class="fl">סכום לפני מע"מ <span class="req">*</span></label>
+                    <input type="text" class="fi ltr" value="₪ 15,000">
+                </div>
+                <div class="fg">
+                    <label class="fl">מע"מ 18%</label>
+                    <input type="text" class="fi ltr" value="₪ 2,700" readonly>
+                </div>
+            </div>
+
+            <div class="vat-box">
+                <div class="vat-r"><span>לפני מע"מ</span><span>₪15,000</span></div>
+                <div class="vat-r"><span>מע"מ 18%</span><span>₪2,700</span></div>
+                <div class="vat-r total"><span>סה"כ</span><span>₪17,700</span></div>
+            </div>
+
+            <div class="brow">
+                <button class="bb bb-s">← הקודם</button>
+                <button class="bb bb-p">הבא →</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ BILLING ══════════ -->
+<div id="s-bill" class="scr">
+    <div class="bill-scr">
+        <div class="bill-top">
+            <h1 class="bill-h">חיובים חוזרים</h1>
+            <div style="display:flex;gap:8px;">
+                <button class="b b-s">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    ייצוא
+                </button>
+                <button class="b b-p">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    חיוב חדש
+                </button>
+            </div>
+        </div>
+
+        <div class="tbar">
+            <input type="search" class="tbar-search" placeholder="חיפוש...">
+            <button class="pill on">הכל</button>
+            <button class="pill">פעיל</button>
+            <button class="pill">באיחור</button>
+            <button class="pill">הושלם</button>
+        </div>
+
+        <div class="tw">
+            <table class="tbl">
+                <thead><tr>
+                    <th>לקוח</th><th>סכום חודשי</th><th>התקדמות</th><th>חיוב</th><th>סטטוס</th><th></th>
+                </tr></thead>
+                <tbody>
+                    <tr>
+                        <td><div class="tn">דוד כהן</div><div class="ts">054-7812345 · ריטיינר</div></td>
+                        <td class="ta">₪5,900</td>
+                        <td><div class="pbar-w"><div class="pbar"><div class="pbar-f" style="width:75%"></div></div><span class="pbar-t">9/12</span></div></td>
+                        <td>1 בחודש</td>
+                        <td><span class="bdg bdg-g">פעיל</span></td>
+                        <td><div class="tacts"><button class="tbtn">תשלומים</button><button class="tbtn">⋯</button></div></td>
+                    </tr>
+                    <tr>
+                        <td><div class="tn">שרה לוי</div><div class="ts">052-9876543 · חודשי</div></td>
+                        <td class="ta">₪3,200</td>
+                        <td><div class="pbar-w"><div class="pbar"><div class="pbar-f" style="width:40%"></div></div><span class="pbar-t">4/10</span></div></td>
+                        <td>15 בחודש</td>
+                        <td><span class="bdg bdg-r">באיחור</span></td>
+                        <td><div class="tacts"><button class="tbtn">תשלומים</button><button class="tbtn">⋯</button></div></td>
+                    </tr>
+                    <tr>
+                        <td><div class="tn">אברהם בן-דוד</div><div class="ts">050-1234567 · הליך</div></td>
+                        <td class="ta">₪8,500</td>
+                        <td><div class="pbar-w"><div class="pbar"><div class="pbar-f" style="width:100%"></div></div><span class="pbar-t">6/6</span></div></td>
+                        <td>10 בחודש</td>
+                        <td><span class="bdg bdg-n">הושלם</span></td>
+                        <td><div class="tacts"><button class="tbtn">תשלומים</button><button class="tbtn">⋯</button></div></td>
+                    </tr>
+                    <tr>
+                        <td><div class="tn">מיכל רוזנברג</div><div class="ts">058-5551234 · ריטיינר</div></td>
+                        <td class="ta">₪4,600</td>
+                        <td><div class="pbar-w"><div class="pbar"><div class="pbar-f" style="width:17%"></div></div><span class="pbar-t">2/12</span></div></td>
+                        <td>5 בחודש</td>
+                        <td><span class="bdg bdg-g">פעיל</span></td>
+                        <td><div class="tacts"><button class="tbtn">תשלומים</button><button class="tbtn">⋯</button></div></td>
+                    </tr>
+                    <tr>
+                        <td><div class="tn">יוסף מזרחי</div><div class="ts">053-6543210 · חודשי</div></td>
+                        <td class="ta">₪4,200</td>
+                        <td><div class="pbar-w"><div class="pbar"><div class="pbar-f" style="width:50%"></div></div><span class="pbar-t">3/6</span></div></td>
+                        <td>20 בחודש</td>
+                        <td><span class="bdg bdg-r">באיחור</span></td>
+                        <td><div class="tacts"><button class="tbtn">תשלומים</button><button class="tbtn">⋯</button></div></td>
+                    </tr>
+                    <tr>
+                        <td><div class="tn">עמית גולן</div><div class="ts">054-3332211 · ריטיינר</div></td>
+                        <td class="ta">₪2,500</td>
+                        <td><div class="pbar-w"><div class="pbar"><div class="pbar-f" style="width:58%"></div></div><span class="pbar-t">7/12</span></div></td>
+                        <td>1 בחודש</td>
+                        <td><span class="bdg bdg-a">ממתין</span></td>
+                        <td><div class="tacts"><button class="tbtn">תשלומים</button><button class="tbtn">⋯</button></div></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom nav -->
+<div class="bnav" id="bn">
+    <button class="ni on" onclick="go('dash')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>ראשי</span>
+    </button>
+    <button class="ni" onclick="go('form')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+        <span>טופס מכר</span>
+    </button>
+    <button class="ni" onclick="go('bill')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        <span>חיובים</span>
+        <span class="nbdg">2</span>
+    </button>
+    <button class="ni">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span>פעילות</span>
+    </button>
+    <button class="ni">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>משתמשים</span>
+    </button>
+</div>
+
+<script>
+function go(id) {
+    document.querySelectorAll('.scr,.login-scr').forEach(s => s.classList.remove('on'));
+    document.getElementById('s-'+id).classList.add('on');
+    document.querySelectorAll('.demo-bar button').forEach(b => b.classList.remove('on'));
+    if(event&&event.target.tagName==='BUTTON') event.target.classList.add('on');
+    var bn = document.getElementById('bn');
+    bn.classList.toggle('vis', id!=='login');
+    var nis = document.querySelectorAll('.ni');
+    nis.forEach(n=>n.classList.remove('on'));
+    var m={dash:0,form:1,bill:2};
+    if(m[id]!==undefined) nis[m[id]].classList.add('on');
+    window.scrollTo(0,0);
+}
+function pickChip(el) {
+    el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+    el.classList.add('on');
+}
+function togglePw() {
+    var inp = document.getElementById('d-pw');
+    inp.type = inp.type==='password' ? 'text' : 'password';
+}
+document.querySelectorAll('.pill').forEach(p=>{
+    p.addEventListener('click',function(){
+        var parent=this.parentElement;
+        if(this.textContent==='הכל'){
+            parent.querySelectorAll('.pill').forEach(x=>x.classList.remove('on'));
+            this.classList.add('on');
+        } else {
+            parent.querySelector('.pill:first-child').classList.remove('on');
+            this.classList.toggle('on');
+            if(!parent.querySelectorAll('.pill.on').length)
+                parent.querySelector('.pill:first-child').classList.add('on');
+        }
+    });
+});
+</script>
+</body>
+</html>
