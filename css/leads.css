@@ -539,18 +539,26 @@
     border: 1px solid var(--border-default);
     border-radius: var(--radius-lg);
     padding: 14px;
-    min-height: 200px;
+    height: 280px;
+    position: relative;
 }
 
 .ld-chart-card.ld-chart-wide {
     grid-column: span 2;
+    height: 260px;
+}
+
+.ld-chart-card canvas {
+    max-height: 100% !important;
+    width: 100% !important;
 }
 
 .ld-chart-title {
     font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
-    margin-bottom: 10px;
+    margin-bottom: 6px;
+    flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
@@ -564,7 +572,10 @@
 
 @media (max-width: 500px) {
     .ld-chart-card {
-        min-height: 180px;
+        height: 220px;
         padding: 10px;
+    }
+    .ld-chart-card.ld-chart-wide {
+        height: 200px;
     }
 }
