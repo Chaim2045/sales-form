@@ -1461,6 +1461,27 @@
             <div class="bm-stat"><div class="bm-stat-value" id="ldStatConversion">0%</div><div class="bm-stat-label">המרה</div></div>
         </div>
 
+        <!-- My Leads Dashboard -->
+        <div id="ldMyDashboard" class="ld-my-dashboard" style="display:none;">
+            <div class="ld-my-stats">
+                <div class="ld-my-stat ld-my-stat-hot"><div class="ld-my-stat-value" id="ldMyHot">0</div><div class="ld-my-stat-label">🔥 חמים ממתינים</div></div>
+                <div class="ld-my-stat ld-my-stat-followup"><div class="ld-my-stat-value" id="ldMyFollowup">0</div><div class="ld-my-stat-label">📅 פולואפים להיום</div></div>
+                <div class="ld-my-stat ld-my-stat-new"><div class="ld-my-stat-value" id="ldMyNew">0</div><div class="ld-my-stat-label">🆕 חדשים היום</div></div>
+                <div class="ld-my-stat ld-my-stat-conversion"><div class="ld-my-stat-value" id="ldMyConversion">—</div><div class="ld-my-stat-label">📊 סגירות השבוע</div></div>
+            </div>
+        </div>
+
+        <!-- Quick Filter Chips -->
+        <div class="ld-filter-chips">
+            <button class="ld-chip active" data-filter="all" onclick="applyQuickFilter('all')">הכל</button>
+            <button class="ld-chip" data-filter="hot" onclick="applyQuickFilter('hot')">🔥 חמים 8+</button>
+            <button class="ld-chip" data-filter="medium" onclick="applyQuickFilter('medium')">⚡ בינוני 5-7</button>
+            <button class="ld-chip" data-filter="unscored" onclick="applyQuickFilter('unscored')">❓ לא נותח</button>
+            <button class="ld-chip" data-filter="today" onclick="applyQuickFilter('today')">📅 היום</button>
+            <button class="ld-chip" data-filter="week" onclick="applyQuickFilter('week')">🗓 השבוע</button>
+            <button class="ld-chip" data-filter="stale" onclick="applyQuickFilter('stale')">⏳ ללא פעילות 3+ ימים</button>
+        </div>
+
         <!-- Analytics Dashboard -->
         <div id="ldAnalytics" class="ld-analytics">
             <div class="ld-analytics-header">
@@ -1491,6 +1512,10 @@
                         <div class="ld-chart-title">אחוז המרה לפי מקור</div>
                         <canvas id="ldChartConversion"></canvas>
                     </div>
+                    <div class="ld-chart-card ld-chart-wide">
+                        <div class="ld-chart-title">משפך המרה</div>
+                        <canvas id="ldChartFunnel"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1511,8 +1536,26 @@
             <select id="ldFilterAssignee" class="ld-filter-select" onchange="filterLeadsView()">
                 <option value="">כל העובדים</option>
             </select>
+            <select id="ldFilterScore" class="ld-filter-select" onchange="filterLeadsView()">
+                <option value="">כל הניקודים</option>
+                <option value="8+">⭐ 8+ חם</option>
+                <option value="5-7">⭐ 5-7 בינוני</option>
+                <option value="1-4">⭐ 1-4 קר</option>
+                <option value="none">❓ לא נותח</option>
+            </select>
+            <select id="ldFilterCategory" class="ld-filter-select" onchange="filterLeadsView()">
+                <option value="">כל הקטגוריות</option>
+                <option value="דיני עבודה">דיני עבודה</option>
+                <option value="מקרקעין">מקרקעין</option>
+                <option value="מסחרי">מסחרי</option>
+                <option value="שותפויות">שותפויות</option>
+                <option value="חברות">חברות</option>
+                <option value="קניין רוחני">קניין רוחני</option>
+                <option value="אחר">אחר</option>
+            </select>
             <input type="date" id="ldFilterDateFrom" class="ld-filter-date" onchange="filterLeadsView()">
             <input type="date" id="ldFilterDateTo" class="ld-filter-date" onchange="filterLeadsView()">
+            <button class="ld-toggle-my" id="ldToggleMy" onclick="toggleMyLeads()" style="display:none;"><span id="ldToggleMyText">הלידים שלי</span></button>
             <div class="bm-view-toggle">
                 <button class="bm-view-btn active" id="ldViewTable" onclick="setLeadsViewMode('table')">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -1532,6 +1575,7 @@
                 <table class="bm-table">
                     <thead>
                         <tr>
+                            <th style="width:30px;"><input type="checkbox" id="ldSelectAll" onchange="toggleSelectAllLeads(this)"></th>
                             <th>#</th>
                             <th>תאריך</th>
                             <th>שם</th>
@@ -1546,6 +1590,30 @@
                     </thead>
                     <tbody id="ldTableBody"></tbody>
                 </table>
+            </div>
+            <!-- Bulk Action Bar -->
+            <div id="ldBulkBar" class="ld-bulk-bar" style="display:none;">
+                <span><strong id="ldBulkCount">0</strong> נבחרו</span>
+                <select id="ldBulkStatus" class="ld-filter-select">
+                    <option value="">שנה סטטוס...</option>
+                    <option value="new">🆕 חדש</option>
+                    <option value="assigned">👤 שויך</option>
+                    <option value="contacted">📞 נוצר קשר</option>
+                    <option value="followup">🔄 פולואפ</option>
+                    <option value="no_answer">📵 לא ענה</option>
+                    <option value="closed">✅ נסגר</option>
+                    <option value="not_relevant">❌ לא רלוונטי</option>
+                </select>
+                <select id="ldBulkAssignee" class="ld-filter-select">
+                    <option value="">שייך ל...</option>
+                    <option value="אופק דובין">אופק דובין</option>
+                    <option value="חיים פרץ">חיים פרץ</option>
+                    <option value="מירי טל">מירי טל</option>
+                    <option value="רועי הרשקוביץ">רועי הרשקוביץ</option>
+                    <option value="ראד חטיב">ראד חטיב</option>
+                </select>
+                <button class="ld-btn-primary" onclick="executeBulkAction()" style="padding:6px 16px;font-size:12px;">בצע</button>
+                <button class="ld-btn-secondary" onclick="clearBulkSelection()" style="padding:6px 12px;font-size:12px;">ביטול</button>
             </div>
         </div>
 

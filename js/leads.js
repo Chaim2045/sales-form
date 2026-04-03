@@ -8,6 +8,11 @@ var LEADS_PAGE_SIZE = 20;
 var leadsDataLoaded = false;
 var leadsRealtimeUnsubscribe = null;
 var currentLeadDocId = null;
+var leadsMyMode = false;
+var leadsQuickFilter = 'all';
+var leadsLastSeenIds = {};
+var autoScoreQueue = [];
+var autoScoreRunning = false;
 
 // ==================== Status Labels ====================
 
@@ -37,9 +42,31 @@ var LEAD_SOURCE_LABELS = {
 function showLeadsManagement() {
     document.getElementById('mainContainer').style.display = 'none';
     document.getElementById('leadsManagement').classList.add('active');
+
+    // Init My Leads mode
+    var toggleBtn = document.getElementById('ldToggleMy');
+    if (currentUserRole === 'master') {
+        if (toggleBtn) toggleBtn.style.display = '';
+    } else if (currentUser) {
+        leadsMyMode = true;
+        if (toggleBtn) toggleBtn.style.display = 'none';
+    }
+    updateMyLeadsToggle();
+
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+
+    // Restore saved filters
+    restoreFilterState();
+
     if (!leadsDataLoaded) {
         loadLeadsData();
     }
+    // Update last seen timestamp (clears badge)
+    try { localStorage.setItem('ld_lastSeen', Date.now().toString()); } catch(e) {}
+    updateLeadsBadge(0);
 }
 
 function hideLeadsManagement() {
@@ -78,9 +105,41 @@ function loadLeadsData() {
                 document.getElementById('ldEmpty').style.display = 'none';
 
                 populateLeadsFilters();
-                updateLeadsSummary(leadsRecords);
+                updateLeadsSummary(getFilteredLeads());
+                updateMyDashboard();
                 renderLeadsView();
-                // Refresh charts if analytics panel is open (invalidate cache to reload)
+
+                // Detect new hot leads for notifications
+                snapshot.docChanges().forEach(function(change) {
+                    if (change.type === 'added' && !leadsLastSeenIds[change.doc.id]) {
+                        var d = change.doc.data();
+                        leadsLastSeenIds[change.doc.id] = true;
+                        if (d.aiScore >= 7) showLeadNotification(d);
+                    }
+                });
+
+                // Badge count for new leads
+                var lastSeen = parseInt(localStorage.getItem('ld_lastSeen') || '0');
+                var newSinceSeen = leadsRecords.filter(function(r) {
+                    if (r.status !== 'new') return false;
+                    var ts = r.createdAt ? (r.createdAt.toDate ? r.createdAt.toDate().getTime() : new Date(r.createdAt).getTime()) : 0;
+                    return ts > lastSeen;
+                }).length;
+                var leadsEl = document.getElementById('leadsManagement');
+                if (!leadsEl || !leadsEl.classList.contains('active')) {
+                    updateLeadsBadge(newSinceSeen);
+                }
+
+                // Auto-score new unscored leads
+                var unscored = leadsRecords.filter(function(r) {
+                    return !r.aiScore && !r.aiScoredAt && r.status !== 'not_relevant' && autoScoreQueue.indexOf(r.id) === -1;
+                });
+                if (unscored.length > 0) {
+                    unscored.slice(0, 10).forEach(function(r) { autoScoreQueue.push(r.id); });
+                    processAutoScoreQueue();
+                }
+
+                // Refresh charts if analytics panel is open
                 var analyticsBody = document.getElementById('ldAnalyticsBody');
                 if (analyticsBody && analyticsBody.style.display !== 'none') {
                     leadsAllRecords = null;
@@ -139,15 +198,43 @@ function populateLeadsFilters() {
 }
 
 function getFilteredLeads() {
-    var filtered = leadsRecords;
+    var filtered = leadsRecords.slice();
+    var now = Date.now();
 
+    // My Leads mode
+    if (leadsMyMode && currentUser) {
+        filtered = filtered.filter(function(r) { return r.assignedTo === currentUser; });
+    }
+
+    // Quick filter chips
+    if (leadsQuickFilter && leadsQuickFilter !== 'all') {
+        filtered = filtered.filter(function(r) {
+            var ts = r.createdAt ? (r.createdAt.toDate ? r.createdAt.toDate().getTime() : new Date(r.createdAt).getTime()) : 0;
+            switch (leadsQuickFilter) {
+                case 'hot': return (r.aiScore || 0) >= 8;
+                case 'medium': return (r.aiScore || 0) >= 5 && (r.aiScore || 0) <= 7;
+                case 'unscored': return !r.aiScore;
+                case 'today':
+                    var todayStart = new Date(); todayStart.setHours(0,0,0,0);
+                    return ts >= todayStart.getTime();
+                case 'week': return ts >= now - 7 * 24 * 60 * 60 * 1000;
+                case 'stale':
+                    var lu = r.lastUpdated ? (r.lastUpdated.toDate ? r.lastUpdated.toDate().getTime() : new Date(r.lastUpdated).getTime()) : ts;
+                    return (now - lu) > 3 * 24 * 60 * 60 * 1000 && r.status !== 'closed' && r.status !== 'not_relevant';
+                default: return true;
+            }
+        });
+    }
+
+    // Text search (including original message)
     var search = (document.getElementById('ldSearch').value || '').trim().toLowerCase();
     if (search) {
         filtered = filtered.filter(function(r) {
             return (r.name || '').toLowerCase().indexOf(search) !== -1 ||
                    (r.phone || '').indexOf(search) !== -1 ||
                    (r.subject || '').toLowerCase().indexOf(search) !== -1 ||
-                   (r.assignedTo || '').toLowerCase().indexOf(search) !== -1;
+                   (r.assignedTo || '').toLowerCase().indexOf(search) !== -1 ||
+                   (r.originalMessage || '').toLowerCase().indexOf(search) !== -1;
         });
     }
 
@@ -159,6 +246,24 @@ function getFilteredLeads() {
     var assigneeFilter = document.getElementById('ldFilterAssignee').value;
     if (assigneeFilter) {
         filtered = filtered.filter(function(r) { return r.assignedTo === assigneeFilter; });
+    }
+
+    var scoreFilter = document.getElementById('ldFilterScore');
+    if (scoreFilter && scoreFilter.value) {
+        var sf = scoreFilter.value;
+        filtered = filtered.filter(function(r) {
+            var s = r.aiScore || 0;
+            if (sf === '8+') return s >= 8;
+            if (sf === '5-7') return s >= 5 && s <= 7;
+            if (sf === '1-4') return s >= 1 && s <= 4;
+            if (sf === 'none') return !r.aiScore;
+            return true;
+        });
+    }
+
+    var catFilter = document.getElementById('ldFilterCategory');
+    if (catFilter && catFilter.value) {
+        filtered = filtered.filter(function(r) { return r.aiCategory === catFilter.value; });
     }
 
     var dateFrom = document.getElementById('ldFilterDateFrom').value;
@@ -179,6 +284,17 @@ function getFilteredLeads() {
         });
     }
 
+    // Sort: My Leads mode → score desc, then date desc
+    if (leadsMyMode) {
+        filtered.sort(function(a, b) {
+            var sa = a.aiScore || 0, sb = b.aiScore || 0;
+            if (sb !== sa) return sb - sa;
+            var ta = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime()) : 0;
+            var tb = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime()) : 0;
+            return tb - ta;
+        });
+    }
+
     return filtered;
 }
 
@@ -187,6 +303,7 @@ function filterLeadsView() {
     var filtered = getFilteredLeads();
     updateLeadsSummary(filtered);
     renderLeadsView();
+    saveFilterState();
 }
 
 // ==================== View Mode ====================
@@ -249,18 +366,31 @@ function renderLeadsView() {
 
 function renderLeadsTableView(records, startIdx) {
     var tbody = document.getElementById('ldTableBody');
+    var now = Date.now();
     tbody.innerHTML = records.map(function(r, idx) {
         var rowNum = (startIdx || 0) + idx + 1;
         var dateStr = formatLeadDate(r.createdAt);
         var statusHtml = '<span class="ld-status ld-status-' + (r.status || 'new') + '">' + (LEAD_STATUS_LABELS[r.status] || r.status || 'חדש') + '</span>';
         var scoreHtml = renderScoreBadge(r.aiScore);
         var sourceLabel = LEAD_SOURCE_LABELS[r.source] || r.source || '';
+        var ts = r.createdAt ? (r.createdAt.toDate ? r.createdAt.toDate().getTime() : new Date(r.createdAt).getTime()) : 0;
+        var isNew = (now - ts) < 300000;
+        var pulseClass = isNew ? ' class="ld-new-pulse"' : '';
 
-        return '<tr onclick="openLeadModal(\'' + r.id + '\')" style="cursor:pointer;">' +
+        // Phone with actions
+        var phoneFormatted = formatPhone(r.phone);
+        var phoneDigits = (r.phone || '').replace(/\D/g, '');
+        var phoneHtml = phoneFormatted !== '—' ?
+            '<a href="tel:' + phoneDigits + '" class="ld-phone-link" onclick="event.stopPropagation();">' + escapeHTML(phoneFormatted) + '</a>' +
+            '<button class="ld-wa-btn" onclick="event.stopPropagation();openWhatsApp(\'' + phoneDigits + '\')" title="WhatsApp">💬</button>' :
+            '<span style="color:var(--text-quaternary);">—</span>';
+
+        return '<tr' + pulseClass + ' onclick="openLeadModal(\'' + r.id + '\')" style="cursor:pointer;">' +
+            '<td style="width:30px;"><input type="checkbox" class="ld-row-check" value="' + r.id + '" onclick="event.stopPropagation();updateBulkBar()"></td>' +
             '<td style="font-size:12px;color:var(--text-quaternary);text-align:center;">' + rowNum + '</td>' +
             '<td style="font-size:12px;color:var(--text-tertiary);">' + dateStr + '</td>' +
             '<td class="ld-name-cell">' + escapeHTML(r.name || r.phone || '—') + '</td>' +
-            '<td class="ld-phone-cell">' + escapeHTML(formatPhone(r.phone)) + '</td>' +
+            '<td class="ld-phone-cell">' + phoneHtml + '</td>' +
             '<td style="font-size:12px;color:var(--text-secondary);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHTML(r.subject || '—') + '</td>' +
             '<td class="ld-source">' + escapeHTML(sourceLabel) + '</td>' +
             '<td>' + scoreHtml + '</td>' +
@@ -403,20 +533,9 @@ function openLeadModal(docId) {
         aiBox.style.display = 'none';
     }
 
-    // History
+    // Timeline (Phase 4)
     var historyEl = document.getElementById('ldModalHistory');
-    var history = record.history || [];
-    if (history.length > 0) {
-        historyEl.innerHTML = history.slice().reverse().map(function(h) {
-            var time = h.at ? new Date(h.at).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
-            return '<div class="ld-history-item">' +
-                '<span class="ld-history-time">' + time + '</span>' +
-                '<span class="ld-history-text">' + escapeHTML((h.by || '') + ': ' + (h.note || h.action || '')) + '</span>' +
-            '</div>';
-        }).join('');
-    } else {
-        historyEl.innerHTML = '<div style="font-size:12px;color:var(--text-quaternary);">אין היסטוריה</div>';
-    }
+    historyEl.innerHTML = renderTimeline(record);
 
     // Original message
     var origEl = document.getElementById('ldModalOriginal');
@@ -651,6 +770,304 @@ function escapeHTML(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ==================== My Leads Toggle ====================
+
+function toggleMyLeads() {
+    leadsMyMode = !leadsMyMode;
+    updateMyLeadsToggle();
+    filterLeadsView();
+    updateMyDashboard();
+}
+
+function updateMyLeadsToggle() {
+    var btn = document.getElementById('ldToggleMy');
+    var text = document.getElementById('ldToggleMyText');
+    var dashboard = document.getElementById('ldMyDashboard');
+    if (btn) btn.classList.toggle('active', leadsMyMode);
+    if (text) text.textContent = leadsMyMode ? 'כל הלידים' : 'הלידים שלי';
+    if (dashboard) dashboard.style.display = leadsMyMode ? '' : 'none';
+}
+
+function updateMyDashboard() {
+    if (!leadsMyMode || !currentUser) return;
+    var now = new Date();
+    var todayStart = new Date(now); todayStart.setHours(0,0,0,0);
+    var weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    var myLeads = leadsRecords.filter(function(r) { return r.assignedTo === currentUser; });
+
+    var hot = myLeads.filter(function(r) {
+        return (r.aiScore || 0) >= 7 && r.status !== 'closed' && r.status !== 'not_relevant';
+    }).length;
+
+    var followupsDue = myLeads.filter(function(r) {
+        if (!r.followupAt) return false;
+        var ft = r.followupAt.toDate ? r.followupAt.toDate() : new Date(r.followupAt);
+        return ft <= now && r.status !== 'closed' && r.status !== 'not_relevant';
+    }).length;
+
+    var newToday = myLeads.filter(function(r) {
+        var ts = r.createdAt ? (r.createdAt.toDate ? r.createdAt.toDate().getTime() : new Date(r.createdAt).getTime()) : 0;
+        return ts >= todayStart.getTime();
+    }).length;
+
+    var weekLeads = myLeads.filter(function(r) {
+        var ts = r.createdAt ? (r.createdAt.toDate ? r.createdAt.toDate().getTime() : new Date(r.createdAt).getTime()) : 0;
+        return ts >= weekStart.getTime();
+    });
+    var weekClosed = weekLeads.filter(function(r) { return r.status === 'closed'; }).length;
+    var weekConversion = weekLeads.length > 0 ? Math.round((weekClosed / weekLeads.length) * 100) : 0;
+
+    var el = function(id) { return document.getElementById(id); };
+    if (el('ldMyHot')) el('ldMyHot').textContent = hot;
+    if (el('ldMyFollowup')) el('ldMyFollowup').textContent = followupsDue;
+    if (el('ldMyNew')) el('ldMyNew').textContent = newToday;
+    if (el('ldMyConversion')) el('ldMyConversion').textContent = weekClosed + ' (' + weekConversion + '%)';
+}
+
+// ==================== Quick Filter Chips ====================
+
+function applyQuickFilter(type) {
+    leadsQuickFilter = type;
+    var chips = document.querySelectorAll('.ld-chip');
+    chips.forEach(function(c) { c.classList.toggle('active', c.getAttribute('data-filter') === type); });
+    filterLeadsView();
+}
+
+// ==================== Filter State Persistence ====================
+
+function saveFilterState() {
+    try {
+        localStorage.setItem('ld_filters', JSON.stringify({
+            search: document.getElementById('ldSearch').value || '',
+            status: document.getElementById('ldFilterStatus').value || '',
+            assignee: document.getElementById('ldFilterAssignee').value || '',
+            score: (document.getElementById('ldFilterScore') || {}).value || '',
+            category: (document.getElementById('ldFilterCategory') || {}).value || '',
+            myMode: leadsMyMode,
+            viewMode: leadsViewMode,
+            quickFilter: leadsQuickFilter
+        }));
+    } catch(e) {}
+}
+
+function restoreFilterState() {
+    try {
+        var saved = JSON.parse(localStorage.getItem('ld_filters') || '{}');
+        if (saved.search) document.getElementById('ldSearch').value = saved.search;
+        if (saved.status) document.getElementById('ldFilterStatus').value = saved.status;
+        if (saved.viewMode) setLeadsViewMode(saved.viewMode);
+        if (saved.myMode !== undefined && currentUserRole === 'master') leadsMyMode = saved.myMode;
+        if (saved.quickFilter) { leadsQuickFilter = saved.quickFilter; applyQuickFilter(saved.quickFilter); }
+        var scoreEl = document.getElementById('ldFilterScore');
+        if (scoreEl && saved.score) scoreEl.value = saved.score;
+        var catEl = document.getElementById('ldFilterCategory');
+        if (catEl && saved.category) catEl.value = saved.category;
+    } catch(e) {}
+}
+
+// ==================== Timeline (Phase 4) ====================
+
+function renderTimeline(record) {
+    var events = [];
+
+    if (record.createdAt) {
+        events.push({ icon: '🆕', color: '#3b82f6', text: 'ליד נוצר', detail: 'מקור: ' + (LEAD_SOURCE_LABELS[record.source] || record.source || 'לא ידוע'), at: record.createdAt });
+    }
+    if (record.aiScoredAt) {
+        events.push({ icon: '🤖', color: '#8b5cf6', text: 'ניתוח AI: ' + (record.aiScore || '?') + '/10', detail: record.aiReason || '', at: record.aiScoredAt });
+    }
+
+    (record.history || []).forEach(function(h) {
+        var icon = '📝', color = '#6b7280';
+        var action = h.action || '';
+        if (action === 'assigned' || action === 'created' || (h.note && h.note.indexOf('שויך') !== -1)) { icon = '👤'; color = '#8b5cf6'; }
+        else if (action === 'contacted') { icon = '📞'; color = '#f59e0b'; }
+        else if (action === 'closed') { icon = '✅'; color = '#10b981'; }
+        else if (action === 'followup') { icon = '🔄'; color = '#06b6d4'; }
+        else if (action === 'not_relevant') { icon = '❌'; color = '#ef4444'; }
+        else if (action === 'no_answer') { icon = '📵'; color = '#6b7280'; }
+        else if (action === 'imported') { icon = '📥'; color = '#94a3b8'; }
+
+        events.push({ icon: icon, color: color, text: h.note || (LEAD_STATUS_LABELS[action] || action), detail: h.by ? 'ע"י ' + h.by : '', at: h.at });
+    });
+
+    events.sort(function(a, b) { return parseTimestamp(b.at) - parseTimestamp(a.at); });
+
+    if (events.length === 0) return '<div style="font-size:12px;color:var(--text-quaternary);">אין היסטוריה</div>';
+
+    return events.map(function(ev) {
+        return '<div class="ld-timeline-item">' +
+            '<div class="ld-timeline-dot" style="background:' + ev.color + ';">' + ev.icon + '</div>' +
+            '<div class="ld-timeline-content">' +
+                '<div class="ld-timeline-text">' + escapeHTML(ev.text) + '</div>' +
+                (ev.detail ? '<div class="ld-timeline-detail">' + escapeHTML(ev.detail) + '</div>' : '') +
+                '<div class="ld-timeline-time">' + relativeTime(ev.at) + '</div>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
+function relativeTime(ts) {
+    if (!ts) return '';
+    var d = ts.toDate ? ts.toDate() : new Date(ts);
+    var diff = Date.now() - d.getTime();
+    var mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'עכשיו';
+    if (mins < 60) return 'לפני ' + mins + ' דק׳';
+    var hours = Math.floor(mins / 60);
+    if (hours < 24) return 'לפני ' + hours + ' שעות';
+    var days = Math.floor(hours / 24);
+    if (days === 1) return 'אתמול';
+    if (days < 7) return 'לפני ' + days + ' ימים';
+    return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function parseTimestamp(ts) {
+    if (!ts) return 0;
+    if (ts.toDate) return ts.toDate().getTime();
+    return new Date(ts).getTime();
+}
+
+// ==================== Notifications (Phase 5) ====================
+
+function showLeadNotification(data) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+        var n = new Notification('🔥 ליד חם חדש!', {
+            body: (data.name || 'ליד') + ' — ' + (data.subject || '') + ' (⭐' + data.aiScore + ')',
+            icon: '/assets/logo.png',
+            tag: 'lead-' + Date.now()
+        });
+        setTimeout(function() { n.close(); }, 8000);
+    }
+}
+
+function updateLeadsBadge(count) {
+    var btn = document.getElementById('navLeadsMgmtBtn');
+    if (!btn) return;
+    var badge = btn.querySelector('.ld-nav-badge');
+    if (count > 0) {
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'ld-nav-badge';
+            btn.style.position = 'relative';
+            btn.appendChild(badge);
+        }
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.style.display = '';
+    } else if (badge) {
+        badge.style.display = 'none';
+    }
+}
+
+// ==================== Quick Actions (Phase 6) ====================
+
+function openWhatsApp(phone) {
+    var digits = phone.replace(/\D/g, '');
+    if (digits.startsWith('0')) digits = '972' + digits.substring(1);
+    window.open('https://wa.me/' + digits, '_blank');
+}
+
+function toggleSelectAllLeads(el) {
+    var checks = document.querySelectorAll('.ld-row-check');
+    checks.forEach(function(cb) { cb.checked = el.checked; });
+    updateBulkBar();
+}
+
+function updateBulkBar() {
+    var checked = document.querySelectorAll('.ld-row-check:checked');
+    var bar = document.getElementById('ldBulkBar');
+    if (!bar) return;
+    if (checked.length > 0) {
+        bar.style.display = '';
+        document.getElementById('ldBulkCount').textContent = checked.length;
+    } else {
+        bar.style.display = 'none';
+    }
+}
+
+function clearBulkSelection() {
+    var checks = document.querySelectorAll('.ld-row-check');
+    checks.forEach(function(cb) { cb.checked = false; });
+    var selectAll = document.getElementById('ldSelectAll');
+    if (selectAll) selectAll.checked = false;
+    updateBulkBar();
+}
+
+function executeBulkAction() {
+    var checked = document.querySelectorAll('.ld-row-check:checked');
+    if (checked.length === 0) return;
+    var newStatus = document.getElementById('ldBulkStatus').value;
+    var newAssignee = document.getElementById('ldBulkAssignee').value;
+    if (!newStatus && !newAssignee) { alert('בחר סטטוס או אחראי'); return; }
+    if (!confirm('לעדכן ' + checked.length + ' לידים?')) return;
+
+    var batch = db.batch();
+    checked.forEach(function(cb) {
+        var ref = db.collection('leads').doc(cb.value);
+        var updates = { lastUpdated: firebase.firestore.FieldValue.serverTimestamp() };
+        if (newStatus) updates.status = newStatus;
+        if (newAssignee) { updates.assignedTo = newAssignee; updates.assignedAt = firebase.firestore.FieldValue.serverTimestamp(); }
+        updates.history = firebase.firestore.FieldValue.arrayUnion({
+            action: newStatus || 'bulk_assign',
+            by: currentUser || 'web',
+            at: new Date().toISOString(),
+            note: 'עדכון מרובה' + (newStatus ? ' — ' + (LEAD_STATUS_LABELS[newStatus] || newStatus) : '') + (newAssignee ? ' ← ' + newAssignee : '')
+        });
+        batch.update(ref, updates);
+    });
+
+    batch.commit().then(function() {
+        clearBulkSelection();
+        logAuditEvent('leads_bulk_update', { count: checked.length, status: newStatus, assignee: newAssignee });
+    }).catch(function(err) {
+        alert('שגיאה: ' + err.message);
+    });
+}
+
+// ==================== Auto AI Scoring (Phase 3) ====================
+
+function processAutoScoreQueue() {
+    if (autoScoreRunning || autoScoreQueue.length === 0) return;
+    autoScoreRunning = true;
+
+    var docId = autoScoreQueue.shift();
+    var record = leadsRecords.find(function(r) { return r.id === docId; });
+    if (!record || record.aiScore) {
+        autoScoreRunning = false;
+        if (autoScoreQueue.length > 0) setTimeout(processAutoScoreQueue, 2000);
+        return;
+    }
+
+    var authUser = firebase.auth().currentUser;
+    if (!authUser) { autoScoreRunning = false; return; }
+
+    authUser.getIdToken().then(function(idToken) {
+        return fetch('/api/leads-ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+            body: JSON.stringify({
+                action: 'score',
+                lead: { name: record.name || '', subject: record.subject || '', originalMessage: record.originalMessage || '', source: record.source || '', phone: record.phone || '' }
+            })
+        });
+    }).then(function(res) { return res.json(); })
+    .then(function(data) {
+        if (data.score) {
+            return db.collection('leads').doc(docId).update({
+                aiScore: data.score, aiReason: data.reason || '', aiCategory: data.category || '',
+                aiSuggestedAssignee: data.suggestedAssignee || '', aiUrgency: data.urgency || '',
+                aiAction: data.action || '', aiScoredAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+    }).catch(function(err) {
+        console.error('Auto-score error:', err);
+    }).finally(function() {
+        autoScoreRunning = false;
+        if (autoScoreQueue.length > 0) setTimeout(processAutoScoreQueue, 20000);
+    });
+}
+
 // ==================== Analytics Dashboard ====================
 
 var leadsChartsInitialized = false;
@@ -707,6 +1124,7 @@ function renderLeadsCharts(records) {
     renderStatusChart(records);
     renderAssigneesChart(records);
     renderConversionChart(records);
+    renderFunnelChart(records);
     leadsChartsInitialized = true;
 }
 
@@ -984,6 +1402,48 @@ function renderConversionChart(records) {
                 y: { beginAtZero: true, max: 100, ticks: { callback: function(v) { return v + '%'; } } },
                 x: { grid: { display: false } }
             }
+        }
+    });
+}
+
+// ---- Chart 6: Conversion Funnel ----
+function renderFunnelChart(records) {
+    var ctx = getChartCtx('ldChartFunnel');
+    if (!ctx) return;
+
+    var total = records.length;
+    var contactedCount = records.filter(function(r) {
+        return ['contacted', 'followup', 'closed', 'assigned'].indexOf(r.status) !== -1;
+    }).length;
+    var closedCount = records.filter(function(r) { return r.status === 'closed'; }).length;
+
+    leadsChartInstances['ldChartFunnel'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['נכנסו (' + total + ')', 'נוצר קשר (' + contactedCount + ')', 'נסגרו (' + closedCount + ')'],
+            datasets: [{
+                data: [total, contactedCount, closedCount],
+                backgroundColor: ['rgba(59,130,246,0.6)', 'rgba(245,158,11,0.6)', 'rgba(16,185,129,0.6)'],
+                borderRadius: 4,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            var dropoff = ctx.dataIndex > 0 ? ' (נשירה: ' + Math.round((1 - ctx.raw / total) * 100) + '%)' : '';
+                            return ctx.raw + ' לידים' + dropoff;
+                        }
+                    }
+                }
+            },
+            scales: { x: { beginAtZero: true, ticks: { precision: 0 } }, y: { grid: { display: false } } }
         }
     });
 }
