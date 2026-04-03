@@ -609,6 +609,25 @@
     }
 }
 
+/* ==================== Delete Button ==================== */
+
+.ld-btn-danger {
+    padding: 8px 16px;
+    background: var(--bg-primary);
+    color: #ef4444;
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ld-btn-danger:hover {
+    background: rgba(239,68,68,0.06);
+    border-color: #ef4444;
+}
+
 /* ==================== My Leads Dashboard ==================== */
 
 .ld-my-dashboard {

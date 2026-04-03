@@ -399,20 +399,27 @@ setInterval(async function() {
 
             var dateStr = m.meetingDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
             var timeStr = m.meetingDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            var isOnline = m.meetingType === 'online';
+            var firstName = m.name ? ' ' + m.name.split(' ')[0] : '';
 
-            // Reminder 1: 12-36 hours before (day before / motzei shabbat)
+            // Location text based on meeting type
+            var locationText = isOnline
+                ? '💻 הפגישה תתקיים בגוגל מיט.' + (m.meetLink ? '\n🔗 ' + m.meetLink : '\nקישור יישלח סמוך לפגישה.')
+                : '📍 מגדל מידטאון, קומה 39, תל אביב';
+
+            // Reminder 1: 12-36 hours before
             if (!m.reminder1Sent && hoursUntil > 6 && hoursUntil <= 36) {
-                var msg1 = 'שלום' + (m.name ? ' ' + m.name.split(' ')[0] : '') + '! 😊\n';
-                msg1 += 'תזכורת: מחר יש לך פגישה במשרד עו"ד גיא הרשקוביץ.\n';
+                var msg1 = 'שלום' + firstName + '! 😊\n';
+                msg1 += 'תזכורת: מחר יש לך פגישה' + (isOnline ? '' : ' במשרד') + ' עו"ד גיא הרשקוביץ.\n';
                 msg1 += '📅 ' + dateStr + ', ' + timeStr + '\n';
-                msg1 += '📍 מגדל מידטאון, קומה 39, תל אביב\n'; // TODO: get from config
+                msg1 += locationText + '\n';
                 msg1 += 'מחכים לך! 😊\n';
                 msg1 += 'משרד עו"ד גיא הרשקוביץ ושות\'';
 
                 try {
                     await botSend(clientChatId, msg1);
                     await markMeetingReminderSent(m.docId, 1);
-                    log('sent', '📅 Meeting reminder 1 → ' + (m.name || m.phone));
+                    log('sent', '📅 Meeting reminder 1 (' + (isOnline ? 'online' : 'physical') + ') → ' + (m.name || m.phone));
                 } catch (e) {
                     log('error', 'Meeting reminder 1 failed: ' + e.message);
                 }
@@ -420,16 +427,16 @@ setInterval(async function() {
 
             // Reminder 2: morning of meeting (0-6 hours before)
             if (!m.reminder2Sent && hoursUntil > 0.5 && hoursUntil <= 6) {
-                var msg2 = 'בוקר טוב' + (m.name ? ' ' + m.name.split(' ')[0] : '') + '! ☀️\n';
+                var msg2 = 'בוקר טוב' + firstName + '! ☀️\n';
                 msg2 += 'היום פגישה ב-' + timeStr + '.\n';
-                msg2 += '📍 מגדל מידטאון, קומה 39, תל אביב\n';
-                msg2 += '📞 לשאלות: 03-5228085\n';
+                msg2 += locationText + '\n';
+                if (!isOnline) msg2 += '📞 לשאלות: 03-5228085\n';
                 msg2 += 'נתראה! 😊';
 
                 try {
                     await botSend(clientChatId, msg2);
                     await markMeetingReminderSent(m.docId, 2);
-                    log('sent', '📅 Meeting reminder 2 → ' + (m.name || m.phone));
+                    log('sent', '📅 Meeting reminder 2 (' + (isOnline ? 'online' : 'physical') + ') → ' + (m.name || m.phone));
                 } catch (e) {
                     log('error', 'Meeting reminder 2 failed: ' + e.message);
                 }
@@ -667,8 +674,8 @@ setInterval(async function() {
 // ==================== Message Handler ====================
 
 // Listen on BOTH events to catch all messages
-wa.on('message', async function(msg) { handleMessage(msg).catch(function(e) { log('error', 'msg handler: ' + String(e.message || e).substring(0, 100)); }); });
-wa.on('message_create', async function(msg) { handleMessage(msg).catch(function(e) { log('error', 'msg_create handler: ' + String(e.message || e).substring(0, 100)); }); });
+wa.on('message', async function(msg) { handleMessage(msg).catch(function(e) { try { log('error', 'msg handler: ' + (e ? (e.stack || e.message || String(e)) : 'unknown').substring(0, 300)); } catch(x) { console.error('msg catch error', x); } }); });
+wa.on('message_create', async function(msg) { handleMessage(msg).catch(function(e) { try { log('error', 'msg_create handler: ' + (e ? (e.stack || e.message || String(e)) : 'unknown').substring(0, 300)); } catch(x) { console.error('msg_create catch error', x); } }); });
 
 var processedMessages = new Set();
 
@@ -747,26 +754,29 @@ async function handleMessage(msg) {
         // ==================== LEADS GROUP ====================
         if (isGroup && LEADS_GROUP_NAME && chat.name === LEADS_GROUP_NAME) {
             cachedLeadsGroupChatId = chatId;
+            log('msg', '📋 LEADS GROUP msg from ' + senderName + ': ' + body.substring(0, 60));
+
+            try {
 
             // 1. Lead report request
             if (isLeadReportRequest(body)) {
                 try {
-                    var stats = await getLeadStats(7);
-                    if (stats && stats.total > 0) {
+                    var leadStats = await getLeadStats(7);
+                    if (leadStats && leadStats.total > 0) {
                         var msg2 = '📊 *סטטוס לידים — 7 ימים אחרונים*\n\n';
-                        msg2 += '🔢 סה"כ: ' + stats.total + ' לידים\n';
-                        if (stats.unassigned > 0) msg2 += '⚠️ לא שוייכו: ' + stats.unassigned + '\n';
-                        var statuses = Object.keys(stats.byStatus);
+                        msg2 += '🔢 סה"כ: ' + leadStats.total + ' לידים\n';
+                        if (leadStats.unassigned > 0) msg2 += '⚠️ לא שוייכו: ' + leadStats.unassigned + '\n';
+                        var statuses = Object.keys(leadStats.byStatus);
                         var statusLabels = { new: '🆕 חדש', assigned: '👤 שויך', contacted: '📞 נוצר קשר', followup: '🔄 פולואפ', closed: '✅ נסגר', not_relevant: '❌ לא רלוונטי', no_answer: '📵 לא ענה' };
                         statuses.forEach(function(st) {
-                            msg2 += (statusLabels[st] || st) + ': ' + stats.byStatus[st] + '\n';
+                            msg2 += (statusLabels[st] || st) + ': ' + leadStats.byStatus[st] + '\n';
                         });
-                        var assignees = Object.keys(stats.byAssignee);
+                        var assignees = Object.keys(leadStats.byAssignee);
                         if (assignees.length > 0) {
                             msg2 += '\n👥 *לפי עובד:*\n';
-                            assignees.sort(function(a, b) { return stats.byAssignee[b].total - stats.byAssignee[a].total; });
+                            assignees.sort(function(a, b) { return leadStats.byAssignee[b].total - leadStats.byAssignee[a].total; });
                             assignees.forEach(function(a) {
-                                var as = stats.byAssignee[a];
+                                var as = leadStats.byAssignee[a];
                                 msg2 += '• ' + a + ': ' + as.total + ' לידים';
                                 if (as.closed > 0) msg2 += ' (' + as.closed + ' נסגרו ✅)';
                                 msg2 += '\n';
@@ -786,7 +796,7 @@ async function handleMessage(msg) {
             // 2. Detect meeting ("תואמה ושילמה", "פגישת המשך ליום ראשון")
             var meeting = detectMeeting(body);
             if (meeting && meeting.meetingDate) {
-                // Find which lead this is about — match to most recent lead by sender
+                // Try to find lead in recentLeads first
                 var meetingLead = null;
                 for (var mi = 0; mi < recentLeads.length; mi++) {
                     if (recentLeads[mi].assignedTo === senderName || recentLeads[mi].assignedTo === senderFullName) {
@@ -794,15 +804,115 @@ async function handleMessage(msg) {
                         break;
                     }
                 }
-                if (meetingLead) {
+
+                // If no recent lead found, try to extract phone from message and create/update lead
+                var meetingDocId = meetingLead ? meetingLead.docId : null;
+                var meetingName = meetingLead ? (meetingLead.lead.name || meetingLead.lead.phone) : null;
+                var meetClientInfo = null;
+
+                if (!meetingDocId) {
+                    // Try to parse as lead too (extract name + phone from same message)
+                    var meetingLeadData = classifyLeadMessage(body, false, body);
+                    if (meetingLeadData && meetingLeadData.phone) {
+                        meetingDocId = await saveOrUpdateLead(meetingLeadData);
+                        meetingName = meetingLeadData.name || meetingLeadData.phone;
+
+                        // Cross-collection lookup
+                        try { meetClientInfo = await findClientAcrossCollections(meetingLeadData.phone); } catch(e) {}
+
+                        // Assign to sender
+                        if (meetingDocId) {
+                            await assignLead(meetingDocId, senderFullName || senderName);
+
+                            // Notify if returning client
+                            if (meetClientInfo && meetClientInfo.sales.length > 0) {
+                                var lastSale = meetClientInfo.sales[0];
+                                await botSend(chatId, '🔄 *לקוח חוזר!* ' + meetingName + '\n💰 עסקה קודמת: ' + (lastSale.amount ? lastSale.amount.toLocaleString('he-IL') + '₪' : '') + ' (' + (lastSale.type || '') + ')\nלידוביץ 📋');
+                            }
+                        }
+                    }
+                }
+
+                if (meetingDocId) {
                     var meetDate = new Date(meeting.meetingDate);
-                    await setMeetingDate(meetingLead.docId, meeting.meetingDate, 'פגישה נקבעה — ' + meetDate.toLocaleDateString('he-IL'));
-                    var dateStr = meetDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'numeric' });
-                    var timeStr = meetDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-                    await botSend(chatId, '📅 פגישה נקבעה!\n*' + (meetingLead.lead.name || meetingLead.lead.phone || 'ליד') + '* — ' + dateStr + ' ב-' + timeStr + '\n🔔 תזכורות יישלחו אוטומטית.\nלידוביץ 📋');
-                    log('msg', '📅 Meeting set: ' + (meetingLead.lead.name || '') + ' → ' + dateStr);
+                    // Display in Israel time (server is UTC, add 3h for display)
+                    var meetDateIsrael = new Date(meeting.meetingDate + 3 * 3600000);
+                    await setMeetingDate(meetingDocId, meeting.meetingDate, 'פגישה נקבעה — ' + meetDateIsrael.getUTCDate() + '/' + (meetDateIsrael.getUTCMonth() + 1), meeting.meetingType, meeting.meetLink);
+                    var dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+                    var dateStr = 'יום ' + dayNames[meetDateIsrael.getUTCDay()] + ', ' + meetDateIsrael.getUTCDate() + '/' + (meetDateIsrael.getUTCMonth() + 1);
+                    var timeStr = ('0' + meetDateIsrael.getUTCHours()).slice(-2) + ':' + ('0' + meetDateIsrael.getUTCMinutes()).slice(-2);
+                    var typeEmoji = meeting.meetingType === 'online' ? '💻 אונליין' : '📍 פיזית';
+                    var confirmMsg = '📅 *פגישה נקבעה!*\n';
+                    confirmMsg += '👤 ' + (meetingName || 'ליד') + '\n';
+                    confirmMsg += '📅 ' + dateStr + ' ב-' + timeStr + '\n';
+                    confirmMsg += typeEmoji + '\n';
+                    if (meeting.meetLink) confirmMsg += '🔗 ' + meeting.meetLink + '\n';
+                    confirmMsg += '👨‍💼 אחראי: ' + (senderFullName || senderName) + '\n';
+                    // Cross-lookup status
+                    if (meetClientInfo && meetClientInfo.sales && meetClientInfo.sales.length > 0) {
+                        var lastSale = meetClientInfo.sales[0];
+                        var saleAmt = lastSale.amount;
+                        var saleDate = lastSale.date || '';
+                        if (saleDate && typeof saleDate === 'object' && saleDate.toDate) saleDate = saleDate.toDate().toLocaleDateString('he-IL');
+                        confirmMsg += '🔄 לקוח חוזר! עסקה קודמת: ' + (saleAmt ? saleAmt.toLocaleString('he-IL') + '₪' : '') + (lastSale.type ? ' (' + lastSale.type + ')' : '') + (saleDate ? ' — ' + saleDate : '') + '\n';
+                    } else if (meetClientInfo && meetClientInfo.billing) {
+                        confirmMsg += '🔄 לקוח ריטיינר! ' + (meetClientInfo.billing.monthlyAmount ? meetClientInfo.billing.monthlyAmount.toLocaleString('he-IL') + '₪/חודש' : '') + '\n';
+                    } else {
+                        confirmMsg += '🆕 לקוח חדש (לא נמצא בטופס מכר)\n';
+                    }
+                    confirmMsg += '✅ נשמר ב-CRM\n\n';
+                    confirmMsg += '🔔 *לשלוח תזכורת ללקוח/ה?*\n';
+                    confirmMsg += 'כתוב *כן* לשליחת תזכורת, או *לא* לביטול.\n';
+                    confirmMsg += 'לידוביץ 📋';
+                    await botSend(chatId, confirmMsg);
+
+                    // Store pending reminder approval
+                    recentLeads.unshift({
+                        docId: meetingDocId,
+                        lead: { name: meetingName, phone: (meetingLeadData || {}).phone },
+                        timestamp: Date.now(),
+                        assignedTo: senderFullName || senderName,
+                        pendingReminderApproval: true,
+                        meetingDate: meeting.meetingDate,
+                        meetingType: meeting.meetingType,
+                        meetLink: meeting.meetLink
+                    });
+
+                    log('msg', '📅 Meeting set (' + meeting.meetingType + '): ' + (meetingName || '') + ' → ' + dateStr + ' — waiting for reminder approval');
+                } else {
+                    log('warn', 'Meeting detected but no phone/lead found in message');
                 }
                 return;
+            }
+
+            // 2b. Handle reminder approval ("כן" / "לא" after meeting set)
+            var trimmedBody = body.trim();
+            if (trimmedBody === 'כן' || trimmedBody === 'לא' || trimmedBody === 'yes' || trimmedBody === 'no') {
+                var pendingLead = null;
+                for (var pi = 0; pi < recentLeads.length; pi++) {
+                    if (recentLeads[pi].pendingReminderApproval) {
+                        pendingLead = recentLeads[pi];
+                        break;
+                    }
+                }
+
+                if (pendingLead) {
+                    pendingLead.pendingReminderApproval = false;
+
+                    if (trimmedBody === 'כן' || trimmedBody === 'yes') {
+                        // Approved — enable reminders (set to false = not yet sent)
+                        await markMeetingReminderSent(pendingLead.docId, 0); // special: reset both to false
+                        await botSend(chatId, '✅ תזכורות יישלחו ל-' + (pendingLead.lead.name || 'הלקוח') + ' אוטומטית.\nלידוביץ 📋');
+                        log('msg', '🔔 Reminder approved for ' + (pendingLead.lead.name || pendingLead.docId));
+                    } else {
+                        // Denied — disable reminders by marking as already sent
+                        await markMeetingReminderSent(pendingLead.docId, 1);
+                        await markMeetingReminderSent(pendingLead.docId, 2);
+                        await botSend(chatId, '❌ תזכורות בוטלו.\nלידוביץ 📋');
+                        log('msg', '🔕 Reminder cancelled for ' + (pendingLead.lead.name || pendingLead.docId));
+                    }
+                    return;
+                }
             }
 
             // 3. Detect new lead
@@ -938,6 +1048,11 @@ async function handleMessage(msg) {
             }
 
             // Not a lead-related message — ignore
+            return;
+
+            } catch (leadsErr) {
+                log('error', 'Leads group handler error: ' + (leadsErr.message || leadsErr).toString().substring(0, 150));
+            }
             return;
         }
 

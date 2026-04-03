@@ -496,21 +496,43 @@ function detectMeeting(body) {
         return null;
     }
 
-    var now = new Date(Date.now() + 3 * 3600000); // Israel time
+    // Detect meeting type: online (meet/zoom) or physical
+    var isOnline = /מיט|meet|זום|zoom|אונליין|online|וידאו|video/i.test(text);
+    var meetLink = null;
+    var linkMatch = text.match(/(https?:\/\/[^\s]+(?:meet\.google|zoom\.us)[^\s]*)/i);
+    if (linkMatch) meetLink = linkMatch[1];
+
+    // Israel timezone offset
+    var ISRAEL_OFFSET = 3; // UTC+3 (IDT)
+    var nowUTC = new Date();
+    // For day/date calculations, we need to know what day it is in Israel
+    var israelDay = new Date(nowUTC.getTime() + ISRAEL_OFFSET * 3600000).getUTCDay();
+    var israelDate = new Date(nowUTC.getTime() + ISRAEL_OFFSET * 3600000).getUTCDate();
+    var israelMonth = new Date(nowUTC.getTime() + ISRAEL_OFFSET * 3600000).getUTCMonth();
+    var israelYear = new Date(nowUTC.getTime() + ISRAEL_OFFSET * 3600000).getUTCFullYear();
 
     // Try to extract date + time
     var meetingDate = null;
+    var desiredHour = 10; // default
+    var desiredMinute = 0;
+
+    // Extract time first
+    var timeMatch = text.match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+        desiredHour = parseInt(timeMatch[1]);
+        desiredMinute = parseInt(timeMatch[2]);
+    }
+
+    // Helper: build UTC timestamp for Israel time
+    function makeIsraelTime(y, m, d, h, min) {
+        // Create date in UTC, subtract Israel offset so it represents Israel local time
+        return Date.UTC(y, m, d, h - ISRAEL_OFFSET, min, 0, 0);
+    }
 
     // "מחר 14:00" / "מחר בארבע"
     if (/מחר/.test(text)) {
-        meetingDate = new Date(now);
-        meetingDate.setDate(meetingDate.getDate() + 1);
-        var timeMatch = text.match(/(\d{1,2}):(\d{2})/);
-        if (timeMatch) {
-            meetingDate.setHours(parseInt(timeMatch[1]), parseInt(timeMatch[2]), 0, 0);
-        } else {
-            meetingDate.setHours(10, 0, 0, 0); // default 10:00
-        }
+        var tomorrow = new Date(Date.UTC(israelYear, israelMonth, israelDate + 1));
+        meetingDate = new Date(makeIsraelTime(tomorrow.getUTCFullYear(), tomorrow.getUTCMonth(), tomorrow.getUTCDate(), desiredHour, desiredMinute));
     }
 
     // "יום ראשון" / "ביום ראשון"
@@ -518,17 +540,10 @@ function detectMeeting(body) {
     var dayMatch = text.match(/(?:ב)?יום\s*(ראשון|שני|שלישי|רביעי|חמישי|שישי)/);
     if (dayMatch && !meetingDate) {
         var targetDay = dayNames[dayMatch[1]];
-        meetingDate = new Date(now);
-        var currentDay = meetingDate.getDay();
-        var daysUntil = (targetDay - currentDay + 7) % 7;
-        if (daysUntil === 0) daysUntil = 7; // next week if same day
-        meetingDate.setDate(meetingDate.getDate() + daysUntil);
-        var timeMatch2 = text.match(/(\d{1,2}):(\d{2})/);
-        if (timeMatch2) {
-            meetingDate.setHours(parseInt(timeMatch2[1]), parseInt(timeMatch2[2]), 0, 0);
-        } else {
-            meetingDate.setHours(10, 0, 0, 0);
-        }
+        var daysUntil = (targetDay - israelDay + 7) % 7;
+        if (daysUntil === 0) daysUntil = 7;
+        var target = new Date(Date.UTC(israelYear, israelMonth, israelDate + daysUntil));
+        meetingDate = new Date(makeIsraelTime(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate(), desiredHour, desiredMinute));
     }
 
     // "5/4" / "5.4" / "05/04"
@@ -536,8 +551,8 @@ function detectMeeting(body) {
     if (dateMatch && !meetingDate) {
         var day = parseInt(dateMatch[1]);
         var month = parseInt(dateMatch[2]) - 1;
-        var year = dateMatch[3] ? (parseInt(dateMatch[3]) < 100 ? 2000 + parseInt(dateMatch[3]) : parseInt(dateMatch[3])) : now.getFullYear();
-        meetingDate = new Date(year, month, day);
+        var year = dateMatch[3] ? (parseInt(dateMatch[3]) < 100 ? 2000 + parseInt(dateMatch[3]) : parseInt(dateMatch[3])) : israelYear;
+        meetingDate = new Date(makeIsraelTime(year, month, day, desiredHour, desiredMinute));
         var timeMatch3 = text.match(/(?:ב|בשעה\s*)(\d{1,2}):(\d{2})/);
         if (timeMatch3) {
             meetingDate.setHours(parseInt(timeMatch3[1]), parseInt(timeMatch3[2]), 0, 0);
@@ -559,11 +574,14 @@ function detectMeeting(body) {
 
     if (!meetingDate) return null;
 
-    // Convert back to UTC
-    var utcTime = meetingDate.getTime() - 3 * 3600000;
+    // meetingDate was built with makeIsraelTime() which already handles UTC offset.
+    // getTime() returns correct UTC timestamp.
+    var utcTime = meetingDate.getTime();
 
     return {
         meetingDate: utcTime,
+        meetingType: isOnline ? 'online' : 'physical',
+        meetLink: meetLink,
         raw: text
     };
 }

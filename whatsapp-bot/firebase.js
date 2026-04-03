@@ -892,6 +892,7 @@ async function saveLead(leadData) {
     var record = {
         name: (leadData.name || '').trim(),
         phone: (leadData.phone || '').trim(),
+        phoneLast7: getLast7(leadData.phone),
         subject: (leadData.subject || '').trim(),
         source: leadData.type || 'unknown',
         status: 'new',
@@ -1096,45 +1097,50 @@ async function getDueFollowups() {
 function normalizePhoneForSearch(phone) {
     if (!phone) return '';
     var d = phone.replace(/[\s\-()]/g, '');
+    if (d.startsWith('+')) d = d.substring(1);
     if (d.startsWith('972')) d = '0' + d.substring(3);
     if (d.length === 9 && /^[5]/.test(d)) d = '0' + d;
     return d;
 }
 
+// Get last 7 digits — the unique part of any Israeli phone
+function getLast7(phone) {
+    if (!phone) return '';
+    var digits = phone.replace(/\D/g, '');
+    return digits.slice(-7);
+}
+
 async function findClientAcrossCollections(phone) {
     var firestore = initFirebase();
     var normalized = normalizePhoneForSearch(phone);
-    if (!normalized || normalized.length < 7) return { lead: null, sales: [], billing: null };
+    var last7 = getLast7(phone);
+    if (!last7 || last7.length < 7) return { lead: null, sales: [], billing: null };
 
     var result = { lead: null, sales: [], billing: null };
 
     try {
-        // 1. Search leads by phone
+        // 1. Search leads — get recent 200 and match by last 7 digits
         var leadsSnap = await firestore.collection('leads')
-            .where('phone', '>=', normalized.substring(0, 7))
-            .where('phone', '<=', normalized.substring(0, 7) + '\uf8ff')
-            .limit(10)
+            .orderBy('createdAt', 'desc')
+            .limit(200)
             .get();
 
         leadsSnap.forEach(function(doc) {
             var d = doc.data();
-            var p = normalizePhoneForSearch(d.phone);
-            if (p === normalized) {
+            if (getLast7(d.phone) === last7) {
                 result.lead = { docId: doc.id, data: d };
             }
         });
 
-        // 2. Search sales_records by phone
+        // 2. Search sales_records — get recent 300 and match by last 7 digits
         var salesSnap = await firestore.collection('sales_records')
-            .where('phone', '>=', normalized.substring(0, 7))
-            .where('phone', '<=', normalized.substring(0, 7) + '\uf8ff')
-            .limit(10)
+            .orderBy('timestamp', 'desc')
+            .limit(300)
             .get();
 
         salesSnap.forEach(function(doc) {
             var d = doc.data();
-            var p = normalizePhoneForSearch(d.phone);
-            if (p === normalized) {
+            if (getLast7(d.phone) === last7) {
                 result.sales.push({
                     docId: doc.id,
                     clientName: d.clientName,
@@ -1146,17 +1152,14 @@ async function findClientAcrossCollections(phone) {
             }
         });
 
-        // 3. Search recurring_billing by phone
+        // 3. Search recurring_billing — get all and match
         var billingSnap = await firestore.collection('recurring_billing')
-            .where('phone', '>=', normalized.substring(0, 7))
-            .where('phone', '<=', normalized.substring(0, 7) + '\uf8ff')
-            .limit(5)
+            .limit(200)
             .get();
 
         billingSnap.forEach(function(doc) {
             var d = doc.data();
-            var p = normalizePhoneForSearch(d.phone);
-            if (p === normalized) {
+            if (getLast7(d.phone) === last7) {
                 result.billing = {
                     docId: doc.id,
                     clientName: d.clientName,
@@ -1166,6 +1169,8 @@ async function findClientAcrossCollections(phone) {
             }
         });
 
+        console.log('[CrossLookup] ' + last7 + ': lead=' + (result.lead ? 'YES' : 'no') + ' sales=' + result.sales.length + ' billing=' + (result.billing ? 'YES' : 'no'));
+
     } catch (err) {
         console.error('[CrossLookup] Error:', err.message);
     }
@@ -1173,31 +1178,69 @@ async function findClientAcrossCollections(phone) {
     return result;
 }
 
-// Save or update lead (dedup by phone)
+// Save or update lead (dedup by phone — phoneLast7 field or full scan)
 async function saveOrUpdateLead(leadData) {
     var firestore = initFirebase();
-    var phone = normalizePhoneForSearch(leadData.phone);
+    var last7 = getLast7(leadData.phone);
+    var normalized = normalizePhoneForSearch(leadData.phone);
 
-    if (!phone) return saveLead(leadData); // No phone, just save new
+    if (!last7 || last7.length < 7) return saveLead(leadData); // No phone, just save new
 
-    // Search for existing lead with same phone
+    // Search for existing lead: first try phoneLast7 field (fast), then fallback to full scan
     try {
-        var existing = await firestore.collection('leads')
-            .where('phone', '>=', phone.substring(0, 7))
-            .where('phone', '<=', phone.substring(0, 7) + '\uf8ff')
-            .limit(10)
+        var found = null;
+
+        // Method 1: Direct query on phoneLast7 field (if exists)
+        var exactSnap = await firestore.collection('leads')
+            .where('phoneLast7', '==', last7)
+            .limit(5)
             .get();
 
-        var found = null;
-        existing.forEach(function(doc) {
-            var p = normalizePhoneForSearch(doc.data().phone);
-            if (p === phone) found = { docId: doc.id, data: doc.data() };
-        });
+        if (!exactSnap.empty) {
+            exactSnap.forEach(function(doc) {
+                if (!found) found = { docId: doc.id, data: doc.data() };
+            });
+        }
+
+        // Method 2: If not found, try normalized phone
+        if (!found) {
+            var normSnap = await firestore.collection('leads')
+                .where('phone', '==', normalized)
+                .limit(5)
+                .get();
+
+            if (!normSnap.empty) {
+                normSnap.forEach(function(doc) {
+                    if (!found) found = { docId: doc.id, data: doc.data() };
+                });
+            }
+        }
+
+        // Method 3: Broader search with phone prefix
+        if (!found) {
+            var prefix = normalized.substring(0, 7);
+            var prefixSnap = await firestore.collection('leads')
+                .where('phone', '>=', prefix)
+                .where('phone', '<=', prefix + '\uf8ff')
+                .limit(20)
+                .get();
+
+            prefixSnap.forEach(function(doc) {
+                if (!found) {
+                    var d = doc.data();
+                    if (getLast7(d.phone) === last7) {
+                        found = { docId: doc.id, data: d };
+                    }
+                }
+            });
+        }
 
         if (found) {
-            // Update existing lead
+            // Update existing lead — not creating a new one!
+            console.log('[Leads] Dedup match: ' + last7 + ' → ' + found.docId);
             var updates = {
-                lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+                phoneLast7: last7  // ensure field exists for future queries
             };
             // Update name if we have one and existing doesn't
             if (leadData.name && (!found.data.name || /^\d+$/.test(found.data.name))) {
@@ -1226,14 +1269,15 @@ async function saveOrUpdateLead(leadData) {
 }
 
 // Set meeting date on a lead
-async function setMeetingDate(docId, meetingDate, note) {
+async function setMeetingDate(docId, meetingDate, note, meetingType, meetLink) {
     var firestore = initFirebase();
 
     try {
-        await firestore.collection('leads').doc(docId).update({
+        var updates = {
             meetingDate: new Date(meetingDate),
-            meetingReminder1Sent: false,
-            meetingReminder2Sent: false,
+            meetingType: meetingType || 'physical',
+            meetingReminder1Sent: true,  // Default: disabled. Set to false on "כן" approval
+            meetingReminder2Sent: true,
             status: 'closed',
             lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             history: admin.firestore.FieldValue.arrayUnion({
@@ -1242,7 +1286,9 @@ async function setMeetingDate(docId, meetingDate, note) {
                 at: new Date().toISOString(),
                 note: note || 'פגישה נקבעה'
             })
-        });
+        };
+        if (meetLink) updates.meetLink = meetLink;
+        await firestore.collection('leads').doc(docId).update(updates);
         console.log('[Leads] Meeting set: ' + docId + ' → ' + meetingDate);
         return true;
     } catch (err) {
@@ -1273,6 +1319,8 @@ async function getUpcomingMeetings() {
                 name: d.name,
                 phone: d.phone,
                 meetingDate: d.meetingDate.toDate ? d.meetingDate.toDate() : new Date(d.meetingDate),
+                meetingType: d.meetingType || 'physical',
+                meetLink: d.meetLink || null,
                 reminder1Sent: d.meetingReminder1Sent || false,
                 reminder2Sent: d.meetingReminder2Sent || false,
                 assignedTo: d.assignedTo
@@ -1286,14 +1334,22 @@ async function getUpcomingMeetings() {
     }
 }
 
-// Mark meeting reminder as sent
+// Mark meeting reminder as sent (or reset both with reminderNum=0)
 async function markMeetingReminderSent(docId, reminderNum) {
     var firestore = initFirebase();
-    var field = reminderNum === 1 ? 'meetingReminder1Sent' : 'meetingReminder2Sent';
     try {
-        var update = {};
-        update[field] = true;
-        await firestore.collection('leads').doc(docId).update(update);
+        if (reminderNum === 0) {
+            // Reset both — enable reminders
+            await firestore.collection('leads').doc(docId).update({
+                meetingReminder1Sent: false,
+                meetingReminder2Sent: false
+            });
+        } else {
+            var field = reminderNum === 1 ? 'meetingReminder1Sent' : 'meetingReminder2Sent';
+            var update = {};
+            update[field] = true;
+            await firestore.collection('leads').doc(docId).update(update);
+        }
         return true;
     } catch (err) {
         return false;

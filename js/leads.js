@@ -780,6 +780,26 @@ function escapeHTML(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ==================== Delete Lead ====================
+
+function deleteCurrentLead() {
+    if (!currentLeadDocId) return;
+    if (currentUserRole !== 'master') {
+        alert('רק מנהל ראשי יכול למחוק לידים');
+        return;
+    }
+    if (!confirm('למחוק את הליד הזה לצמיתות?')) return;
+
+    db.collection('leads').doc(currentLeadDocId).delete()
+        .then(function() {
+            closeLeadModal();
+            logAuditEvent('lead_deleted', { leadId: currentLeadDocId });
+        })
+        .catch(function(err) {
+            alert('שגיאה במחיקה: ' + err.message);
+        });
+}
+
 // ==================== My Leads Toggle ====================
 
 function toggleMyLeads() {
