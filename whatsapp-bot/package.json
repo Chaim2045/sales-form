@@ -1,0 +1,17 @@
+{
+  "name": "tofes-whatsapp-bot",
+  "version": "4.0.0",
+  "description": "WhatsApp bot for auto-filling sales forms from group messages",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "whatsapp-web.js": "^1.26.0",
+    "qrcode-terminal": "^0.12.0",
+    "firebase-admin": "^12.0.0",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "dotenv": "^16.4.5"
+  }
+}

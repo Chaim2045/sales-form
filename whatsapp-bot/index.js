@@ -7,8 +7,9 @@ require('dotenv').config();
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { conversationTurn, isTransactionMessage } = require('./agent');
-const { initFirebase, saveTransaction, syncToSheets, findClient, verifyTransaction, getMonthlySummary, getWeeklySummary, findRecordForEdit, updateRecord, processCheckPhoto, processCheckPDF, saveLead, assignLead, updateLeadStatus, getLeadStats, getDueFollowups } = require('./firebase');
-const { classifyLeadMessage, detectAssignment, detectStatusUpdate, extractFollowupTime, isLeadReportRequest } = require('./leads-detector');
+const { initFirebase, saveTransaction, syncToSheets, findClient, verifyTransaction, getMonthlySummary, getWeeklySummary, findRecordForEdit, updateRecord, processCheckPhoto, processCheckPDF, saveLead, saveOrUpdateLead, assignLead, updateLeadStatus, getLeadStats, getDueFollowups, findClientAcrossCollections, setMeetingDate, getUpcomingMeetings, markMeetingReminderSent } = require('./firebase');
+const { classifyLeadMessage, detectAssignment, detectStatusUpdate, extractFollowupTime, isLeadReportRequest, detectMeeting } = require('./leads-detector');
+const { canSendToClient, getBestReminderTime } = require('./shabbat-checker');
 
 // ==================== Configuration ====================
 
@@ -371,6 +372,74 @@ setInterval(async function() {
     }
 }, 10 * 60 * 1000); // Every 10 minutes
 
+// ==================== Meeting Reminders (every 30 min) ====================
+
+setInterval(async function() {
+    if (!isConnected) return;
+
+    try {
+        // Check if we can send (Shabbat/holiday/hours)
+        var sendCheck = await canSendToClient();
+        if (!sendCheck.allowed) {
+            log('info', 'Meeting reminders skipped: ' + sendCheck.reason);
+            return;
+        }
+
+        var meetings = await getUpcomingMeetings();
+        var now = new Date();
+
+        for (var i = 0; i < meetings.length; i++) {
+            var m = meetings[i];
+            if (!m.phone) continue;
+
+            var hoursUntil = (m.meetingDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+            var phoneDigits = (m.phone || '').replace(/[\s\-]/g, '');
+            if (phoneDigits.startsWith('0')) phoneDigits = '972' + phoneDigits.substring(1);
+            var clientChatId = phoneDigits + '@c.us';
+
+            var dateStr = m.meetingDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+            var timeStr = m.meetingDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+            // Reminder 1: 12-36 hours before (day before / motzei shabbat)
+            if (!m.reminder1Sent && hoursUntil > 6 && hoursUntil <= 36) {
+                var msg1 = 'שלום' + (m.name ? ' ' + m.name.split(' ')[0] : '') + '! 😊\n';
+                msg1 += 'תזכורת: מחר יש לך פגישה במשרד עו"ד גיא הרשקוביץ.\n';
+                msg1 += '📅 ' + dateStr + ', ' + timeStr + '\n';
+                msg1 += '📍 מגדל מידטאון, קומה 39, תל אביב\n'; // TODO: get from config
+                msg1 += 'מחכים לך! 😊\n';
+                msg1 += 'משרד עו"ד גיא הרשקוביץ ושות\'';
+
+                try {
+                    await botSend(clientChatId, msg1);
+                    await markMeetingReminderSent(m.docId, 1);
+                    log('sent', '📅 Meeting reminder 1 → ' + (m.name || m.phone));
+                } catch (e) {
+                    log('error', 'Meeting reminder 1 failed: ' + e.message);
+                }
+            }
+
+            // Reminder 2: morning of meeting (0-6 hours before)
+            if (!m.reminder2Sent && hoursUntil > 0.5 && hoursUntil <= 6) {
+                var msg2 = 'בוקר טוב' + (m.name ? ' ' + m.name.split(' ')[0] : '') + '! ☀️\n';
+                msg2 += 'היום פגישה ב-' + timeStr + '.\n';
+                msg2 += '📍 מגדל מידטאון, קומה 39, תל אביב\n';
+                msg2 += '📞 לשאלות: 03-5228085\n';
+                msg2 += 'נתראה! 😊';
+
+                try {
+                    await botSend(clientChatId, msg2);
+                    await markMeetingReminderSent(m.docId, 2);
+                    log('sent', '📅 Meeting reminder 2 → ' + (m.name || m.phone));
+                } catch (e) {
+                    log('error', 'Meeting reminder 2 failed: ' + e.message);
+                }
+            }
+        }
+    } catch (e) {
+        log('error', 'Meeting reminders failed: ' + e.message);
+    }
+}, 30 * 60 * 1000); // Every 30 minutes
+
 // ==================== Clean lockfiles before start ====================
 
 var fs = require('fs');
@@ -714,10 +783,40 @@ async function handleMessage(msg) {
                 return;
             }
 
-            // 2. Detect new lead
+            // 2. Detect meeting ("תואמה ושילמה", "פגישת המשך ליום ראשון")
+            var meeting = detectMeeting(body);
+            if (meeting && meeting.meetingDate) {
+                // Find which lead this is about — match to most recent lead by sender
+                var meetingLead = null;
+                for (var mi = 0; mi < recentLeads.length; mi++) {
+                    if (recentLeads[mi].assignedTo === senderName || recentLeads[mi].assignedTo === senderFullName) {
+                        meetingLead = recentLeads[mi];
+                        break;
+                    }
+                }
+                if (meetingLead) {
+                    var meetDate = new Date(meeting.meetingDate);
+                    await setMeetingDate(meetingLead.docId, meeting.meetingDate, 'פגישה נקבעה — ' + meetDate.toLocaleDateString('he-IL'));
+                    var dateStr = meetDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'numeric' });
+                    var timeStr = meetDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                    await botSend(chatId, '📅 פגישה נקבעה!\n*' + (meetingLead.lead.name || meetingLead.lead.phone || 'ליד') + '* — ' + dateStr + ' ב-' + timeStr + '\n🔔 תזכורות יישלחו אוטומטית.\nלידוביץ 📋');
+                    log('msg', '📅 Meeting set: ' + (meetingLead.lead.name || '') + ' → ' + dateStr);
+                }
+                return;
+            }
+
+            // 3. Detect new lead
             var lead = classifyLeadMessage(body, msg.hasMedia, msg.body);
             if (lead) {
-                var docId = await saveLead(lead);
+                // Dedup: use saveOrUpdateLead instead of saveLead
+                var docId = await saveOrUpdateLead(lead);
+
+                // Cross-collection lookup
+                var clientInfo = null;
+                if (lead.phone) {
+                    try { clientInfo = await findClientAcrossCollections(lead.phone); } catch(e) {}
+                }
+
                 if (docId) {
                     var msgId = msg.id ? msg.id._serialized : '';
                     recentLeads.unshift({
@@ -733,6 +832,20 @@ async function handleMessage(msg) {
                     });
                     if (recentLeads.length > MAX_RECENT_LEADS) recentLeads.pop();
                     log('msg', '📋 Lead detected: ' + (lead.name || lead.phone || 'image') + ' [' + lead.type + ']');
+
+                    // Notify group if returning client
+                    if (clientInfo && (clientInfo.sales.length > 0 || clientInfo.billing)) {
+                        var returnMsg = '🔄 *לקוח חוזר!* ' + (lead.name || lead.phone) + '\n';
+                        if (clientInfo.sales.length > 0) {
+                            var lastSale = clientInfo.sales[0];
+                            returnMsg += '💰 עסקה קודמת: ' + (lastSale.clientName || '') + ' — ' + (lastSale.amount ? lastSale.amount.toLocaleString('he-IL') + '₪' : '') + ' (' + (lastSale.type || '') + ')\n';
+                        }
+                        if (clientInfo.billing) {
+                            returnMsg += '📋 ריטיינר: ' + (clientInfo.billing.monthlyAmount ? clientInfo.billing.monthlyAmount.toLocaleString('he-IL') + '₪/חודש' : '') + '\n';
+                        }
+                        returnMsg += 'לידוביץ 📋';
+                        await botSend(chatId, returnMsg);
+                    }
                 }
                 return;
             }
