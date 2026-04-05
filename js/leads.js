@@ -938,7 +938,7 @@ function saveLeadUpdate() {
             action: newStatus,
             by: currentUser || 'web',
             at: new Date().toISOString(),
-            note: newNotes || ('סטטוס: ' + (LEAD_STATUS_LABELS[newStatus] || newStatus))
+            note: newNotes || ('סטטוס: ' + (LEAD_STATUS_TEXT[newStatus] || newStatus))
         })
     };
 
@@ -1095,7 +1095,7 @@ function exportLeadsCSV() {
             LEAD_SOURCE_LABELS[r.source] || r.source || '',
             r.aiScore || '',
             r.assignedTo || '',
-            LEAD_STATUS_LABELS[r.status] || r.status || '',
+            LEAD_STATUS_TEXT[r.status] || r.status || '',
             r.statusNote || ''
         ].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
     });
@@ -1581,7 +1581,7 @@ function executeBulkAction() {
             action: newStatus || 'bulk_assign',
             by: currentUser || 'web',
             at: new Date().toISOString(),
-            note: 'עדכון מרובה' + (newStatus ? ' — ' + (LEAD_STATUS_LABELS[newStatus] || newStatus) : '') + (newAssignee ? ' ← ' + newAssignee : '')
+            note: 'עדכון מרובה' + (newStatus ? ' — ' + (LEAD_STATUS_TEXT[newStatus] || newStatus) : '') + (newAssignee ? ' ← ' + newAssignee : '')
         });
         batch.update(ref, updates);
     });
