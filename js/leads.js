@@ -477,8 +477,6 @@ async function loadMoreLeads() {
     if (!leadsHasMore || leadsLoadingMore || !leadsLastDoc) return;
     leadsLoadingMore = true;
 
-    // Disconnect observer during load to prevent re-trigger loop
-    if (_leadsScrollObserver) { _leadsScrollObserver.disconnect(); _leadsScrollObserver = null; }
 
     // Show loading indicator
     var loadMoreBtn = document.getElementById('ldLoadMore');
@@ -529,10 +527,6 @@ async function loadMoreLeads() {
         }
     } finally {
         leadsLoadingMore = false;
-        // Re-attach observer after a delay to prevent immediate re-trigger
-        if (leadsHasMore) {
-            setTimeout(function() { setupInfiniteScroll(); }, 500);
-        }
     }
 }
 
@@ -891,28 +885,6 @@ function renderLeadsPagination(totalRecords, totalPages) {
 
     container.innerHTML = html;
 
-    // Setup IntersectionObserver for infinite scroll (only on first render)
-    if (leadsHasMore) {
-        setTimeout(function() { setupInfiniteScroll(); }, 300);
-    }
-}
-
-var _leadsScrollObserver = null;
-
-function setupInfiniteScroll() {
-    // Cleanup previous observer
-    if (_leadsScrollObserver) { _leadsScrollObserver.disconnect(); _leadsScrollObserver = null; }
-
-    var loadMoreBtn = document.getElementById('ldLoadMore');
-    if (!loadMoreBtn || !leadsHasMore || leadsLoadingMore) return;
-
-    _leadsScrollObserver = new IntersectionObserver(function(entries) {
-        if (entries[0].isIntersecting && leadsHasMore && !leadsLoadingMore) {
-            loadMoreLeads();
-        }
-    }, { rootMargin: '200px' });
-
-    _leadsScrollObserver.observe(loadMoreBtn);
 }
 
 function leadsGoToPage(page) {
