@@ -160,6 +160,7 @@ function resetLeadsState() {
     leadsLastDoc = null;
     leadsHasMore = true;
     leadsLoadingMore = false;
+    _leadsFullLoaded = false;
     if (leadsNewListener) { leadsNewListener(); leadsNewListener = null; }
     // Destroy Chart.js instances to prevent memory leak
     Object.keys(leadsChartInstances).forEach(function(k) {
@@ -573,6 +574,32 @@ function populateLeadsFilters() {
     assigneeSelect.value = current;
 }
 
+var _leadsFullLoaded = false; // flag: all leads loaded for search
+
+// Load ALL leads into memory (triggered only when user searches)
+async function loadAllLeadsForSearch() {
+    if (_leadsFullLoaded) return;
+
+    var snapshot = await db.collection('leads')
+        .orderBy('createdAt', 'desc')
+        .get();
+
+    var allIds = {};
+    leadsRecords.forEach(function(r) { allIds[r.id] = true; });
+
+    snapshot.forEach(function(doc) {
+        if (!allIds[doc.id]) {
+            leadsRecords.push(Object.assign({ id: doc.id }, doc.data()));
+        }
+    });
+
+    _leadsFullLoaded = true;
+    leadsHasMore = false;
+    leadsDuplicateMap = scanForDuplicates(leadsRecords);
+    populateLeadsFilters();
+    console.log('[Search] Loaded all ' + leadsRecords.length + ' leads for search');
+}
+
 function getFilteredLeads() {
     var filtered = leadsRecords.slice();
     var now = Date.now();
@@ -674,8 +701,18 @@ function getFilteredLeads() {
     return filtered;
 }
 
-function filterLeadsView() {
+async function filterLeadsView() {
     leadsCurrentPage = 1;
+
+    // If user is searching text — load all leads first so search covers everything
+    var search = (document.getElementById('ldSearch').value || '').trim();
+    if (search.length >= 2 && !_leadsFullLoaded) {
+        var loadMoreBtn = document.getElementById('ldLoadMore');
+        if (loadMoreBtn) loadMoreBtn.textContent = 'טוען הכל לחיפוש...';
+        await loadAllLeadsForSearch();
+        if (loadMoreBtn && loadMoreBtn.parentElement) loadMoreBtn.parentElement.remove();
+    }
+
     var filtered = getFilteredLeads();
     updateLeadsSummary(filtered);
     renderLeadsView(filtered);
