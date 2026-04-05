@@ -1,11 +1,20 @@
 // ========== Bottom Navigation ==========
 
+var _overflowNavIds = ['navLeadsMgmtBtn', 'navActivityLogBtn', 'navUserMgmtBtn'];
+
 function setActiveNav(id) {
     document.querySelectorAll('.bottom-nav-item').forEach(function(btn) {
         btn.classList.remove('active');
     });
     var el = document.getElementById(id);
     if (el) el.classList.add('active');
+    // On mobile: if navigating to an overflow item, highlight "More" button
+    var moreBtn = document.getElementById('navMoreBtn');
+    if (moreBtn) {
+        if (_overflowNavIds.indexOf(id) !== -1) {
+            moreBtn.classList.add('active');
+        }
+    }
 }
 
 function navHome() {
@@ -97,12 +106,13 @@ function hideLeadsManagement() {
     }
 }
 
-// Show/hide bottom nav based on auth state
+// Show/hide nav + sidebar padding based on auth state
 function updateBottomNav(show) {
     var nav = document.getElementById('bottomNav');
     if (nav) {
         nav.classList.toggle('bottom-nav-hidden', !show);
     }
+    document.body.classList.toggle('sidebar-active', show);
 }
 
 // Update nav button visibility based on user permissions
@@ -130,6 +140,16 @@ function updateNavVisibility() {
     var usersBtn = document.getElementById('navUserMgmtBtn');
     if (usersBtn) usersBtn.style.display = perms.userManagement ? '' : 'none';
 
+    // Also update overflow menu items (mobile "More" menu)
+    var overflowLeads = document.getElementById('navOverflowLeads');
+    if (overflowLeads) overflowLeads.style.display = (perms.leadsManagement || perms.salesManagement || currentUserRole === 'master') ? '' : 'none';
+
+    var overflowLog = document.getElementById('navOverflowLog');
+    if (overflowLog) overflowLog.style.display = perms.activityLog ? '' : 'none';
+
+    var overflowUsers = document.getElementById('navOverflowUsers');
+    if (overflowUsers) overflowUsers.style.display = perms.userManagement ? '' : 'none';
+
     // Navigate to first available page if salesForm not available
     if (!perms.salesForm) {
         document.getElementById('mainForm').classList.add('hidden');
@@ -154,12 +174,16 @@ function showUserGreeting(displayName) {
     var el = document.getElementById('userGreeting');
     if (!el) return;
 
+    var hour = new Date().getHours();
+    var timeOfDay = hour < 12 ? 'בוקר טוב' : (hour < 17 ? 'צהריים טובים' : (hour < 21 ? 'ערב טוב' : 'לילה טוב'));
+    var greetStr = timeOfDay + ', ' + displayName;
+
     var greetText = document.getElementById('greetingText');
-    if (greetText) {
-        var hour = new Date().getHours();
-        var timeOfDay = hour < 12 ? 'בוקר טוב' : (hour < 17 ? 'צהריים טובים' : (hour < 21 ? 'ערב טוב' : 'לילה טוב'));
-        greetText.textContent = timeOfDay + ', ' + displayName;
-    }
+    if (greetText) greetText.textContent = greetStr;
+
+    // Also set top-nav greeting (desktop)
+    var topGreetText = document.getElementById('topNavGreetingText');
+    if (topGreetText) topGreetText.textContent = greetStr;
 
     updateGreetingTime();
     el.style.display = '';
@@ -170,10 +194,70 @@ function showUserGreeting(displayName) {
 }
 
 function updateGreetingTime() {
-    var el = document.getElementById('greetingTime');
-    if (!el) return;
     var now = new Date();
     var hours = String(now.getHours()).padStart(2, '0');
     var minutes = String(now.getMinutes()).padStart(2, '0');
-    el.textContent = hours + ':' + minutes;
+    var timeStr = hours + ':' + minutes;
+
+    var el = document.getElementById('greetingTime');
+    if (el) el.textContent = timeStr;
+
+    // Also update top-nav time (desktop)
+    var topTime = document.getElementById('topNavGreetingTime');
+    if (topTime) topTime.textContent = timeStr;
 }
+
+// ========== Desktop Sidebar Toggle ==========
+
+function toggleSidebar() {
+    // Only toggle on desktop (≥1024px)
+    if (!window.matchMedia('(min-width: 1024px)').matches) return;
+    // Enable transition only during toggle
+    document.body.classList.add('sidebar-animating');
+    document.body.classList.toggle('sidebar-collapsed');
+    try {
+        localStorage.setItem('sidebar_collapsed', document.body.classList.contains('sidebar-collapsed') ? '1' : '0');
+    } catch (e) {}
+    // Remove transition class after animation completes
+    setTimeout(function() {
+        document.body.classList.remove('sidebar-animating');
+    }, 300);
+}
+
+// Restore sidebar state on load (desktop only)
+(function() {
+    try {
+        if (window.matchMedia('(min-width: 1024px)').matches && localStorage.getItem('sidebar_collapsed') === '1') {
+            document.body.classList.add('sidebar-collapsed');
+        }
+    } catch (e) {}
+})();
+
+// ========== Mobile Overflow Menu ("More" button) ==========
+
+function toggleNavOverflow() {
+    var menu = document.getElementById('navOverflowMenu');
+    var backdrop = document.getElementById('navOverflowBackdrop');
+    if (!menu) return;
+
+    var isOpen = menu.style.display !== 'none';
+    menu.style.display = isOpen ? 'none' : '';
+    if (backdrop) backdrop.style.display = isOpen ? 'none' : '';
+}
+
+function closeNavOverflow() {
+    var menu = document.getElementById('navOverflowMenu');
+    var backdrop = document.getElementById('navOverflowBackdrop');
+    if (menu) menu.style.display = 'none';
+    if (backdrop) backdrop.style.display = 'none';
+}
+
+// Close overflow on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var menu = document.getElementById('navOverflowMenu');
+        if (menu && menu.style.display !== 'none') {
+            closeNavOverflow();
+        }
+    }
+});

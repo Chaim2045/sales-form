@@ -4,12 +4,29 @@
    Loaded AFTER all other CSS files.
    ================================================================ */
 
-/* ──── 1. Safe Areas (iPhone X+ notch) ──── */
-body {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
-}
-.bottom-nav {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+/* ──── 1. Safe Areas (iPhone X+ notch) — mobile only ──── */
+@media (max-width: 767.98px) {
+    body {
+        padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    }
+    .bottom-nav {
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* Hide desktop-only nav elements on mobile */
+    .top-nav-greeting,
+    .top-nav-brand,
+    .sidebar-toggle {
+        display: none !important;
+    }
+
+    /* Hide overflow items from main bottom bar (they live in overflow menu) */
+    #navLeadsMgmtBtn,
+    #navActivityLogBtn,
+    #navUserMgmtBtn,
+    .bottom-nav-logout {
+        display: none !important;
+    }
 }
 
 /* ──── 2. Touch Feedback ──── */
@@ -1171,11 +1188,81 @@ body {
         display: none !important;
     }
 }
+/* PWA standalone + desktop: sidebar needs safe-area offset */
+@media (display-mode: standalone) and (min-width: 768px) {
+    .bottom-nav {
+        top: env(safe-area-inset-top, 0px);
+    }
+}
 
-/* ──── 9. Print ──── */
+/* ──── 9. Mobile Overflow Menu (for "More" button) ──── */
+.nav-overflow-menu {
+    position: fixed;
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    left: 16px;
+    right: 16px;
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
+    z-index: 99;
+    padding: 8px 0;
+    direction: rtl;
+}
+
+.nav-overflow-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    width: 100%;
+    border: none;
+    background: none;
+    font-family: 'Heebo', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.nav-overflow-item:active {
+    background: var(--bg-active);
+}
+
+.nav-overflow-item svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.nav-overflow-danger {
+    color: var(--error) !important;
+}
+
+.nav-overflow-divider {
+    border: none;
+    border-top: 1px solid var(--gray-200);
+    margin: 4px 0;
+}
+
+/* Backdrop behind overflow menu */
+.nav-overflow-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.2);
+    z-index: 98;
+}
+
+/* ──── 10. Print ──── */
 @media print {
     .bottom-nav,
     .user-greeting,
+    .top-nav-brand,
+    .top-nav-greeting,
+    .nav-overflow-menu,
+    .nav-overflow-backdrop,
+    .sidebar-toggle,
     .progress-container,
     .buttons-row,
     .bm-toolbar,
@@ -1184,6 +1271,8 @@ body {
     }
     body {
         padding-bottom: 0;
+        padding-top: 0;
+        padding-right: 0 !important;
         background: white;
     }
     .container {

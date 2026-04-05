@@ -1987,8 +1987,20 @@
     <script src="js/user-management.js"></script>
     <script src="js/navigation.js"></script>
 
-    <!-- Bottom Navigation Bar -->
+    <!-- Sidebar toggle button (fixed, outside nav to avoid overflow clip) -->
+    <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="כווץ/הרחב תפריט">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+
+    <!-- Adaptive Navigation: Sidebar on desktop (≥768px), Bottom nav on mobile (<768px) -->
     <nav class="bottom-nav bottom-nav-hidden" id="bottomNav">
+        <!-- Desktop: Brand (hidden on mobile via CSS) -->
+        <div class="top-nav-brand">
+            <img src="assets/logo.png" alt="לוגו">
+            <span>CRM סמארט</span>
+        </div>
+
+        <!-- Nav Items (shared between desktop top-bar and mobile bottom-bar) -->
         <button class="bottom-nav-item active" id="navHomeBtn" onclick="navHome()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             <span class="bottom-nav-label">ראשי</span>
@@ -2017,11 +2029,47 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span class="bottom-nav-label">משתמשים</span>
         </button>
-        <button class="bottom-nav-item" onclick="navLogout()">
+
+        <!-- Desktop: Greeting (pushed to left in RTL via margin-left:auto, hidden on mobile via CSS) -->
+        <div class="top-nav-greeting" id="topNavGreeting">
+            <span id="topNavGreetingText"></span>
+            <span id="topNavGreetingTime" class="greeting-time"></span>
+        </div>
+
+        <!-- Logout — separated with dedicated class -->
+        <button class="bottom-nav-item bottom-nav-logout" onclick="navLogout()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             <span class="bottom-nav-label">התנתק</span>
         </button>
+
+        <!-- Mobile: "More" button (hidden on desktop via CSS) -->
+        <button class="bottom-nav-item bottom-nav-more-btn" id="navMoreBtn" onclick="toggleNavOverflow()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+            <span class="bottom-nav-label">עוד</span>
+        </button>
     </nav>
+
+    <!-- Mobile: Overflow Menu (above bottom nav, hidden by default) -->
+    <div class="nav-overflow-backdrop" id="navOverflowBackdrop" style="display:none;" onclick="closeNavOverflow()"></div>
+    <div class="nav-overflow-menu" id="navOverflowMenu" style="display:none;">
+        <button class="nav-overflow-item" id="navOverflowLeads" onclick="navLeadsMgmt(); closeNavOverflow();" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+            <span>לידים</span>
+        </button>
+        <button class="nav-overflow-item" id="navOverflowLog" onclick="navActivityLog(); closeNavOverflow();" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span>לוג פעילות</span>
+        </button>
+        <button class="nav-overflow-item" id="navOverflowUsers" onclick="navUserMgmt(); closeNavOverflow();" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>ניהול משתמשים</span>
+        </button>
+        <hr class="nav-overflow-divider">
+        <button class="nav-overflow-item nav-overflow-danger" onclick="navLogout(); closeNavOverflow();">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>התנתק</span>
+        </button>
+    </div>
 
     <!-- PWA Service Worker -->
     <script>
