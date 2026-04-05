@@ -5,72 +5,101 @@ async function searchClients(searchTerm) {
     }
 
     try {
-        // Search by client name - case insensitive
-        const searchLower = searchTerm.toLowerCase();
+        // 1. Try clients collection first (fast, deduplicated)
+        var results = await searchClientsCollection(searchTerm);
+        if (results.length > 0) return results;
 
-        const clientsMap = new Map();
-
-        // Query both collections in parallel
-        const [salesSnapshot, billingSnapshot] = await Promise.all([
-            db.collection('sales_records')
-                .orderBy('timestamp', 'desc')
-                .limit(500)
-                .get(),
-            db.collection('recurring_billing')
-                .orderBy('createdAt', 'desc')
-                .limit(500)
-                .get()
-        ]);
-
-        // Process sales_records
-        salesSnapshot.forEach(doc => {
-            const data = doc.data();
-            const clientName = data.clientName || '';
-            const clientNameLower = clientName.toLowerCase();
-
-            if (clientNameLower.includes(searchLower)) {
-                if (!clientsMap.has(clientName)) {
-                    clientsMap.set(clientName, {
-                        clientName: data.clientName,
-                        phone: data.phone,
-                        email: data.email,
-                        idNumber: data.idNumber,
-                        address: data.address || '',
-                        attorney: data.attorney || '',
-                        branch: data.branch || '',
-                        caseNumber: data.caseNumber || ''
-                    });
-                }
-            }
-        });
-
-        // Process recurring_billing
-        billingSnapshot.forEach(doc => {
-            const data = doc.data();
-            const clientName = data.clientName || '';
-            const clientNameLower = clientName.toLowerCase();
-
-            if (clientNameLower.includes(searchLower)) {
-                if (!clientsMap.has(clientName)) {
-                    clientsMap.set(clientName, {
-                        clientName: data.clientName,
-                        phone: data.phone || '',
-                        email: data.email || '',
-                        idNumber: data.idNumber || '',
-                        address: data.address || '',
-                        attorney: data.attorney || '',
-                        branch: data.branch || '',
-                        caseNumber: data.caseNumber || ''
-                    });
-                }
-            }
-        });
-
-        return Array.from(clientsMap.values());
+        // 2. Fallback to legacy search (pre-migration records)
+        return await searchClientsLegacy(searchTerm);
     } catch (error) {
         console.error('Error searching clients:', error);
         return [];
     }
+}
+
+// חיפוש ב-clients collection — מהיר, dedup מובנה
+async function searchClientsCollection(searchTerm) {
+    var searchLower = searchTerm.toLowerCase();
+    var results = [];
+
+    // Firestore doesn't support case-insensitive contains — fetch recent clients and filter
+    var snapshot = await db.collection('clients')
+        .orderBy('updatedAt', 'desc')
+        .limit(200)
+        .get();
+
+    snapshot.forEach(function(doc) {
+        var data = doc.data();
+        var name = data.name || '';
+        if (name.toLowerCase().includes(searchLower)) {
+            results.push({
+                clientName: name,
+                phone: data.phone || '',
+                email: data.email || '',
+                idNumber: data.idNumber || '',
+                address: data.address || '',
+                attorney: data.attorney || '',
+                branch: data.branch || '',
+                caseNumber: data.caseNumber || '',
+                clientId: doc.id
+            });
+        }
+    });
+
+    return results;
+}
+
+// fallback — חיפוש ישן ב-sales_records + recurring_billing (לפני מיגרציה)
+async function searchClientsLegacy(searchTerm) {
+    var searchLower = searchTerm.toLowerCase();
+    var clientsMap = new Map();
+
+    var [salesSnapshot, billingSnapshot] = await Promise.all([
+        db.collection('sales_records')
+            .orderBy('timestamp', 'desc')
+            .limit(500)
+            .get(),
+        db.collection('recurring_billing')
+            .orderBy('createdAt', 'desc')
+            .limit(500)
+            .get()
+    ]);
+
+    salesSnapshot.forEach(function(doc) {
+        var data = doc.data();
+        var clientName = data.clientName || '';
+        if (clientName.toLowerCase().includes(searchLower) && !clientsMap.has(clientName)) {
+            clientsMap.set(clientName, {
+                clientName: data.clientName,
+                phone: data.phone,
+                email: data.email,
+                idNumber: data.idNumber,
+                address: data.address || '',
+                attorney: data.attorney || '',
+                branch: data.branch || '',
+                caseNumber: data.caseNumber || ''
+            });
+        }
+    });
+
+    billingSnapshot.forEach(function(doc) {
+        var data = doc.data();
+        var clientName = data.clientName || '';
+        if (clientName.toLowerCase().includes(searchLower) && !clientsMap.has(clientName)) {
+            clientsMap.set(clientName, {
+                clientName: data.clientName,
+                phone: data.phone || '',
+                email: data.email || '',
+                idNumber: data.idNumber || '',
+                address: data.address || '',
+                attorney: data.attorney || '',
+                branch: data.branch || '',
+                caseNumber: data.caseNumber || ''
+            });
+        }
+    });
+
+    return Array.from(clientsMap.values());
 }
 
 window.fillClientData = function(client) {

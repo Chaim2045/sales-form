@@ -267,6 +267,20 @@ async function submitBillingForm() {
             monthlyAmounts: monthlyAmounts || null
         };
 
+        // Link to clients collection
+        var clientId = await getOrCreateClient({
+            name: billingData.clientName,
+            phone: billingData.phone,
+            email: billingData.email,
+            idNumber: billingData.idNumber,
+            address: billingData.address,
+            attorney: billingData.attorney,
+            branch: billingData.branch,
+            caseNumber: billingData.caseNumber,
+            source: 'billing'
+        });
+        if (clientId) billingData.clientId = clientId;
+
         // שמירה ב-Firestore (מקור אמת יחיד לגבייה)
         await db.collection('recurring_billing').add(billingData);
         logAuditEvent('billing_created', { clientName: clientName, totalDeal: totalDealNum, months: monthsNum });
@@ -1570,6 +1584,41 @@ async function saveEditBilling() {
         }
 
         await db.collection('recurring_billing').doc(docId).update(updateData);
+
+        // Update or create client record
+        try {
+            var existingClientId = oldClientData.clientId;
+            if (existingClientId) {
+                var clientUpdates = {
+                    name: updateData.clientName || oldClientData.clientName,
+                    phone: normalizePhone(updateData.phone || oldClientData.phone),
+                    phoneLast7: getLast7(updateData.phone || oldClientData.phone),
+                    email: updateData.email || oldClientData.email || '',
+                    idNumber: (updateData.idNumber || oldClientData.idNumber || '').replace(/\D/g, ''),
+                    address: updateData.address || oldClientData.address || '',
+                    attorney: updateData.attorney || oldClientData.attorney || '',
+                    branch: updateData.branch || oldClientData.branch || '',
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                await db.collection('clients').doc(existingClientId).update(clientUpdates);
+            } else {
+                var newClientId = await getOrCreateClient({
+                    name: updateData.clientName || oldClientData.clientName,
+                    phone: updateData.phone || oldClientData.phone,
+                    email: updateData.email || oldClientData.email,
+                    idNumber: updateData.idNumber || oldClientData.idNumber,
+                    address: updateData.address || oldClientData.address,
+                    attorney: updateData.attorney || oldClientData.attorney,
+                    branch: updateData.branch || oldClientData.branch,
+                    source: 'billing'
+                });
+                if (newClientId) {
+                    await db.collection('recurring_billing').doc(docId).update({ clientId: newClientId });
+                }
+            }
+        } catch (clientErr) {
+            console.error('[ClientSync] Error updating client from billing edit:', clientErr);
+        }
 
         // עדכון סכומים ישירות ב-subcollection (מקור אמת יחיד)
         var editedAmounts = getEditMonthlyAmountsFromTable();

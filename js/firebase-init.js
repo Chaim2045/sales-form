@@ -50,6 +50,21 @@ function validateIsraeliId(id) {
     return sum % 10 === 0;
 }
 
+// ========== נרמול טלפון (משותף — keep in sync with whatsapp-bot/firebase.js) ==========
+
+function normalizePhone(phone) {
+    if (!phone) return '';
+    var d = phone.replace(/\D/g, '');
+    if (d.startsWith('972')) d = '0' + d.substring(3);
+    if (d.length === 9 && /^[5]/.test(d)) d = '0' + d;
+    return d;
+}
+
+function getLast7(phone) {
+    if (!phone) return '';
+    return phone.replace(/\D/g, '').slice(-7);
+}
+
 var authUser = null;
 var currentStep = 1;
 var currentUser = '';

@@ -655,9 +655,54 @@ async function saveSaleEdit() {
         updatedBy: authUser ? authUser.email : 'unknown'
     };
 
+    // Normalize phone
+    updateData.phone = normalizePhone(updateData.phone);
+
     try {
         // Update Firestore
         await db.collection('sales_records').doc(docId).update(updateData);
+
+        // Update or create client record
+        try {
+            var saleDoc = await db.collection('sales_records').doc(docId).get();
+            var saleData = saleDoc.data();
+            var clientId = saleData.clientId;
+
+            if (clientId) {
+                // Update existing client with latest details
+                var clientUpdates = {
+                    name: updateData.clientName,
+                    phone: updateData.phone,
+                    phoneLast7: getLast7(updateData.phone),
+                    email: updateData.email || '',
+                    idNumber: updateData.idNumber ? updateData.idNumber.replace(/\D/g, '') : '',
+                    address: updateData.address || '',
+                    attorney: updateData.attorney || '',
+                    branch: updateData.branch || '',
+                    caseNumber: updateData.caseNumber || '',
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                await db.collection('clients').doc(clientId).update(clientUpdates);
+            } else {
+                // Old record without clientId — create link
+                clientId = await getOrCreateClient({
+                    name: updateData.clientName,
+                    phone: updateData.phone,
+                    email: updateData.email,
+                    idNumber: updateData.idNumber,
+                    address: updateData.address,
+                    attorney: updateData.attorney,
+                    branch: updateData.branch,
+                    caseNumber: updateData.caseNumber,
+                    source: 'sales_form'
+                });
+                if (clientId) {
+                    await db.collection('sales_records').doc(docId).update({ clientId: clientId });
+                }
+            }
+        } catch (clientErr) {
+            console.error('[ClientSync] Error updating client from sale edit:', clientErr);
+        }
 
         // Sync update to Google Sheets
         syncToSheets({

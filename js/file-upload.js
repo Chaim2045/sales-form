@@ -274,6 +274,21 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
             receiptNumber: ''
         };
 
+        // Link to clients collection
+        var clientId = await getOrCreateClient({
+            name: formData.clientName,
+            phone: formData.phone,
+            email: formData.email,
+            idNumber: formData.idNumber,
+            address: formData.address,
+            attorney: formData.attorney,
+            branch: formData.branch,
+            caseNumber: formData.caseNumber,
+            source: 'sales_form'
+        });
+        if (clientId) formData.clientId = clientId;
+        formData.phone = normalizePhone(formData.phone);
+
         // Save to Firestore
         var docRef = await db.collection('sales_records').add(formData);
         logAuditEvent('sale_submitted', { clientName: formData.clientName, amount: formData.amountBeforeVat, type: formData.transactionType });

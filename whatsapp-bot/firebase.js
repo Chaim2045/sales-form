@@ -7,6 +7,7 @@ const https = require('https');
 const crypto = require('crypto');
 const fs = require('fs');
 const { execSync } = require('child_process');
+const { israelNow } = require('./israel-time');
 
 var db = null;
 var bucket = null;
@@ -129,6 +130,27 @@ async function saveTransaction(data, senderName) {
     if (data.checksDetails && Array.isArray(data.checksDetails)) {
         record.checksDetails = JSON.stringify(data.checksDetails);
     }
+
+    // Link to clients collection
+    if (record.phone) {
+        try {
+            var clientId = await getOrCreateClient({
+                name: record.clientName,
+                phone: record.phone,
+                email: record.email,
+                idNumber: record.idNumber,
+                address: record.address,
+                attorney: record.attorney,
+                branch: record.branch,
+                caseNumber: record.caseNumber,
+                source: 'whatsapp_bot'
+            });
+            if (clientId) record.clientId = clientId;
+        } catch (clientErr) {
+            console.error('[Firebase] Client link failed (non-blocking):', clientErr.message);
+        }
+    }
+    record.phone = normalizePhone(record.phone);
 
     var docRef = await firestore.collection('sales_records').add(record);
 
@@ -544,9 +566,9 @@ async function getWeeklySummary() {
     var firestore = initFirebase();
 
     try {
-        var now = new Date(Date.now() + 3 * 3600000); // Israel time
-        var weekAgo = new Date(now);
-        weekAgo.setDate(weekAgo.getDate() - 7);
+        var now = israelNow();
+        var weekAgo = new Date(now.getTime());
+        weekAgo.setDate(weekAgo.getUTCDate() - 7);
 
         var snapshot = await firestore.collection('sales_records')
             .where('date', '>=', weekAgo.toISOString().split('T')[0])
@@ -914,6 +936,20 @@ async function saveLead(leadData) {
         }]
     };
 
+    // Link to clients collection
+    if (record.phone) {
+        try {
+            var clientId = await getOrCreateClient({
+                name: record.name,
+                phone: record.phone,
+                source: 'whatsapp_lead'
+            });
+            if (clientId) record.clientId = clientId;
+        } catch (e) {
+            console.error('[Leads] Client link failed:', e.message);
+        }
+    }
+
     try {
         var docRef = await firestore.collection('leads').add(record);
         console.log('[Leads] Saved: ' + (record.name || record.phone) + ' — ' + docRef.id);
@@ -1094,14 +1130,16 @@ async function getDueFollowups() {
 
 // ==================== Cross-Collection Phone Lookup ====================
 
-function normalizePhoneForSearch(phone) {
+// SHARED LOGIC — keep in sync with js/firebase-init.js normalizePhone()
+function normalizePhone(phone) {
     if (!phone) return '';
-    var d = phone.replace(/[\s\-()]/g, '');
-    if (d.startsWith('+')) d = d.substring(1);
+    var d = phone.replace(/\D/g, '');
     if (d.startsWith('972')) d = '0' + d.substring(3);
     if (d.length === 9 && /^[5]/.test(d)) d = '0' + d;
     return d;
 }
+// backward compat alias
+var normalizePhoneForSearch = normalizePhone;
 
 // Get last 7 digits — the unique part of any Israeli phone
 function getLast7(phone) {
@@ -1110,25 +1148,138 @@ function getLast7(phone) {
     return digits.slice(-7);
 }
 
+// ==================== Client Identity — getOrCreateClient ====================
+// SHARED LOGIC — keep in sync with js/client-utils.js
+
+async function getOrCreateClient(data) {
+    var firestore = initFirebase();
+    try {
+        var phone = normalizePhone(data.phone);
+        var last7 = getLast7(data.phone);
+        var name = (data.name || '').trim();
+
+        if (!last7 && !data.idNumber) return null;
+
+        var found = null;
+
+        // 1. חיפוש ראשי לפי phoneLast7
+        if (last7) {
+            var snap = await firestore.collection('clients')
+                .where('phoneLast7', '==', last7)
+                .limit(5)
+                .get();
+
+            if (!snap.empty) {
+                snap.forEach(function(doc) {
+                    if (!found) {
+                        var d = doc.data();
+                        if (d.phone === phone || snap.size === 1) {
+                            found = { id: doc.id, data: d };
+                        }
+                    }
+                });
+                if (!found) {
+                    var firstDoc = snap.docs[0];
+                    found = { id: firstDoc.id, data: firstDoc.data() };
+                }
+            }
+        }
+
+        // 2. fallback לפי ת.ז.
+        if (!found && data.idNumber) {
+            var idDigits = data.idNumber.replace(/\D/g, '');
+            if (idDigits.length >= 5) {
+                var idSnap = await firestore.collection('clients')
+                    .where('idNumber', '==', idDigits)
+                    .limit(1)
+                    .get();
+                if (!idSnap.empty) {
+                    found = { id: idSnap.docs[0].id, data: idSnap.docs[0].data() };
+                }
+            }
+        }
+
+        // 3. נמצא — עדכון שדות ריקים בלבד (merge up)
+        if (found) {
+            var updates = {};
+            var existing = found.data;
+
+            if (!existing.phone && phone) updates.phone = phone;
+            if (!existing.phoneLast7 && last7) updates.phoneLast7 = last7;
+            if (!existing.name && name) updates.name = name;
+            if (!existing.email && data.email) updates.email = data.email;
+            if (!existing.idNumber && data.idNumber) updates.idNumber = data.idNumber.replace(/\D/g, '');
+            if (!existing.address && data.address) updates.address = data.address;
+            if (data.attorney) updates.attorney = data.attorney;
+            if (data.branch) updates.branch = data.branch;
+            if (data.caseNumber && !existing.caseNumber) updates.caseNumber = data.caseNumber;
+
+            if (Object.keys(updates).length > 0) {
+                updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+                await firestore.collection('clients').doc(found.id).update(updates);
+            }
+
+            return found.id;
+        }
+
+        // 4. לא נמצא — יצירת לקוח חדש
+        var clientDoc = {
+            name: name,
+            phone: phone,
+            phoneLast7: last7,
+            email: data.email || '',
+            idNumber: data.idNumber ? data.idNumber.replace(/\D/g, '') : '',
+            address: data.address || '',
+            attorney: data.attorney || '',
+            branch: data.branch || '',
+            caseNumber: data.caseNumber || '',
+            source: data.source || 'unknown',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdBy: data.createdBy || 'whatsapp-bot'
+        };
+
+        var docRef = await firestore.collection('clients').add(clientDoc);
+        console.log('[Clients] Created: ' + (name || phone) + ' — ' + docRef.id);
+        return docRef.id;
+
+    } catch (err) {
+        console.error('[Clients] getOrCreateClient error:', err.message);
+        return null;
+    }
+}
+
+// ==================== Cross-Collection Phone Lookup ====================
+
 async function findClientAcrossCollections(phone) {
     var firestore = initFirebase();
-    var normalized = normalizePhoneForSearch(phone);
+    var normalized = normalizePhone(phone);
     var last7 = getLast7(phone);
-    if (!last7 || last7.length < 7) return { lead: null, sales: [], billing: null };
+    if (!last7 || last7.length < 7) return { client: null, lead: null, sales: [], billing: null };
 
-    var result = { lead: null, sales: [], billing: null };
+    var result = { client: null, lead: null, sales: [], billing: null };
 
     try {
-        // 1. Search leads — get recent 200 and match by last 7 digits
+        // 0. Fast path — check clients collection first (indexed query)
+        var clientSnap = await firestore.collection('clients')
+            .where('phoneLast7', '==', last7)
+            .limit(1)
+            .get();
+
+        if (!clientSnap.empty) {
+            var cDoc = clientSnap.docs[0];
+            result.client = { docId: cDoc.id, data: cDoc.data() };
+        }
+
+        // 1. Search leads by phoneLast7 (indexed)
         var leadsSnap = await firestore.collection('leads')
-            .orderBy('createdAt', 'desc')
-            .limit(200)
+            .where('phoneLast7', '==', last7)
+            .limit(5)
             .get();
 
         leadsSnap.forEach(function(doc) {
-            var d = doc.data();
-            if (getLast7(d.phone) === last7) {
-                result.lead = { docId: doc.id, data: d };
+            if (!result.lead) {
+                result.lead = { docId: doc.id, data: doc.data() };
             }
         });
 
@@ -1169,7 +1320,7 @@ async function findClientAcrossCollections(phone) {
             }
         });
 
-        console.log('[CrossLookup] ' + last7 + ': lead=' + (result.lead ? 'YES' : 'no') + ' sales=' + result.sales.length + ' billing=' + (result.billing ? 'YES' : 'no'));
+        console.log('[CrossLookup] ' + last7 + ': client=' + (result.client ? 'YES' : 'no') + ' lead=' + (result.lead ? 'YES' : 'no') + ' sales=' + result.sales.length + ' billing=' + (result.billing ? 'YES' : 'no'));
 
     } catch (err) {
         console.error('[CrossLookup] Error:', err.message);
@@ -1257,7 +1408,7 @@ async function saveOrUpdateLead(leadData) {
             });
 
             await firestore.collection('leads').doc(found.docId).update(updates);
-            console.log('[Leads] Updated existing: ' + phone + ' — ' + found.docId);
+            console.log('[Leads] Updated existing: ' + normalized + ' — ' + found.docId);
             return found.docId;
         }
     } catch (err) {
@@ -1356,6 +1507,73 @@ async function markMeetingReminderSent(docId, reminderNum) {
     }
 }
 
+// ==================== OCR Lead Image ====================
+
+async function ocrLeadImage(base64Data, mimetype) {
+    try {
+        console.log('[OCR Lead] Processing image (' + Math.round(base64Data.length / 1024) + 'KB)...');
+
+        // Step 1: Vision OCR
+        var ocrText = await visionOCR(base64Data);
+        if (!ocrText || ocrText.length < 5) {
+            console.log('[OCR Lead] No text extracted');
+            return { name: null, phone: null, subject: null, rawText: '' };
+        }
+
+        console.log('[OCR Lead] Raw text: ' + ocrText.substring(0, 200));
+
+        // Step 2: Claude extracts lead details
+        var anthropicKey = process.env.ANTHROPIC_API_KEY;
+        if (!anthropicKey) return { name: null, phone: null, subject: null, rawText: ocrText };
+
+        var prompt = 'חלץ מהטקסט הבא פרטי ליד (פנייה למשרד עורכי דין).\n\n' +
+            'טקסט OCR:\n' + ocrText.substring(0, 1500) + '\n\n' +
+            'החזר JSON בלבד:\n' +
+            '{\n' +
+            '  "name": "שם הלקוח הפוטנציאלי (לא שם האתר/המערכת)",\n' +
+            '  "phone": "מספר טלפון ישראלי (05X-XXXXXXX) — null אם אין",\n' +
+            '  "subject": "נושא הפנייה (3-5 מילים) — null אם לא ברור"\n' +
+            '}\n' +
+            'אם אין שום מידע רלוונטי, החזר name: null, phone: null, subject: null.\n' +
+            'JSON בלבד.';
+
+        var requestBody = JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 300,
+            messages: [{ role: 'user', content: prompt }]
+        });
+
+        var res = await httpRequest({
+            hostname: 'api.anthropic.com',
+            path: '/v1/messages',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': anthropicKey,
+                'anthropic-version': '2023-06-01',
+                'Content-Length': Buffer.byteLength(requestBody)
+            }
+        }, requestBody);
+
+        if (res.status !== 200) {
+            console.error('[OCR Lead] Claude error:', res.status);
+            return { name: null, phone: null, subject: null, rawText: ocrText };
+        }
+
+        var responseText = res.data.content[0].text.trim();
+        var jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) return { name: null, phone: null, subject: null, rawText: ocrText };
+
+        var parsed = JSON.parse(jsonMatch[0]);
+        console.log('[OCR Lead] Parsed:', JSON.stringify(parsed));
+        parsed.rawText = ocrText;
+        return parsed;
+    } catch (err) {
+        console.error('[OCR Lead] Error:', err.message);
+        return { name: null, phone: null, subject: null, rawText: '' };
+    }
+}
+
 module.exports = {
     initFirebase,
     saveTransaction,
@@ -1378,5 +1596,9 @@ module.exports = {
     findClientAcrossCollections,
     setMeetingDate,
     getUpcomingMeetings,
-    markMeetingReminderSent
+    markMeetingReminderSent,
+    ocrLeadImage,
+    getOrCreateClient,
+    normalizePhone,
+    getLast7
 };

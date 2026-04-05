@@ -452,6 +452,8 @@ async function markSinglePayment(clientDocId, paymentDocId) {
                 sourceBillingId: clientDocId,
                 sourcePaymentId: paymentDocId
             });
+            // Inherit clientId from billing record
+            if (clientData.clientId) saleRecord.clientId = clientData.clientId;
             await db.collection('sales_records').add(saleRecord);
 
             // סנכרון לגיליון שיטס (fire-and-forget)
@@ -838,6 +840,8 @@ async function markAllDuePayments() {
                     sourceBillingId: currentPaymentDocId,
                     sourcePaymentId: p.id
                 });
+                // Inherit clientId from billing record
+                if (clientData.clientId) saleRecord.clientId = clientData.clientId;
                 await db.collection('sales_records').add(saleRecord);
 
                 syncToSheets(sheetData);

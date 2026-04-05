@@ -75,6 +75,14 @@ service cloud.firestore {
       allow delete: if isMaster();
     }
 
+    // ─── Clients (central client identity) ───
+    match /clients/{docId} {
+      allow read: if isActive();
+      allow create: if isActive();
+      allow update: if isActive();
+      allow delete: if isMaster();
+    }
+
     // ─── Decrypt Rate Limiting ───
     match /decrypt_rate_limit/{userId} {
       allow read: if isAuth() && request.auth.uid == userId;
