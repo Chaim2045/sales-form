@@ -32,6 +32,15 @@ build/
 *.tmp
 *.temp
 
+# Truecaller auth & phone cache (sensitive)
+.truecaller-auth.json
+.phone-cache.json
+whatsapp-bot/.truecaller-auth.json
+whatsapp-bot/.phone-cache.json
+
+# Deploy script (contains server credentials)
+whatsapp-bot/_deploy.js
+
 # Firebase
 .firebase/
 firebase-debug.log

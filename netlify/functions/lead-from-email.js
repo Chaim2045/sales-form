@@ -3,6 +3,12 @@
 
 const https = require('https');
 
+function getLast7(phone) {
+    if (!phone) return '';
+    var digits = (phone || '').replace(/\D/g, '');
+    return digits.slice(-7);
+}
+
 function httpRequest(options, data) {
     return new Promise((resolve, reject) => {
         const req = https.request(options, (res) => {
@@ -40,7 +46,9 @@ async function parseEmailWithClaude(emailBody, emailSubject, emailFrom) {
         '  "score": 1-10\n' +
         '}\n\n' +
         '=== ליד אמיתי (isLead: true) ===\n' +
-        '- "שיחה שלא נענתה מלקוח מאתר דין שמספרו 05X..." = ליד חם (score: 7+)\n' +
+        '- "שיחה שלא נענתה מלקוח מאתר דין" = ליד חם (score: 7+)\n' +
+        '- "שיחה שנענתה / קיבלת שיחה מלקוח מאתר דין" = גם ליד! (score: 6) — צריך מעקב\n' +
+        '- כל מייל מ-din.co.il עם מספר טלפון של לקוח = ליד\n' +
         '- "פנייה חדשה מהפורום" / "טופס יצירת קשר" עם טלפון של לקוח = ליד\n' +
         '- הודעה עם שם + טלפון + נושא משפטי = ליד\n' +
         '- גם אם יש רק טלפון בלי שם — עדיין ליד (name: null)\n\n' +
@@ -95,6 +103,7 @@ async function saveLeadToFirestore(leadData) {
         fields: {
             name: { stringValue: leadData.name || '' },
             phone: { stringValue: leadData.phone || '' },
+            phoneLast7: { stringValue: getLast7(leadData.phone) },
             email: { stringValue: leadData.email || '' },
             subject: { stringValue: leadData.subject || '' },
             source: { stringValue: 'email' },
@@ -121,6 +130,33 @@ async function saveLeadToFirestore(leadData) {
             }]}}
         }
     };
+
+    // Dedup: check if lead with same phone already exists
+    var phoneLast7 = getLast7(leadData.phone);
+    if (phoneLast7 && phoneLast7.length >= 7) {
+        try {
+            var queryBody = JSON.stringify({
+                structuredQuery: {
+                    from: [{ collectionId: 'leads' }],
+                    where: { fieldFilter: { field: { fieldPath: 'phoneLast7' }, op: 'EQUAL', value: { stringValue: phoneLast7 } } },
+                    limit: 1
+                }
+            });
+            var checkRes = await httpRequest({
+                hostname: 'firestore.googleapis.com',
+                path: '/v1/projects/' + projectId + '/databases/(default)/documents:runQuery?key=' + apiKey,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(queryBody) }
+            }, queryBody);
+
+            if (checkRes.status === 200 && Array.isArray(checkRes.data) && checkRes.data[0] && checkRes.data[0].document) {
+                console.log('[Email Lead] Dedup match: phoneLast7=' + phoneLast7 + ' — skipping create');
+                return true;
+            }
+        } catch (dedupErr) {
+            console.error('[Email Lead] Dedup check failed (non-blocking):', dedupErr.message);
+        }
+    }
 
     var postData = JSON.stringify(firestoreDoc);
     var res = await httpRequest({

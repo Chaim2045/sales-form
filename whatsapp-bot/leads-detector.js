@@ -2,25 +2,8 @@
 // Detects lead messages, assignments, status updates, and follow-up times
 // from WhatsApp group messages in the leads group
 
-// ==================== Phone Normalization ====================
-
-function normalizePhone(phone) {
-    if (!phone) return '';
-    var digits = phone.replace(/\D/g, '');
-    if (digits.startsWith('972')) return digits;
-    if (digits.startsWith('0')) return '972' + digits.substring(1);
-    return digits;
-}
-
-function extractPhone(text) {
-    if (!text) return null;
-    var match = text.match(/(0\d{1,2}[\s-]?\d{3}[\s-]?\d{4})/);
-    if (match) return normalizePhone(match[1]);
-    // Try mishpati format: 053-3239882
-    match = text.match(/(0\d{1,2}-\d{7})/);
-    if (match) return normalizePhone(match[1]);
-    return null;
-}
+var { getIsraelOffset, toIsraelParts, makeIsraelTime } = require('./israel-time');
+var { normalizePhone, extractPhone } = require('./phone-utils');
 
 // ==================== Lead Classification ====================
 
@@ -41,7 +24,7 @@ var MANAGER_LEAD_PATTERN = /ליד\s*חדש\s*[-–:]\s*([^-–\n]+)\s*[-–]\s*
 
 // 4. Secretary: "שם - נושא - טלפון. מי מטפל?"
 // More flexible: name + phone + "מי מטפל"
-var SECRETARY_PATTERN = /^([^0-9\n]{2,})\s*[-–]\s*([^0-9\n]+)\s*[-–]\s*(0[\d\s-]{8,12})/;
+var SECRETARY_PATTERN = /^(?!.*(?:בוקר טוב|ערב טוב|שלום|היי|מה נשמע|מה קורה))([^0-9\n]{2,})\s*[-–]\s*([^0-9\n]+)\s*[-–]\s*(0[\d\s-]{8,12})/;
 
 // Alternative secretary: "שם בענין נושא - טלפון"
 var SECRETARY_ALT = /^([^\d\n]{2,})\s+(?:בענין|בנושא|בקשר)\s+([^\d\n]+)\s*[-–]\s*(0[\d\s-]{8,12})/;
@@ -268,8 +251,7 @@ var SELF_ASSIGN_PATTERNS = [
     /^(כן|כן\s*אני|אני\s*כן)$/,
     /^יטופל$/,
     /^אני\s*אתקשר/,
-    /^👍$/,
-    /^אני$/
+    /^👍$/
 ];
 
 // Directed assignment: boss/manager assigns someone
@@ -420,18 +402,12 @@ function detectStatusUpdate(body) {
 function extractFollowupTime(body) {
     if (!body) return null;
     var text = body.trim();
-    var now = new Date(Date.now() + 3 * 3600000); // Israel time (UTC+3)
+    var p = toIsraelParts(new Date());
 
     // "מחר" / "מחר בבוקר" / "מחר אחהצ"
     if (/מחר/.test(text)) {
-        var target = new Date(now);
-        target.setDate(target.getDate() + 1);
-        if (/אחה"?צ|אחרי\s*הצהריים|צהריים/.test(text)) {
-            target.setHours(14, 0, 0, 0);
-        } else {
-            target.setHours(9, 0, 0, 0); // default morning
-        }
-        return { followupAt: target.getTime() - 3 * 3600000 }; // convert back to UTC
+        var targetHour = (/אחה"?צ|אחרי\s*הצהריים|צהריים/.test(text)) ? 14 : 9;
+        return { followupAt: makeIsraelTime(p.year, p.month, p.date + 1, targetHour, 0) };
     }
 
     // "עוד X דקות"
@@ -454,19 +430,17 @@ function extractFollowupTime(body) {
 
     // "בסוף היום" / "סוף היום"
     if (/(?:בסוף|סוף)\s*(?:ה)?יום/.test(text)) {
-        var eod = new Date(now);
-        eod.setHours(17, 0, 0, 0);
-        if (eod <= now) eod.setDate(eod.getDate() + 1);
-        return { followupAt: eod.getTime() - 3 * 3600000 };
+        var eodUTC = makeIsraelTime(p.year, p.month, p.date, 17, 0);
+        if (eodUTC <= Date.now()) eodUTC = makeIsraelTime(p.year, p.month, p.date + 1, 17, 0);
+        return { followupAt: eodUTC };
     }
 
     // "בשעה HH:MM" / "ב-HH:MM"
     var timeMatch = text.match(/(?:בשעה|ב-?)\s*(\d{1,2}):(\d{2})/);
     if (timeMatch) {
-        var target = new Date(now);
-        target.setHours(parseInt(timeMatch[1]), parseInt(timeMatch[2]), 0, 0);
-        if (target <= now) target.setDate(target.getDate() + 1);
-        return { followupAt: target.getTime() - 3 * 3600000 };
+        var tUTC = makeIsraelTime(p.year, p.month, p.date, parseInt(timeMatch[1]), parseInt(timeMatch[2]));
+        if (tUTC <= Date.now()) tUTC = makeIsraelTime(p.year, p.month, p.date + 1, parseInt(timeMatch[1]), parseInt(timeMatch[2]));
+        return { followupAt: tUTC };
     }
 
     // "פולואפ" without time → default 2 hours
@@ -502,17 +476,11 @@ function detectMeeting(body) {
     var linkMatch = text.match(/(https?:\/\/[^\s]+(?:meet\.google|zoom\.us)[^\s]*)/i);
     if (linkMatch) meetLink = linkMatch[1];
 
-    // Israel timezone offset
-    var ISRAEL_OFFSET = 3; // UTC+3 (IDT)
-    var nowUTC = new Date();
-    // For day/date calculations, we need to know what day it is in Israel
-    var israelDay = new Date(nowUTC.getTime() + ISRAEL_OFFSET * 3600000).getUTCDay();
-    var israelDate = new Date(nowUTC.getTime() + ISRAEL_OFFSET * 3600000).getUTCDate();
-    var israelMonth = new Date(nowUTC.getTime() + ISRAEL_OFFSET * 3600000).getUTCMonth();
-    var israelYear = new Date(nowUTC.getTime() + ISRAEL_OFFSET * 3600000).getUTCFullYear();
+    // Israel time parts (DST-aware)
+    var ip = toIsraelParts(new Date());
 
     // Try to extract date + time
-    var meetingDate = null;
+    var meetingUTC = null;
     var desiredHour = 10; // default
     var desiredMinute = 0;
 
@@ -523,60 +491,59 @@ function detectMeeting(body) {
         desiredMinute = parseInt(timeMatch[2]);
     }
 
-    // Helper: build UTC timestamp for Israel time
-    function makeIsraelTime(y, m, d, h, min) {
-        // Create date in UTC, subtract Israel offset so it represents Israel local time
-        return Date.UTC(y, m, d, h - ISRAEL_OFFSET, min, 0, 0);
-    }
-
     // "מחר 14:00" / "מחר בארבע"
     if (/מחר/.test(text)) {
-        var tomorrow = new Date(Date.UTC(israelYear, israelMonth, israelDate + 1));
-        meetingDate = new Date(makeIsraelTime(tomorrow.getUTCFullYear(), tomorrow.getUTCMonth(), tomorrow.getUTCDate(), desiredHour, desiredMinute));
+        meetingUTC = makeIsraelTime(ip.year, ip.month, ip.date + 1, desiredHour, desiredMinute);
     }
 
     // "יום ראשון" / "ביום ראשון"
     var dayNames = { 'ראשון': 0, 'שני': 1, 'שלישי': 2, 'רביעי': 3, 'חמישי': 4, 'שישי': 5 };
     var dayMatch = text.match(/(?:ב)?יום\s*(ראשון|שני|שלישי|רביעי|חמישי|שישי)/);
-    if (dayMatch && !meetingDate) {
+    if (dayMatch && !meetingUTC) {
         var targetDay = dayNames[dayMatch[1]];
-        var daysUntil = (targetDay - israelDay + 7) % 7;
+        var daysUntil = (targetDay - ip.day + 7) % 7;
         if (daysUntil === 0) daysUntil = 7;
-        var target = new Date(Date.UTC(israelYear, israelMonth, israelDate + daysUntil));
-        meetingDate = new Date(makeIsraelTime(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate(), desiredHour, desiredMinute));
+        meetingUTC = makeIsraelTime(ip.year, ip.month, ip.date + daysUntil, desiredHour, desiredMinute);
     }
 
     // "5/4" / "5.4" / "05/04"
     var dateMatch = text.match(/(\d{1,2})[\/\.](\d{1,2})(?:[\/\.](\d{2,4}))?/);
-    if (dateMatch && !meetingDate) {
+    if (dateMatch && !meetingUTC) {
         var day = parseInt(dateMatch[1]);
         var month = parseInt(dateMatch[2]) - 1;
-        var year = dateMatch[3] ? (parseInt(dateMatch[3]) < 100 ? 2000 + parseInt(dateMatch[3]) : parseInt(dateMatch[3])) : israelYear;
-        meetingDate = new Date(makeIsraelTime(year, month, day, desiredHour, desiredMinute));
+        var year = dateMatch[3] ? (parseInt(dateMatch[3]) < 100 ? 2000 + parseInt(dateMatch[3]) : parseInt(dateMatch[3])) : ip.year;
+        // Validate date ranges
+        if (month < 0 || month > 11 || day < 1 || day > 31) return null;
+        // Check if there's a more specific time match
         var timeMatch3 = text.match(/(?:ב|בשעה\s*)(\d{1,2}):(\d{2})/);
         if (timeMatch3) {
-            meetingDate.setHours(parseInt(timeMatch3[1]), parseInt(timeMatch3[2]), 0, 0);
+            meetingUTC = makeIsraelTime(year, month, day, parseInt(timeMatch3[1]), parseInt(timeMatch3[2]));
         } else {
-            meetingDate.setHours(10, 0, 0, 0);
+            meetingUTC = makeIsraelTime(year, month, day, desiredHour, desiredMinute);
         }
     }
 
-    // "בעשר" / "בשתיים" / "בארבע"
-    if (meetingDate) {
-        var hebrewTimes = { 'שמונה': 8, 'תשע': 9, 'עשר': 10, 'אחת עשרה': 11, 'שתים עשרה': 12, 'אחת': 13, 'שתיים': 14, 'שלוש': 15, 'ארבע': 16, 'חמש': 17 };
-        for (var heb in hebrewTimes) {
-            if (text.indexOf(heb) !== -1) {
-                meetingDate.setHours(hebrewTimes[heb], 0, 0, 0);
+    // "בעשר" / "בשתיים" / "בארבע" — Hebrew time words
+    // Check longer strings first to avoid "עשר" matching before "אחת עשרה"
+    if (meetingUTC && !timeMatch) {
+        var hebrewTimesArr = [
+            ['אחת עשרה', 11], ['שתים עשרה', 12],
+            ['שמונה', 8], ['תשע', 9], ['עשר', 10],
+            ['אחת', 13], ['שתיים', 14], ['שלוש', 15], ['ארבע', 16], ['חמש', 17]
+        ];
+        for (var hi = 0; hi < hebrewTimesArr.length; hi++) {
+            if (text.indexOf(hebrewTimesArr[hi][0]) !== -1) {
+                // Rebuild with correct hour using makeIsraelTime
+                var mp = toIsraelParts(meetingUTC);
+                meetingUTC = makeIsraelTime(mp.year, mp.month, mp.date, hebrewTimesArr[hi][1], 0);
                 break;
             }
         }
     }
 
-    if (!meetingDate) return null;
+    if (!meetingUTC) return null;
 
-    // meetingDate was built with makeIsraelTime() which already handles UTC offset.
-    // getTime() returns correct UTC timestamp.
-    var utcTime = meetingDate.getTime();
+    var utcTime = typeof meetingUTC === 'number' ? meetingUTC : meetingUTC;
 
     return {
         meetingDate: utcTime,

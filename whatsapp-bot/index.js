@@ -7,9 +7,17 @@ require('dotenv').config();
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { conversationTurn, isTransactionMessage } = require('./agent');
-const { initFirebase, saveTransaction, syncToSheets, findClient, verifyTransaction, getMonthlySummary, getWeeklySummary, findRecordForEdit, updateRecord, processCheckPhoto, processCheckPDF, saveLead, saveOrUpdateLead, assignLead, updateLeadStatus, getLeadStats, getDueFollowups, findClientAcrossCollections, setMeetingDate, getUpcomingMeetings, markMeetingReminderSent } = require('./firebase');
+const { initFirebase, saveTransaction, syncToSheets, findClient, verifyTransaction, getMonthlySummary, getWeeklySummary, findRecordForEdit, updateRecord, processCheckPhoto, processCheckPDF, saveLead, saveOrUpdateLead, assignLead, updateLeadStatus, getLeadStats, getDueFollowups, findClientAcrossCollections, setMeetingDate, getUpcomingMeetings, markMeetingReminderSent, ocrLeadImage, getMyLeads, searchLead } = require('./firebase');
 const { classifyLeadMessage, detectAssignment, detectStatusUpdate, extractFollowupTime, isLeadReportRequest, detectMeeting } = require('./leads-detector');
 const { canSendToClient, getBestReminderTime } = require('./shabbat-checker');
+const { israelNow, toIsraelParts, formatIsraelTime } = require('./israel-time');
+const { toInternational } = require('./phone-utils');
+
+// ==================== Constants ====================
+
+const OFFICE_ADDRESS = 'דרך מנחם בגין 144, תל אביב\nמגדל מידטאון, קומה 39';
+const OFFICE_ADDRESS_SHORT = 'מגדל מידטאון, קומה 39';
+const DEFAULT_ASSIGNEE = 'צוות המשרד';
 
 // ==================== Configuration ====================
 
@@ -188,7 +196,7 @@ setInterval(async function() {
                 try {
                     var filled = await verifyTransaction(convo.declinedClient, convo.declinedAmount);
                     if (filled) {
-                        botSend(chatId, userName + ', ראיתי שדיווחת על *' + filled.clientName + '* (' + filled.amount.toLocaleString('he-IL') + ' ₪) 💪 כל הכבוד!\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                        botSend(chatId, '✅ ' + userName + ', דיווח על *' + filled.clientName + '* (' + filled.amount.toLocaleString('he-IL') + ' ₪) נמצא במערכת.');
                         delete conversations[chatId];
                         continue;
                     }
@@ -200,11 +208,11 @@ setInterval(async function() {
                 convo.lastReminder = now;
 
                 if (convo.reminders <= 2) {
-                    botSend(chatId, userName + ', עדיין לא מצאתי דיווח על *' + convo.declinedClient + '*.\nרוצה שנמלא? או דווח פה:\nhttps://tofes-office.netlify.app\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    botSend(chatId, '📋 ' + userName + ', לא מצאתי דיווח על *' + convo.declinedClient + '*.\nרוצה שנמלא? או דווח פה:\nhttps://tofes-office.netlify.app');
                 } else if (convo.reminders <= 4) {
-                    botSend(chatId, userName + ', תזכורת — *' + convo.declinedClient + '* ממתין לדיווח.\nענה *כן* ונמלא ביחד 😊\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    botSend(chatId, '📋 ' + userName + ', *' + convo.declinedClient + '* ממתין לדיווח.\nענה *כן* ונמלא ביחד.');
                 } else {
-                    botSend(chatId, userName + ', *' + convo.declinedClient + '* עדיין לא דווח.\nhttps://tofes-office.netlify.app\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    botSend(chatId, '📋 ' + userName + ', *' + convo.declinedClient + '* עדיין לא דווח.\nhttps://tofes-office.netlify.app');
                 }
             }
             continue;
@@ -214,7 +222,7 @@ setInterval(async function() {
 
         // Expire after 24 hours
         if (elapsed > EXPIRE_TIME) {
-            botSend(chatId, '⏰ ' + userName + ', העסקה של *' + clientLabel + '* פגה. דווח שוב בקבוצה אם צריך.\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+            botSend(chatId, '⏰ ' + userName + ', העסקה של *' + clientLabel + '* פגה. דווח שוב בקבוצה אם צריך.');
             delete conversations[chatId];
             await startNextFromQueue(chatId);
             continue;
@@ -222,15 +230,15 @@ setInterval(async function() {
 
         // Send reminders (3 tiers)
         if (convo.reminders === 0 && elapsed > REMINDER_1 && sinceLast > REMINDER_1) {
-            botSend(chatId, userName + ', לא הספקת? נמשיך עם *' + clientLabel + '*?\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+            botSend(chatId, '⏳ ' + userName + ', נמשיך עם *' + clientLabel + '*?');
             convo.reminders = 1;
             convo.lastReminder = now;
         } else if (convo.reminders === 1 && elapsed > REMINDER_2 && sinceLast > REMINDER_1) {
-            botSend(chatId, userName + ', עדיין שומר לך את *' + clientLabel + '*. ענה כשנוח 😊\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+            botSend(chatId, '⏳ ' + userName + ', *' + clientLabel + '* עדיין ממתין. ענה כשנוח.');
             convo.reminders = 2;
             convo.lastReminder = now;
         } else if (convo.reminders === 2 && elapsed > REMINDER_3 && sinceLast > REMINDER_2) {
-            botSend(chatId, userName + ', תזכורת אחרונה — *' + clientLabel + '* ממתין.\nענה *המשך* או *בטל*\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+            botSend(chatId, '⏰ ' + userName + ', תזכורת אחרונה — *' + clientLabel + '* ממתין.\nענה *המשך* או *בטל*');
             convo.reminders = 3;
             convo.lastReminder = now;
         }
@@ -249,14 +257,14 @@ setInterval(async function() {
                 rl.reminded2 = true;
                 var leadLabel = rl.lead.name ? '*' + rl.lead.name + '*' : (rl.lead.phone || 'ליד חדש');
                 var subjectLabel = rl.lead.subject ? ' — ' + rl.lead.subject : '';
-                botSend(cachedLeadsGroupChatId, '📋 ' + leadLabel + subjectLabel + '\nמי מתקשר? 📞\nלידוביץ 📋');
+                botSend(cachedLeadsGroupChatId, '📋 *ליד חדש* — ' + leadLabel + subjectLabel + '\nמי מטפל?');
                 log('msg', '📋 Lead reminder 2min: ' + (rl.lead.name || rl.lead.phone));
             }
 
             // 5 minutes — second reminder
             if (elapsed > 5 * 60 * 1000 && !rl.reminded5) {
                 rl.reminded5 = true;
-                botSend(cachedLeadsGroupChatId, '⏰ ליד ממתין כבר 5 דקות: *' + (rl.lead.name || rl.lead.phone || 'ליד') + '*\nמי לוקח? 🙏\nלידוביץ 📋');
+                botSend(cachedLeadsGroupChatId, '⏰ *' + (rl.lead.name || rl.lead.phone || 'ליד') + '* ממתין 5 דקות — מי מטפל?');
                 log('msg', '📋 Lead reminder 5min: ' + (rl.lead.name || rl.lead.phone));
             }
 
@@ -271,6 +279,61 @@ setInterval(async function() {
             if (elapsed > 60 * 60 * 1000) {
                 recentLeads.splice(li, 1);
                 li--;
+            }
+        }
+
+        // ===== Assigned lead follow-up DMs =====
+        // After assignment, ask the worker "what happened?" at intervals
+        // Respect quiet hours (08:00-21:00 Israel, no Shabbat)
+        var ilNowParts = toIsraelParts(new Date());
+        var isQuietHours = ilNowParts.hour < 8 || ilNowParts.hour >= 21 || ilNowParts.day === 6; // Sat
+
+        for (var ai = recentLeads.length - 1; ai >= 0; ai--) {
+            var al = recentLeads[ai];
+            if (!al.assignedTo) continue;
+
+            var sinceAssign = now - (al.assignedAt || al.timestamp);
+
+            // 48 hours — remove from memory (cleanup)
+            if (sinceAssign > 48 * 60 * 60 * 1000) {
+                recentLeads.splice(ai, 1);
+                continue;
+            }
+
+            if (al.dmFollowupDone) continue;
+            if (isQuietHours) continue; // Don't DM staff at night or Shabbat
+
+            // Find assignee phone (helper pattern)
+            var fPhone = null;
+            var fKeys = Object.keys(STAFF_NAMES);
+            for (var fi = 0; fi < fKeys.length; fi++) {
+                if (STAFF_NAMES[fKeys[fi]] === al.assignedTo || STAFF_FULL_NAMES[fKeys[fi]] === al.assignedTo) {
+                    fPhone = fKeys[fi]; break;
+                }
+            }
+            if (!fPhone) continue;
+
+            var fName = al.lead ? (al.lead.name || al.lead.phone || 'הליד') : 'הליד';
+            var fPhoneDisplay = al.lead ? (al.lead.phone || '') : '';
+
+            // 1 hour — first DM
+            if (sinceAssign > 60 * 60 * 1000 && !al.dmFollowup1) {
+                al.dmFollowup1 = true;
+                al.lastAskedDocId = al.docId; // Track which lead we asked about
+                await botSend(fPhone + '@c.us', 'מה קרה עם *' + fName + '*?' + (fPhoneDisplay ? ' (' + fPhoneDisplay + ')' : '') + '\nעדכן: דיברתי / לא ענה / נסגר / לא רלוונטי');
+                log('msg', 'DM followup 1h: ' + fName + ' → ' + al.assignedTo);
+            }
+
+            // 4 hours — second DM
+            if (sinceAssign > 4 * 60 * 60 * 1000 && !al.dmFollowup4) {
+                al.dmFollowup4 = true;
+                await botSend(fPhone + '@c.us', 'עדיין ממתין לעדכון — *' + fName + '*\nמה הסטטוס?');
+                log('msg', 'DM followup 4h: ' + fName + ' → ' + al.assignedTo);
+            }
+
+            // 24 hours — stop asking
+            if (sinceAssign > 24 * 60 * 60 * 1000) {
+                al.dmFollowupDone = true;
             }
         }
     }
@@ -346,7 +409,7 @@ setInterval(async function() {
                 var dmId = assigneePhone + '@c.us';
                 var ageText = lead.ageDays < 1 ? Math.round(lead.ageDays * 24) + ' שעות' : Math.round(lead.ageDays) + ' ימים';
                 var urgency = lead.reminderLevel === 'final' ? '🔴 תזכורת אחרונה!' : lead.reminderLevel === 'weekly' ? '🟡 תזכורת' : '🔔 תזכורת פולואפ';
-                var dmText = urgency + '\n*' + (lead.name || 'ליד') + '* ' + (lead.phone || '') + '\nסטטוס: ' + (lead.statusNote || lead.status) + '\nגיל הליד: ' + ageText + '\n\nמה הסטטוס?\nלידוביץ 📋';
+                var dmText = urgency + '\n*' + (lead.name || 'ליד') + '* ' + (lead.phone || '') + '\nסטטוס: ' + (lead.statusNote || lead.status) + '\nגיל הליד: ' + ageText + '\n\nמה הסטטוס?';
                 await botSend(dmId, dmText);
                 log('sent', '📋 Followup [' + lead.reminderLevel + '] → ' + lead.assignedTo + ' for ' + (lead.name || lead.phone) + ' (' + ageText + ')');
             }
@@ -395,21 +458,20 @@ setInterval(async function() {
             var hoursUntil = (m.meetingDate.getTime() - now.getTime()) / (1000 * 60 * 60);
             var isOnline = m.meetingType === 'online';
 
-            // Format meeting date in Israel time
-            var meetIsrael = new Date(m.meetingDate.getTime() + 3 * 3600000);
-            var dayNamesHeb = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-            var dateDisplay = 'יום ' + dayNamesHeb[meetIsrael.getUTCDay()] + ', ' + meetIsrael.getUTCDate() + '.' + ('0' + (meetIsrael.getUTCMonth() + 1)).slice(-2);
-            var timeDisplay = ('0' + meetIsrael.getUTCHours()).slice(-2) + ':' + ('0' + meetIsrael.getUTCMinutes()).slice(-2);
+            // Format meeting date in Israel time (DST-aware)
+            var meetFmt = formatIsraelTime(m.meetingDate.getTime());
+            var dateDisplay = meetFmt.dateDisplay;
+            var timeDisplay = meetFmt.timeStr;
 
             // Reminder 1: 12-36 hours before → ask approval in leads group
             if (!m.reminder1Sent && hoursUntil > 6 && hoursUntil <= 36) {
                 if (cachedLeadsGroupChatId) {
                     var askMsg = '🔔 *תזכורת פגישה — מחר*\n';
-                    askMsg += '👤 ' + (m.name || m.phone) + '\n';
-                    askMsg += '📅 ' + dateDisplay + ' בשעה ' + timeDisplay + '\n';
-                    askMsg += (isOnline ? '💻 גוגל מיט' : '📍 מגדל מידטאון, קומה 39') + '\n';
-                    askMsg += '👨‍💼 אחראי: ' + (m.assignedTo || '—') + '\n\n';
-                    askMsg += '*לשלוח תזכורת ללקוח/ה?*\nכתוב *כן* או *לא*\nלידוביץ 📋';
+                    askMsg += (m.name || m.phone) + '\n';
+                    askMsg += dateDisplay + ' בשעה ' + timeDisplay + '\n';
+                    askMsg += (isOnline ? 'גוגל מיט' : OFFICE_ADDRESS_SHORT) + '\n';
+                    askMsg += 'אחראי: ' + (m.assignedTo || '—') + '\n\n';
+                    askMsg += '*לשלוח תזכורת ללקוח/ה?*\nכתוב *כן* או *לא*';
                     await botSend(cachedLeadsGroupChatId, askMsg);
 
                     // Store as pending approval
@@ -437,10 +499,10 @@ setInterval(async function() {
             if (!m.reminder2Sent && hoursUntil > 0.5 && hoursUntil <= 6) {
                 if (cachedLeadsGroupChatId) {
                     var askMsg2 = '🔔 *תזכורת פגישה — היום!*\n';
-                    askMsg2 += '👤 ' + (m.name || m.phone) + '\n';
-                    askMsg2 += '🕐 ' + timeDisplay + '\n';
-                    askMsg2 += (isOnline ? '💻 גוגל מיט' : '📍 דרך מנחם בגין 144, ת"א') + '\n\n';
-                    askMsg2 += '*לשלוח תזכורת ללקוח/ה?*\nכתוב *כן* או *לא*\nלידוביץ 📋';
+                    askMsg2 += (m.name || m.phone) + '\n';
+                    askMsg2 += timeDisplay + '\n';
+                    askMsg2 += (isOnline ? 'גוגל מיט' : OFFICE_ADDRESS_SHORT) + '\n\n';
+                    askMsg2 += '*לשלוח תזכורת ללקוח/ה?*\nכתוב *כן* או *לא*';
                     await botSend(cachedLeadsGroupChatId, askMsg2);
 
                     recentLeads.unshift({
@@ -471,7 +533,7 @@ setInterval(async function() {
 
             if (minutesSinceAsk >= 30 && rl.nudgeCount === 0 && cachedLeadsGroupChatId) {
                 // First nudge — ask again in group
-                await botSend(cachedLeadsGroupChatId, '⏳ עדיין ממתין לאישור — לשלוח תזכורת ל-*' + (rl.lead.name || 'הלקוח') + '*?\nכתוב *כן* או *לא*\nלידוביץ 📋');
+                await botSend(cachedLeadsGroupChatId, '⏳ עדיין ממתין לאישור — לשלוח תזכורת ל-*' + (rl.lead.name || 'הלקוח') + '*?\nכתוב *כן* או *לא*');
                 rl.nudgeCount = 1;
                 rl.nudgeTime = Date.now();
                 log('msg', '🔔 Nudge 1: ' + (rl.lead.name || rl.docId));
@@ -485,7 +547,7 @@ setInterval(async function() {
                     }
                 }
                 if (nudgePhone) {
-                    await botSend(nudgePhone + '@c.us', '⏳ ממתין לאישור — לשלוח תזכורת ל-*' + (rl.lead.name || 'הלקוח') + '*?\nענה בקבוצת הלידים: *כן* או *לא*\nלידוביץ 📋');
+                    await botSend(nudgePhone + '@c.us', '⏳ ממתין לאישור — לשלוח תזכורת ל-*' + (rl.lead.name || 'הלקוח') + '*?\nענה בקבוצת הלידים: *כן* או *לא*');
                 }
                 rl.nudgeCount = 2;
                 rl.nudgeTime = Date.now();
@@ -542,6 +604,7 @@ wa.on('ready', function() {
     lastConnected = Date.now();
     reconnectAttempts = 0;
     cachedGroupChatId = null; // Reset group cache on reconnect
+    cachedLeadsGroupChatId = null; // Reset leads group cache too
     isReconnecting = false;
     alertSent = false;
 
@@ -554,6 +617,9 @@ wa.on('ready', function() {
 
     // Listen for new sales from the web form → notify group
     startWebSalesListener();
+
+    // Listen for new leads from email → announce in leads group
+    startEmailLeadsListener();
 
     // Restore conversations from previous session
     loadConversations();
@@ -677,9 +743,9 @@ var lastWeeklySent = 0;
 setInterval(async function() {
     if (!isConnected) return;
 
-    var now = new Date(Date.now() + 3 * 3600000); // Israel time
-    var day = now.getDay();   // 0 = Sunday
-    var hour = now.getHours();
+    var ilNow = israelNow();
+    var day = ilNow.getUTCDay();   // 0 = Sunday
+    var hour = ilNow.getUTCHours();
 
     // Send every Sunday at 9:00 AM Israel time (check once per hour)
     if (day === 0 && hour === 9 && Date.now() - lastWeeklySent > 12 * 60 * 60 * 1000) {
@@ -692,13 +758,13 @@ setInterval(async function() {
             }
 
             var msg = '📊 *סיכום שבועי — ' + summary.fromDate + ' עד ' + summary.toDate + '*\n\n';
-            msg += '💰 ' + summary.count + ' עסקאות חדשות\n';
-            msg += '📝 לפני מע"מ: *' + summary.totalBeforeVat.toLocaleString('he-IL') + ' ₪*\n';
-            msg += '🧾 כולל מע"מ: *' + summary.totalWithVat.toLocaleString('he-IL') + ' ₪*\n';
+            msg += summary.count + ' עסקאות חדשות\n';
+            msg += 'לפני מע"מ: *' + summary.totalBeforeVat.toLocaleString('he-IL') + ' ₪*\n';
+            msg += 'כולל מע"מ: *' + summary.totalWithVat.toLocaleString('he-IL') + ' ₪*\n';
 
             var attorneys = Object.keys(summary.byAttorney);
             if (attorneys.length > 0) {
-                msg += '\n👥 *פילוח לפי עו"ד:*\n';
+                msg += '\n*פילוח לפי עו"ד:*\n';
                 // Sort by total descending
                 attorneys.sort(function(a, b) { return summary.byAttorney[b].total - summary.byAttorney[a].total; });
                 attorneys.forEach(function(att, idx) {
@@ -711,8 +777,6 @@ setInterval(async function() {
             if (summary.skippedRecurring > 0) {
                 msg += '\n_(' + summary.skippedRecurring + ' חיובי גבייה לא נספרו)_';
             }
-
-            msg += '\nהכנסוביץ - מס׳ 1 בדיווחים 🏆';
 
             var groupChat = await findGroupChat();
             if (groupChat) {
@@ -740,7 +804,14 @@ async function handleMessage(msg) {
         if (msgId && processedMessages.has(msgId)) return;
         if (msgId) {
             processedMessages.add(msgId);
-            if (processedMessages.size > 500) processedMessages.clear();
+            if (processedMessages.size > 500) {
+                // Sliding window — keep last 250 instead of clearing all
+                var arr = Array.from(processedMessages);
+                processedMessages.clear();
+                for (var pi = arr.length - 250; pi < arr.length; pi++) {
+                    processedMessages.add(arr[pi]);
+                }
+            }
         }
 
         var body = (msg.body || '').trim();
@@ -812,34 +883,54 @@ async function handleMessage(msg) {
 
             try {
 
+            // 0. Enrich command — WhatsApp name lookup for all leads without name
+            if (body.trim() === '!enrich' && senderNumber && STAFF_NAMES[senderNumber]) {
+                await botSend(chatId, '🔍 מתחיל enrichment — שליפת שמות מוואטסאפ...');
+                try {
+                    var result = await enrichLeadNamesFromWhatsApp(wa, db);
+                    var enrichMsg = '✅ *Enrichment הושלם*\n\n' +
+                        '• שמות עודכנו: *' + result.enriched + '*\n' +
+                        '• לא נמצא שם: ' + result.notFound + '\n' +
+                        '• לא בוואטסאפ: ' + result.notOnWhatsapp + '\n' +
+                        '• שגיאות: ' + result.errors;
+                    if (result.remaining > 0) {
+                        enrichMsg += '\n\n📋 נשארו עוד *' + result.remaining + '* לידים — שלח `!enrich` שוב';
+                    }
+                    await botSend(chatId, enrichMsg);
+                } catch (e) {
+                    log('error', 'Enrich failed: ' + e.message);
+                    await botSend(chatId, '❌ Enrichment נכשל: ' + e.message);
+                }
+                return;
+            }
+
             // 1. Lead report request
             if (isLeadReportRequest(body)) {
                 try {
                     var leadStats = await getLeadStats(7);
                     if (leadStats && leadStats.total > 0) {
                         var msg2 = '📊 *סטטוס לידים — 7 ימים אחרונים*\n\n';
-                        msg2 += '🔢 סה"כ: ' + leadStats.total + ' לידים\n';
-                        if (leadStats.unassigned > 0) msg2 += '⚠️ לא שוייכו: ' + leadStats.unassigned + '\n';
+                        msg2 += 'סה"כ: *' + leadStats.total + '* לידים\n';
+                        if (leadStats.unassigned > 0) msg2 += 'לא שוייכו: *' + leadStats.unassigned + '*\n';
                         var statuses = Object.keys(leadStats.byStatus);
-                        var statusLabels = { new: '🆕 חדש', assigned: '👤 שויך', contacted: '📞 נוצר קשר', followup: '🔄 פולואפ', closed: '✅ נסגר', not_relevant: '❌ לא רלוונטי', no_answer: '📵 לא ענה' };
+                        var statusLabels = { new: 'חדש', assigned: 'שויך', contacted: 'נוצר קשר', followup: 'פולואפ', closed: 'נסגר', not_relevant: 'לא רלוונטי', no_answer: 'לא ענה' };
                         statuses.forEach(function(st) {
                             msg2 += (statusLabels[st] || st) + ': ' + leadStats.byStatus[st] + '\n';
                         });
                         var assignees = Object.keys(leadStats.byAssignee);
                         if (assignees.length > 0) {
-                            msg2 += '\n👥 *לפי עובד:*\n';
+                            msg2 += '\n*לפי עובד:*\n';
                             assignees.sort(function(a, b) { return leadStats.byAssignee[b].total - leadStats.byAssignee[a].total; });
                             assignees.forEach(function(a) {
                                 var as = leadStats.byAssignee[a];
                                 msg2 += '• ' + a + ': ' + as.total + ' לידים';
-                                if (as.closed > 0) msg2 += ' (' + as.closed + ' נסגרו ✅)';
+                                if (as.closed > 0) msg2 += ' (' + as.closed + ' נסגרו)';
                                 msg2 += '\n';
                             });
                         }
-                        msg2 += '\nלידוביץ - מס׳ 1 במעקב 📋';
                         await botSend(chatId, msg2);
                     } else {
-                        await botSend(chatId, '📊 אין לידים ב-7 ימים אחרונים.\nלידוביץ - מס׳ 1 במעקב 📋');
+                        await botSend(chatId, '📊 אין לידים ב-7 ימים אחרונים.');
                     }
                 } catch (e) {
                     log('error', 'Lead stats failed: ' + e.message);
@@ -881,43 +972,39 @@ async function handleMessage(msg) {
                             // Notify if returning client
                             if (meetClientInfo && meetClientInfo.sales.length > 0) {
                                 var lastSale = meetClientInfo.sales[0];
-                                await botSend(chatId, '🔄 *לקוח חוזר!* ' + meetingName + '\n💰 עסקה קודמת: ' + (lastSale.amount ? lastSale.amount.toLocaleString('he-IL') + '₪' : '') + ' (' + (lastSale.type || '') + ')\nלידוביץ 📋');
+                                await botSend(chatId, '🔄 *לקוח חוזר* — ' + meetingName + '\nעסקה קודמת: ' + (lastSale.amount ? lastSale.amount.toLocaleString('he-IL') + '₪' : '') + ' (' + (lastSale.type || '') + ')');
                             }
                         }
                     }
                 }
 
                 if (meetingDocId) {
-                    var meetDate = new Date(meeting.meetingDate);
-                    // Display in Israel time (server is UTC, add 3h for display)
-                    var meetDateIsrael = new Date(meeting.meetingDate + 3 * 3600000);
-                    await setMeetingDate(meetingDocId, meeting.meetingDate, 'פגישה נקבעה — ' + meetDateIsrael.getUTCDate() + '/' + (meetDateIsrael.getUTCMonth() + 1), meeting.meetingType, meeting.meetLink);
-                    var dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-                    var dateStr = 'יום ' + dayNames[meetDateIsrael.getUTCDay()] + ', ' + meetDateIsrael.getUTCDate() + '/' + (meetDateIsrael.getUTCMonth() + 1);
-                    var timeStr = ('0' + meetDateIsrael.getUTCHours()).slice(-2) + ':' + ('0' + meetDateIsrael.getUTCMinutes()).slice(-2);
-                    var typeEmoji = meeting.meetingType === 'online' ? '💻 אונליין' : '📍 פיזית';
-                    var confirmMsg = '📅 *פגישה נקבעה!*\n';
-                    confirmMsg += '👤 ' + (meetingName || 'ליד') + '\n';
-                    confirmMsg += '📅 ' + dateStr + ' ב-' + timeStr + '\n';
-                    confirmMsg += typeEmoji + '\n';
-                    if (meeting.meetLink) confirmMsg += '🔗 ' + meeting.meetLink + '\n';
-                    confirmMsg += '👨‍💼 אחראי: ' + (senderFullName || senderName) + '\n';
+                    var meetFmt2 = formatIsraelTime(meeting.meetingDate);
+                    await setMeetingDate(meetingDocId, meeting.meetingDate, 'פגישה נקבעה — ' + meetFmt2.dateStr, meeting.meetingType, meeting.meetLink);
+                    var dateStr = meetFmt2.dateDisplay;
+                    var timeStr = meetFmt2.timeStr;
+                    var typeLabel = meeting.meetingType === 'online' ? 'אונליין' : 'פיזית';
+                    var confirmMsg = '📅 *פגישה נקבעה*\n';
+                    confirmMsg += (meetingName || 'ליד') + '\n';
+                    confirmMsg += dateStr + ' ב-' + timeStr + '\n';
+                    confirmMsg += typeLabel + '\n';
+                    if (meeting.meetLink) confirmMsg += meeting.meetLink + '\n';
+                    confirmMsg += 'אחראי: ' + (senderFullName || senderName) + '\n';
                     // Cross-lookup status
                     if (meetClientInfo && meetClientInfo.sales && meetClientInfo.sales.length > 0) {
                         var lastSale = meetClientInfo.sales[0];
                         var saleAmt = lastSale.amount;
                         var saleDate = lastSale.date || '';
                         if (saleDate && typeof saleDate === 'object' && saleDate.toDate) saleDate = saleDate.toDate().toLocaleDateString('he-IL');
-                        confirmMsg += '🔄 לקוח חוזר! עסקה קודמת: ' + (saleAmt ? saleAmt.toLocaleString('he-IL') + '₪' : '') + (lastSale.type ? ' (' + lastSale.type + ')' : '') + (saleDate ? ' — ' + saleDate : '') + '\n';
+                        confirmMsg += 'לקוח חוזר — עסקה קודמת: ' + (saleAmt ? saleAmt.toLocaleString('he-IL') + '₪' : '') + (lastSale.type ? ' (' + lastSale.type + ')' : '') + (saleDate ? ' — ' + saleDate : '') + '\n';
                     } else if (meetClientInfo && meetClientInfo.billing) {
-                        confirmMsg += '🔄 לקוח ריטיינר! ' + (meetClientInfo.billing.monthlyAmount ? meetClientInfo.billing.monthlyAmount.toLocaleString('he-IL') + '₪/חודש' : '') + '\n';
+                        confirmMsg += 'לקוח ריטיינר — ' + (meetClientInfo.billing.monthlyAmount ? meetClientInfo.billing.monthlyAmount.toLocaleString('he-IL') + '₪/חודש' : '') + '\n';
                     } else {
-                        confirmMsg += '🆕 לקוח חדש (לא נמצא בטופס מכר)\n';
+                        confirmMsg += 'לקוח חדש (לא נמצא בטופס מכר)\n';
                     }
-                    confirmMsg += '✅ נשמר ב-CRM\n\n';
-                    confirmMsg += '🔔 *לשלוח תזכורת ללקוח/ה?*\n';
-                    confirmMsg += 'כתוב *כן* לשליחת תזכורת, או *לא* לביטול.\n';
-                    confirmMsg += 'לידוביץ 📋';
+                    confirmMsg += 'נשמר ב-CRM\n\n';
+                    confirmMsg += '*לשלוח תזכורת ללקוח/ה?*\n';
+                    confirmMsg += 'כתוב *כן* לשליחת תזכורת, או *לא* לביטול.';
                     await botSend(chatId, confirmMsg);
 
                     // Store pending reminder approval
@@ -940,13 +1027,27 @@ async function handleMessage(msg) {
             }
 
             // 2b. Handle reminder approval ("כן" / "לא" after meeting set)
+            // Only match if: (a) there IS a pending approval, (b) sender is a known staff member
             var trimmedBody = body.trim();
             if (trimmedBody === 'כן' || trimmedBody === 'לא' || trimmedBody === 'yes' || trimmedBody === 'no') {
+                // First check: is the sender a known staff member?
+                var senderIsStaff = !!(senderNumber && STAFF_NAMES[senderNumber]);
+                // LID fallback: check if sender's LID resolves to a known staff phone via aliasMap
+                if (!senderIsStaff && senderLid) {
+                    var resolvedPhone = aliasMap[senderLid];
+                    if (resolvedPhone) {
+                        var phoneOnly = resolvedPhone.replace('@c.us', '');
+                        if (STAFF_NAMES[phoneOnly]) senderIsStaff = true;
+                    }
+                }
+                // Find a pending approval (prioritize one assigned to this sender)
                 var pendingLead = null;
-                for (var pi = 0; pi < recentLeads.length; pi++) {
-                    if (recentLeads[pi].pendingReminderApproval) {
-                        pendingLead = recentLeads[pi];
-                        break;
+                if (senderIsStaff) {
+                    for (var pi = 0; pi < recentLeads.length; pi++) {
+                        if (recentLeads[pi].pendingReminderApproval) {
+                            pendingLead = recentLeads[pi];
+                            break;
+                        }
                     }
                 }
 
@@ -959,13 +1060,12 @@ async function handleMessage(msg) {
                         if (clientPhone.startsWith('0')) clientPhone = '972' + clientPhone.substring(1);
                         var clientWaId = clientPhone + '@c.us';
 
-                        // Format meeting info
-                        var mDate = new Date(pendingLead.meetingDate + 3 * 3600000);
-                        var mDayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-                        var mDateStr = 'יום ' + mDayNames[mDate.getUTCDay()] + ', ' + mDate.getUTCDate() + '.' + ('0' + (mDate.getUTCMonth() + 1)).slice(-2);
-                        var mTimeStr = ('0' + mDate.getUTCHours()).slice(-2) + ':' + ('0' + mDate.getUTCMinutes()).slice(-2);
+                        // Format meeting info (DST-aware)
+                        var mFmt = formatIsraelTime(pendingLead.meetingDate);
+                        var mDateStr = mFmt.dateDisplay;
+                        var mTimeStr = mFmt.timeStr;
                         var mIsOnline = pendingLead.meetingType === 'online';
-                        var assignee = pendingLead.assignedTo || 'חיים פרץ';
+                        var assignee = pendingLead.assignedTo || DEFAULT_ASSIGNEE;
 
                         var clientName = pendingLead.lead.name || '';
                         var firstName = clientName ? clientName.split(' ')[0] : '';
@@ -986,29 +1086,103 @@ async function handleMessage(msg) {
                             if (pendingLead.meetLink) reminderMsg += '\n🔗 ' + pendingLead.meetLink;
                             else reminderMsg += '\nקישור יישלח סמוך למועד הפגישה.';
                         } else {
-                            reminderMsg += '📍 דרך מנחם בגין 144, תל אביב\nמגדל מידטאון, קומה 39';
+                            reminderMsg += '📍 ' + OFFICE_ADDRESS;
                         }
 
                         reminderMsg += '\n\nנתראה בפגישה!\n\n' + assignee + ',\nמשרד עו"ד הרשקוביץ ושות\'';
 
                         try {
                             await botSend(clientWaId, reminderMsg);
-                            await botSend(chatId, '✅ תזכורת נשלחה ל-' + (clientName || 'הלקוח') + '.\nלידוביץ 📋');
+                            await botSend(chatId, '✅ תזכורת נשלחה ל-' + (clientName || 'הלקוח') + '.');
                             log('sent', '📅 Reminder sent to client: ' + (clientName || clientPhone));
                         } catch (sendErr) {
-                            await botSend(chatId, '❌ שגיאה בשליחת תזכורת: ' + sendErr.message + '\nלידוביץ 📋');
+                            await botSend(chatId, '❌ שגיאה בשליחת תזכורת: ' + sendErr.message);
                             log('error', 'Reminder send failed: ' + sendErr.message);
                         }
                     } else {
                         // Denied
-                        await botSend(chatId, '❌ תזכורת בוטלה.\nלידוביץ 📋');
+                        await botSend(chatId, '❌ תזכורת בוטלה.');
                         log('msg', '🔕 Reminder cancelled for ' + (pendingLead.lead.name || pendingLead.docId));
                     }
                     return;
                 }
             }
 
-            // 3. Detect new lead
+            // 2c. Image OCR — extract lead details from screenshot
+            if (msg.hasMedia) {
+                try {
+                    var media = await msg.downloadMedia();
+                    if (media && /^image/.test(media.mimetype)) {
+                        log('msg', 'Image received in leads group, running OCR...');
+                        var ocrResult = await ocrLeadImage(media.data, media.mimetype);
+
+                        if (ocrResult && ocrResult.phone) {
+                            // Got phone from OCR — check if already exists
+                            var ocrLead = {
+                                name: ocrResult.name || null,
+                                phone: ocrResult.phone.replace(/[\s\-]/g, ''),
+                                subject: ocrResult.subject || null,
+                                type: 'image_ocr',
+                                raw: (ocrResult.rawText || '').substring(0, 500),
+                                priority: 'normal'
+                            };
+
+                            // Cross-lookup before saving
+                            var ocrClientInfo = null;
+                            try { ocrClientInfo = await findClientAcrossCollections(ocrLead.phone); } catch(e) {}
+
+                            // Check if already in leads (e.g., from email)
+                            if (ocrClientInfo && ocrClientInfo.lead) {
+                                var existingLead = ocrClientInfo.lead;
+                                var eld = existingLead.data || existingLead;
+                                var fromEmail = eld.source === 'email';
+                                var ocrMsg = '📋 *ליד קיים* — ' + (eld.name || ocrLead.name || ocrLead.phone);
+                                var createdDate = eld.createdAt && eld.createdAt.toDate ? eld.createdAt.toDate() : (eld.createdAt ? new Date(eld.createdAt) : null);
+                                if (createdDate) ocrMsg += '\nפנה ב-' + createdDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: '2-digit' });
+                                if (eld.source) ocrMsg += ' (' + (fromEmail ? 'מהמייל' : eld.source === 'din_sms' ? 'din.co.il' : eld.source === 'missed_call' ? 'שיחה שלא נענתה' : eld.source) + ')';
+                                if (eld.assignedTo) ocrMsg += '\nמשויך ל-' + eld.assignedTo;
+                                else ocrMsg += '\nלא שויך — מי מטפל?';
+                                if (eld.status && eld.status !== 'new') ocrMsg += ' (סטטוס: ' + eld.status + ')';
+                                await botSend(chatId, ocrMsg);
+                                // Update existing lead with OCR data if missing
+                                saveOrUpdateLead(ocrLead);
+                                return;
+                            }
+
+                            // New lead from image
+                            var ocrDocId = await saveOrUpdateLead(ocrLead);
+                            if (ocrDocId) {
+                                var ocrAnnounce = '📋 *ליד חדש* — ' + (ocrLead.name || ocrLead.phone);
+                                if (ocrLead.phone) ocrAnnounce += ', ' + ocrLead.phone;
+                                if (ocrLead.subject) ocrAnnounce += '\n' + ocrLead.subject;
+                                if (ocrClientInfo && ocrClientInfo.sales && ocrClientInfo.sales.length > 0) {
+                                    var ocrSale = ocrClientInfo.sales[0];
+                                    ocrAnnounce += '\nלקוח חוזר (עסקה: ' + (ocrSale.amount ? ocrSale.amount.toLocaleString('he-IL') + '₪' : '') + ')';
+                                }
+                                ocrAnnounce += '\nמי מטפל?';
+                                await botSend(chatId, ocrAnnounce);
+
+                                recentLeads.unshift({
+                                    docId: ocrDocId, lead: ocrLead, timestamp: Date.now(),
+                                    assignedTo: null, senderName: senderName,
+                                    reminded2: false, reminded5: false, reminded15: false
+                                });
+                                if (recentLeads.length > MAX_RECENT_LEADS) recentLeads.pop();
+                                log('msg', 'OCR lead: ' + (ocrLead.name || ocrLead.phone));
+                            }
+                            return;
+                        } else if (ocrResult && ocrResult.rawText) {
+                            // OCR got text but no phone
+                            await botSend(chatId, 'לא הצלחתי לזהות טלפון בתמונה. מה הפרטים?');
+                            return;
+                        }
+                    }
+                } catch (ocrErr) {
+                    log('error', 'OCR lead error: ' + ocrErr.message);
+                }
+            }
+
+            // 3. Detect new lead (text-based)
             var lead = classifyLeadMessage(body, msg.hasMedia, msg.body);
             if (lead) {
                 // Dedup: use saveOrUpdateLead instead of saveLead
@@ -1021,33 +1195,62 @@ async function handleMessage(msg) {
                 }
 
                 if (docId) {
-                    var msgId = msg.id ? msg.id._serialized : '';
-                    recentLeads.unshift({
-                        docId: docId,
-                        msgId: msgId,
-                        lead: lead,
-                        timestamp: Date.now(),
-                        assignedTo: null,
-                        senderName: senderName,
-                        reminded2: false,
-                        reminded5: false,
-                        reminded15: false
-                    });
-                    if (recentLeads.length > MAX_RECENT_LEADS) recentLeads.pop();
                     log('msg', '📋 Lead detected: ' + (lead.name || lead.phone || 'image') + ' [' + lead.type + ']');
 
-                    // Notify group if returning client
-                    if (clientInfo && (clientInfo.sales.length > 0 || clientInfo.billing)) {
-                        var returnMsg = '🔄 *לקוח חוזר!* ' + (lead.name || lead.phone) + '\n';
-                        if (clientInfo.sales.length > 0) {
-                            var lastSale = clientInfo.sales[0];
-                            returnMsg += '💰 עסקה קודמת: ' + (lastSale.clientName || '') + ' — ' + (lastSale.amount ? lastSale.amount.toLocaleString('he-IL') + '₪' : '') + ' (' + (lastSale.type || '') + ')\n';
+                    // Check if lead already exists and is assigned — skip reminders
+                    var existingAssigned = clientInfo && clientInfo.lead && clientInfo.lead.data && clientInfo.lead.data.assignedTo;
+
+                    // Only add to reminder queue if not already assigned
+                    if (!existingAssigned) {
+                        var msgId = msg.id ? msg.id._serialized : '';
+                        recentLeads.unshift({
+                            docId: docId,
+                            msgId: msgId,
+                            lead: lead,
+                            timestamp: Date.now(),
+                            assignedTo: null,
+                            senderName: senderName,
+                            reminded2: false,
+                            reminded5: false,
+                            reminded15: false
+                        });
+                        if (recentLeads.length > MAX_RECENT_LEADS) recentLeads.pop();
+                    }
+
+                    // Immediate announcement for NEW leads (no existing lead found)
+                    if (!clientInfo || !clientInfo.lead) {
+                        var newMsg = '📋 *ליד חדש* — ' + (lead.name || lead.phone || 'ליד');
+                        if (lead.phone && lead.name) newMsg += ', ' + lead.phone;
+                        if (lead.subject) newMsg += '\n' + lead.subject;
+                        newMsg += '\nמי מטפל?';
+                        await botSend(chatId, newMsg);
+                    }
+
+                    // Notify group about existing lead or returning client
+                    if (clientInfo) {
+                        if (clientInfo.lead && clientInfo.lead.data) {
+                            var el = clientInfo.lead.data;
+                            // Always show — even if no name/assignee, the phone was seen before
+                            var existMsg = '📋 *ליד קיים* — ' + (el.name || lead.name || lead.phone);
+                            var elCreated = el.createdAt && el.createdAt.toDate ? el.createdAt.toDate() : (el.createdAt ? new Date(el.createdAt) : null);
+                            if (elCreated) existMsg += '\nפנה ב-' + elCreated.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: '2-digit' });
+                            if (el.source) existMsg += ' (' + (el.source === 'email' ? 'מהמייל' : el.source === 'din_sms' ? 'din.co.il' : el.source === 'missed_call' ? 'שיחה שלא נענתה' : el.source) + ')';
+                            if (el.assignedTo) existMsg += '\nמשויך ל-' + el.assignedTo;
+                            else existMsg += '\nלא שויך — מי מטפל?';
+                            if (el.status && el.status !== 'new') existMsg += ' (סטטוס: ' + el.status + ')';
+                            await botSend(chatId, existMsg);
                         }
-                        if (clientInfo.billing) {
-                            returnMsg += '📋 ריטיינר: ' + (clientInfo.billing.monthlyAmount ? clientInfo.billing.monthlyAmount.toLocaleString('he-IL') + '₪/חודש' : '') + '\n';
+                        if (clientInfo.sales.length > 0 || clientInfo.billing) {
+                            var returnMsg = '🔄 *לקוח חוזר* — ' + (lead.name || lead.phone) + '\n';
+                            if (clientInfo.sales.length > 0) {
+                                var lastSale = clientInfo.sales[0];
+                                returnMsg += 'עסקה קודמת: ' + (lastSale.clientName || '') + ' — ' + (lastSale.amount ? lastSale.amount.toLocaleString('he-IL') + '₪' : '') + ' (' + (lastSale.type || '') + ')\n';
+                            }
+                            if (clientInfo.billing) {
+                                returnMsg += 'ריטיינר: ' + (clientInfo.billing.monthlyAmount ? clientInfo.billing.monthlyAmount.toLocaleString('he-IL') + '₪/חודש' : '') + '\n';
+                            }
+                            await botSend(chatId, returnMsg);
                         }
-                        returnMsg += 'לידוביץ 📋';
-                        await botSend(chatId, returnMsg);
                     }
                 }
                 return;
@@ -1071,10 +1274,11 @@ async function handleMessage(msg) {
                     var ok = await assignLead(relevantLead.docId, assignee);
                     if (ok) {
                         relevantLead.assignedTo = assignee;
+                        relevantLead.assignedAt = Date.now();
                         log('msg', '📋 Lead assigned: ' + (relevantLead.lead.name || '') + ' → ' + assignee);
 
                         // Confirm in group
-                        await botSend(chatId, '✅ *' + (relevantLead.lead.name || 'ליד') + '* — ' + assignee + ' מטפל.\nלידוביץ 📋');
+                        await botSend(chatId, '✅ *' + (relevantLead.lead.name || 'ליד') + '* — ' + assignee + ' מטפל.');
 
                         // DM call prep to assignee (if we have their phone)
                         var assigneePhone = null;
@@ -1088,14 +1292,13 @@ async function handleMessage(msg) {
                         if (assigneePhone) {
                             var leadInfo = relevantLead.lead;
                             var dmText = '📋 *הכנה לשיחה — ' + (leadInfo.name || leadInfo.phone || 'ליד חדש') + '*\n\n';
-                            dmText += '📱 טלפון: ' + (leadInfo.phone || 'לא ידוע') + '\n';
-                            if (leadInfo.subject) dmText += '📌 נושא: ' + leadInfo.subject + '\n';
-                            if (leadInfo.raw) dmText += '💬 הודעה: "' + (leadInfo.raw || '').substring(0, 200) + '"\n';
-                            dmText += '\n💡 *טיפים:*\n';
+                            dmText += 'טלפון: ' + (leadInfo.phone || 'לא ידוע') + '\n';
+                            if (leadInfo.subject) dmText += 'נושא: ' + leadInfo.subject + '\n';
+                            if (leadInfo.raw) dmText += 'הודעה: "' + (leadInfo.raw || '').substring(0, 200) + '"\n';
+                            dmText += '\n*טיפים:*\n';
                             dmText += '• תתקשר תוך שעה — תגובה מהירה = סיכוי סגירה גבוה\n';
                             dmText += '• שאל: מה קרה? מתי? יש תיעוד?\n';
-                            dmText += '• פגישת ייעוץ: 780₪ + מע"מ\n';
-                            dmText += '\nלידוביץ 📋';
+                            dmText += '• פגישת ייעוץ: *780₪* + מע"מ';
                             try {
                                 await botSend(assigneePhone + '@c.us', dmText);
                                 log('sent', '📋 Call prep DM → ' + assignee);
@@ -1104,8 +1307,9 @@ async function handleMessage(msg) {
                             }
                         }
                     }
+                    return;
                 }
-                return;
+                // No unassigned lead found — fall through to status update detection
             }
 
             // 4. Detect status update
@@ -1131,10 +1335,11 @@ async function handleMessage(msg) {
                         followup ? followup.followupAt : null
                     );
                     log('msg', '📋 Lead status: ' + (senderLead.lead.name || '') + ' → ' + statusUpdate.status);
+                    // Stop DM followup — status updated in group
+                    senderLead.dmFollowupDone = true;
 
-                    // If closed, ask about CRM
                     if (statusUpdate.status === 'closed') {
-                        await botSend(chatId, '🎉 *' + (senderLead.lead.name || 'ליד') + '* — נסגר! עדכנת CRM?\nלידוביץ 📋');
+                        await botSend(chatId, '✅ *' + (senderLead.lead.name || 'ליד') + '* — נסגר');
                     }
                 }
                 return;
@@ -1158,14 +1363,14 @@ async function handleMessage(msg) {
                     var summary = await getMonthlySummary();
                     if (summary && summary.count > 0) {
                         var msg = '📊 *מכירות חדשות — ' + summary.month + ' ' + summary.year + '*\n';
-                        msg += '📅 ' + summary.fromDate + ' — ' + summary.toDate + '\n\n';
-                        msg += '💰 ' + summary.count + ' עסקאות\n';
-                        msg += '📝 לפני מע"מ: *' + summary.totalBeforeVat.toLocaleString('he-IL') + ' ₪*\n';
-                        msg += '🧾 כולל מע"מ: *' + summary.totalWithVat.toLocaleString('he-IL') + ' ₪*\n';
+                        msg += summary.fromDate + ' — ' + summary.toDate + '\n\n';
+                        msg += summary.count + ' עסקאות\n';
+                        msg += 'לפני מע"מ: *' + summary.totalBeforeVat.toLocaleString('he-IL') + ' ₪*\n';
+                        msg += 'כולל מע"מ: *' + summary.totalWithVat.toLocaleString('he-IL') + ' ₪*\n';
 
                         var attorneys = Object.keys(summary.byAttorney);
                         if (attorneys.length > 1) {
-                            msg += '\n👥 פילוח:\n';
+                            msg += '\nפילוח:\n';
                             attorneys.forEach(function(att) {
                                 var a = summary.byAttorney[att];
                                 msg += '• ' + att + ': ' + a.count + ' עסקאות — ' + a.total.toLocaleString('he-IL') + ' ₪\n';
@@ -1176,12 +1381,11 @@ async function handleMessage(msg) {
                             msg += '\n_(' + summary.skippedRecurring + ' חיובי גבייה חודשית לא נספרו)_';
                         }
 
-                        msg += '\nהכנסוביץ - מס׳ 1 בדיווחים 🏆';
                         await botSend(chatId, msg);
                     } else if (summary && summary.skippedRecurring > 0) {
-                        await botSend(chatId, '📊 אין מכירות חדשות החודש.\n_(' + summary.skippedRecurring + ' חיובי גבייה חודשית לא נספרו)_\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                        await botSend(chatId, '📊 אין מכירות חדשות החודש.\n_(' + summary.skippedRecurring + ' חיובי גבייה חודשית לא נספרו)_');
                     } else {
-                        await botSend(chatId, '📊 אין עסקאות עדיין החודש.\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                        await botSend(chatId, '📊 אין עסקאות עדיין החודש.');
                     }
                 } catch (e) {
                     log('error', 'Summary failed: ' + e.message);
@@ -1220,7 +1424,7 @@ async function handleMessage(msg) {
                 if (!pendingQueue[dmChatId]) pendingQueue[dmChatId] = [];
                 pendingQueue[dmChatId].push({ body: body, senderName: senderName, senderFullName: senderFullName, existingClientData: existingClientData });
                 var prevClient = existingConvo.formData.clientName || 'הלקוח';
-                await botSend(dmChatId, '📋 שמרתי את הדיווח בתור.\nקודם נסיים עם *' + prevClient + '* 👇');
+                await botSend(dmChatId, '📋 שמרתי את הדיווח בתור.\nקודם נסיים עם *' + prevClient + '*.');
                 log('queue', senderName + ' — queued (total: ' + pendingQueue[dmChatId].length + ')');
                 return;
             }
@@ -1271,7 +1475,29 @@ async function handleMessage(msg) {
         var convo = convoLookup ? convoLookup.convo : null;
 
         if (!isGroup) {
-            log('msg', senderName + ' [DM] (chat:' + chatId.substring(0, 15) + ' key:' + convoKey.substring(0, 15) + ' found:' + !!convo + '): ' + body.substring(0, 50));
+            log('msg', senderName + ' [DM] (chat:' + chatId.substring(0, 15) + ' key:' + convoKey.substring(0, 15) + ' found:' + !!convo + ' num:' + senderNumber + '): ' + body.substring(0, 50));
+        }
+
+        // Bot commands via DM (operator only — match by phone or staff name)
+        var isOperator = (senderNumber === OPERATOR_PHONE) || (STAFF_NAMES[OPERATOR_PHONE] && senderName === STAFF_NAMES[OPERATOR_PHONE]);
+        if (!isGroup && isOperator && body.trim() === '!enrich') {
+            await botSend(chatId, '🔍 מתחיל enrichment — שליפת שמות מוואטסאפ (100 לידים)...');
+            try {
+                var result = await enrichLeadNamesFromWhatsApp(wa, null);
+                var enrichMsg = '✅ *Enrichment הושלם*\n\n' +
+                    '• שמות עודכנו: *' + result.enriched + '*\n' +
+                    '• לא נמצא שם: ' + result.notFound + '\n' +
+                    '• לא בוואטסאפ: ' + result.notOnWhatsapp + '\n' +
+                    '• שגיאות: ' + result.errors;
+                if (result.remaining > 0) {
+                    enrichMsg += '\n\n📋 נשארו עוד *' + result.remaining + '* — שלח `!enrich` שוב';
+                }
+                await botSend(chatId, enrichMsg);
+            } catch (e) {
+                log('error', 'Enrich failed: ' + e.message);
+                await botSend(chatId, '❌ Enrichment נכשל: ' + e.message);
+            }
+            return;
         }
 
         // If user was declined/cancelled but sends a message
@@ -1302,10 +1528,10 @@ async function handleMessage(msg) {
                 try {
                     var filled = await verifyTransaction(convo.declinedClient, convo.declinedAmount);
                     if (filled) {
-                        await botSend(chatId, userName + ', מצאתי דיווח על *' + filled.clientName + '* (' + filled.amount.toLocaleString('he-IL') + ' ₪) במערכת.\nזה הדיווח הנכון? ✅\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                        await botSend(chatId, '✅ ' + userName + ', מצאתי דיווח על *' + filled.clientName + '* (' + filled.amount.toLocaleString('he-IL') + ' ₪) במערכת.');
                         delete conversations[convoKey];
                     } else {
-                        await botSend(chatId, userName + ', בדקתי עכשיו במערכת ולא מצאתי דיווח על *' + convo.declinedClient + '* 🤔\nרוצה שנמלא ביחד? ענה *כן*\nאו מלא בטופס: https://tofes-office.netlify.app\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                        await botSend(chatId, '❌ ' + userName + ', לא מצאתי דיווח על *' + convo.declinedClient + '* במערכת.\nרוצה שנמלא ביחד? ענה *כן*\nאו מלא בטופס: https://tofes-office.netlify.app');
                     }
                 } catch (e) {
                     log('error', 'Verify claim failed: ' + e.message);
@@ -1328,7 +1554,7 @@ async function handleMessage(msg) {
                 var matches = await findRecordForEdit(editClientName);
 
                 if (matches.length === 0) {
-                    await botSend(chatId, '🔍 לא מצאתי רשומה של *' + editClientName + '* במערכת.\nבדוק את השם ונסה שוב.\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    await botSend(chatId, '🔍 לא מצאתי רשומה של *' + editClientName + '* במערכת.\nבדוק את השם ונסה שוב.');
                     return;
                 }
 
@@ -1339,7 +1565,7 @@ async function handleMessage(msg) {
                     matches.slice(0, 5).forEach(function(m, i) {
                         listMsg += (i + 1) + '. *' + m.clientName + '* — ' + m.amount.toLocaleString('he-IL') + ' ₪ (' + m.date + ')\n';
                     });
-                    listMsg += '\nשלח את המספר של הרשומה שתרצה לעדכן.\nהכנסוביץ - מס׳ 1 בדיווחים 🏆';
+                    listMsg += '\nשלח את המספר של הרשומה שתרצה לעדכן.';
                     await botSend(chatId, listMsg);
 
                     // Store edit session
@@ -1361,14 +1587,14 @@ async function handleMessage(msg) {
                 // Single match — show details and ask what to update
                 record = matches[0];
                 var detailMsg = '📋 *' + record.clientName + '*\n';
-                detailMsg += '💰 ' + record.amount.toLocaleString('he-IL') + ' ₪\n';
-                detailMsg += '💳 ' + (record.paymentMethod || 'לא צוין') + '\n';
-                detailMsg += '📞 ' + (record.phone || 'חסר') + '\n';
-                detailMsg += '📧 ' + (record.email || 'חסר') + '\n';
-                detailMsg += '🆔 ' + (record.idNumber || 'חסר') + '\n';
-                if (record.checksPhotoURL) detailMsg += '📸 שיקים: יש\n';
-                else detailMsg += '📸 שיקים: חסר\n';
-                detailMsg += '\nמה לעדכן? (סכום / טלפון / מייל / ת.ז / שיקים — שלח תמונה או PDF)\nהכנסוביץ - מס׳ 1 בדיווחים 🏆';
+                detailMsg += record.amount.toLocaleString('he-IL') + ' ₪\n';
+                detailMsg += (record.paymentMethod || 'לא צוין') + '\n';
+                detailMsg += 'טלפון: ' + (record.phone || 'חסר') + '\n';
+                detailMsg += 'מייל: ' + (record.email || 'חסר') + '\n';
+                detailMsg += 'ת.ז: ' + (record.idNumber || 'חסר') + '\n';
+                if (record.checksPhotoURL) detailMsg += 'שיקים: יש\n';
+                else detailMsg += 'שיקים: חסר\n';
+                detailMsg += '\nמה לעדכן? (סכום / טלפון / מייל / ת.ז / שיקים — שלח תמונה או PDF)';
                 await botSend(chatId, detailMsg);
 
                 conversations[chatId] = {
@@ -1384,6 +1610,128 @@ async function handleMessage(msg) {
                     formData: {}
                 };
                 return;
+            }
+
+            // ==================== DM Leads Queries ====================
+            if (!isGroup && senderNumber && STAFF_NAMES[senderNumber]) {
+                var staffFullName = STAFF_FULL_NAMES[senderNumber] || STAFF_NAMES[senderNumber];
+                var handled = false;
+
+                // "הלידים שלי"
+                if (/הלידים שלי|לידים שלי/i.test(body)) {
+                    var myLeads = await getMyLeads(staffFullName);
+                    if (myLeads.length === 0) {
+                        await botSend(chatId, '📋 אין לידים פעילים משויכים אליך כרגע');
+                    } else {
+                        var mlMsg = '📋 *הלידים שלי* (' + myLeads.length + ' פעילים)\n';
+                        myLeads.forEach(function(l, i) {
+                            var created = l.createdAt && l.createdAt.toDate ? l.createdAt.toDate() : null;
+                            var dateStr = created ? created.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }) : '';
+                            mlMsg += '\n' + (i + 1) + '. ' + (l.name || l.phone || 'ליד') + (l.phone && l.name ? ' — ' + l.phone : '');
+                            mlMsg += '\n   ' + (l.subject || '—') + ' | ' + (dateStr ? 'פנה ב-' + dateStr : '') + ' | ' + (l.status || 'new');
+                        });
+                        await botSend(chatId, mlMsg);
+                    }
+                    handled = true;
+                }
+
+                // "מה עם [שם/טלפון]" — only if query is short (name/phone, not a sentence)
+                if (!handled) {
+                    var queryMatch = body.match(/^מה עם (.{2,30})$/);
+                    // Skip if query is empty or looks like a transaction
+                    if (queryMatch && queryMatch[1].trim().length < 2) queryMatch = null;
+                    if (queryMatch) {
+                        var searchResult = await searchLead(queryMatch[1].trim());
+                        if (!searchResult || !searchResult.lead) {
+                            await botSend(chatId, '📋 לא נמצא ליד עבור "' + queryMatch[1].trim() + '"');
+                        } else {
+                            var ld = searchResult.lead.data;
+                            var ldMsg = '📋 *' + (ld.name || ld.phone || 'ליד') + '*' + (ld.phone && ld.name ? ' — ' + ld.phone : '') + '\n';
+                            var ldCreated = ld.createdAt && ld.createdAt.toDate ? ld.createdAt.toDate() : null;
+                            if (ldCreated) ldMsg += 'פנה ב-' + ldCreated.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: '2-digit' });
+                            if (ld.source) ldMsg += ' (' + (ld.source === 'email' ? 'מהמייל' : ld.source === 'din_sms' ? 'din.co.il' : ld.source === 'missed_call' ? 'שיחה' : ld.source) + ')';
+                            ldMsg += '\nסטטוס: ' + (ld.status || 'new');
+                            if (ld.subject) ldMsg += '\nנושא: ' + ld.subject;
+                            if (ld.assignedTo) ldMsg += '\nמשויך ל-' + ld.assignedTo;
+                            if (ld.statusNote) ldMsg += '\nהערה: ' + ld.statusNote;
+                            if (searchResult.sales && searchResult.sales.length > 0) {
+                                var s = searchResult.sales[0];
+                                ldMsg += '\n\nעסקה קודמת: ' + (s.amount ? Number(s.amount).toLocaleString('he-IL') + '₪' : '') + ' (' + (s.type || '') + ')';
+                            }
+                            if (searchResult.billing) {
+                                ldMsg += '\nריטיינר: ' + (searchResult.billing.monthlyAmount ? Number(searchResult.billing.monthlyAmount).toLocaleString('he-IL') + '₪/חודש' : '');
+                            }
+                            if (ld.history && ld.history.length > 0) {
+                                ldMsg += '\n\nהיסטוריה:';
+                                ld.history.slice(-5).forEach(function(h) {
+                                    var hDate = h.at ? new Date(h.at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }) : '';
+                                    ldMsg += '\n• ' + hDate + ' — ' + (h.note || h.action || '');
+                                });
+                            }
+                            await botSend(chatId, ldMsg);
+                        }
+                        handled = true;
+                    }
+                }
+
+                // "סטטוס לידים" in DM
+                if (!handled && isLeadReportRequest(body)) {
+                    var leadStats = await getLeadStats(7);
+                    if (leadStats) {
+                        var myCount = 0, myClosed = 0;
+                        if (leadStats.byAssignee && leadStats.byAssignee[staffFullName]) {
+                            myCount = leadStats.byAssignee[staffFullName].total || 0;
+                            myClosed = leadStats.byAssignee[staffFullName].closed || 0;
+                        }
+                        var statsMsg = '📊 *סטטוס לידים — 7 ימים*\n';
+                        statsMsg += 'סה"כ: ' + leadStats.total + ' | לא שויכו: ' + leadStats.unassigned + '\n';
+                        statsMsg += 'שלך: ' + myCount + ' לידים, ' + myClosed + ' נסגרו';
+                        await botSend(chatId, statsMsg);
+                    }
+                    handled = true;
+                }
+
+                // Quick status update — "דיברתי" / "לא ענה" / "נסגר" after call prep DM
+                // GUARD: skip if message also looks like a transaction (e.g., "נסגר עסקה של 5000")
+                if (!handled && !isTransactionMessage(body)) {
+                    var dmStatusUpdate = detectStatusUpdate(body);
+                    if (dmStatusUpdate) {
+                        var myRecent = null;
+                        // First: match the specific lead we last asked about (lastAskedDocId)
+                        for (var ri = 0; ri < recentLeads.length; ri++) {
+                            if (recentLeads[ri].lastAskedDocId &&
+                                (recentLeads[ri].assignedTo === staffFullName || recentLeads[ri].assignedTo === STAFF_NAMES[senderNumber])) {
+                                myRecent = recentLeads[ri];
+                                break;
+                            }
+                        }
+                        // Fallback: most recent lead assigned to this user
+                        if (!myRecent) {
+                            for (var ri2 = 0; ri2 < recentLeads.length; ri2++) {
+                                if (recentLeads[ri2].assignedTo === staffFullName || recentLeads[ri2].assignedTo === STAFF_NAMES[senderNumber]) {
+                                    myRecent = recentLeads[ri2];
+                                    break;
+                                }
+                            }
+                        }
+                        if (myRecent) {
+                            // FIX: correct argument order (docId, status, updatedBy, note, followupAt)
+                            var dmReason = dmStatusUpdate.reason || body;
+                            var followup = extractFollowupTime(body);
+                            await updateLeadStatus(myRecent.docId, dmStatusUpdate.status, staffFullName, dmReason, followup ? followup.followupAt : null);
+                            var leadName = myRecent.lead ? (myRecent.lead.name || myRecent.lead.phone || 'ליד') : 'ליד';
+                            await botSend(chatId, '✅ *' + leadName + '* עודכן — ' + dmStatusUpdate.status);
+                            myRecent.dmFollowupDone = true;
+                            if (cachedLeadsGroupChatId) {
+                                await botSend(cachedLeadsGroupChatId, '✅ *' + leadName + '* — ' + staffFullName + ' עדכן: ' + dmReason);
+                            }
+                            handled = true;
+                        }
+                        // If no lead found in memory, don't consume — let it fall through
+                    }
+                }
+
+                if (handled) return;
             }
 
             // DM with a new transaction
@@ -1430,17 +1778,17 @@ async function handleMessage(msg) {
                     convo.editStep = 'what';
 
                     var detailMsg = '📋 *' + record.clientName + '*\n';
-                    detailMsg += '💰 ' + record.amount.toLocaleString('he-IL') + ' ₪\n';
-                    detailMsg += '💳 ' + (record.paymentMethod || 'לא צוין') + '\n';
-                    detailMsg += '📞 ' + (record.phone || 'חסר') + '\n';
-                    detailMsg += '📧 ' + (record.email || 'חסר') + '\n';
-                    detailMsg += '🆔 ' + (record.idNumber || 'חסר') + '\n';
-                    if (record.checksPhotoURL) detailMsg += '📸 שיקים: יש\n';
-                    else detailMsg += '📸 שיקים: חסר\n';
-                    detailMsg += '\nמה לעדכן?\nהכנסוביץ - מס׳ 1 בדיווחים 🏆';
+                    detailMsg += record.amount.toLocaleString('he-IL') + ' ₪\n';
+                    detailMsg += (record.paymentMethod || 'לא צוין') + '\n';
+                    detailMsg += 'טלפון: ' + (record.phone || 'חסר') + '\n';
+                    detailMsg += 'מייל: ' + (record.email || 'חסר') + '\n';
+                    detailMsg += 'ת.ז: ' + (record.idNumber || 'חסר') + '\n';
+                    if (record.checksPhotoURL) detailMsg += 'שיקים: יש\n';
+                    else detailMsg += 'שיקים: חסר\n';
+                    detailMsg += '\nמה לעדכן?';
                     await botSend(chatId, detailMsg);
                 } else {
-                    await botSend(chatId, 'שלח מספר בין 1 ל-' + (convo.editMatches || []).length + '\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    await botSend(chatId, 'שלח מספר בין 1 ל-' + (convo.editMatches || []).length);
                 }
                 return;
             }
@@ -1471,10 +1819,10 @@ async function handleMessage(msg) {
                                 var checksMsg = ocrResult.checks && ocrResult.checks.length > 0
                                     ? ocrResult.checks.length + ' שיקים חולצו'
                                     : 'הקובץ הועלה';
-                                await botSend(chatId, '✅ *' + convo.editRecord.clientName + '* עודכן — ' + checksMsg + '!\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                                await botSend(chatId, '✅ *' + convo.editRecord.clientName + '* עודכן — ' + checksMsg + '!');
                                 log('saved', 'Edit: ' + convo.editRecord.clientName + ' — checks uploaded by ' + senderName);
                             } else {
-                                await botSend(chatId, '❌ שגיאה בעדכון. נסה שוב.\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                                await botSend(chatId, '❌ שגיאה בעדכון. נסה שוב.');
                             }
                             delete conversations[convoKey];
                             return;
@@ -1504,38 +1852,38 @@ async function handleMessage(msg) {
                     if (!updateDesc) {
                         convo.editStep = 'value';
                         convo.editField = 'amountBeforeVat';
-                        await botSend(chatId, 'מה הסכום החדש?\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                        await botSend(chatId, 'מה הסכום החדש?');
                         return;
                     }
                 } else if (/טלפון|פלאפון|נייד|phone/i.test(lowerBody)) {
                     convo.editStep = 'value';
                     convo.editField = 'phone';
-                    await botSend(chatId, 'מה הטלפון החדש?\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    await botSend(chatId, 'מה הטלפון החדש?');
                     return;
                 } else if (/מייל|אימייל|email/i.test(lowerBody)) {
                     convo.editStep = 'value';
                     convo.editField = 'email';
-                    await botSend(chatId, 'מה המייל החדש?\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    await botSend(chatId, 'מה המייל החדש?');
                     return;
                 } else if (/ת\.?ז|ח\.?פ|תעודת זהות|idnumber/i.test(lowerBody)) {
                     convo.editStep = 'value';
                     convo.editField = 'idNumber';
-                    await botSend(chatId, 'מה ת.ז / ח.פ החדש?\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    await botSend(chatId, 'מה ת.ז / ח.פ החדש?');
                     return;
                 } else if (/שיקים|צ.קים|שיק|checks|pdf/i.test(lowerBody)) {
-                    await botSend(chatId, '📸 שלח תמונה או PDF של השיקים\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    await botSend(chatId, '📸 שלח תמונה או PDF של השיקים');
                     return; // Stay in editStep 'what' — next message with media will be caught above
                 } else if (/תשלום|אמצעי/i.test(lowerBody)) {
                     convo.editStep = 'value';
                     convo.editField = 'paymentMethod';
-                    await botSend(chatId, 'מה אמצעי התשלום? (אשראי / העברה / מזומן / ביט / שיקים)\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    await botSend(chatId, 'מה אמצעי התשלום? (אשראי / העברה / מזומן / ביט / שיקים)');
                     return;
                 } else if (/סיימתי|יציאה|בטל|סגור/i.test(lowerBody)) {
-                    await botSend(chatId, '👍 סגרתי עריכה.\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    await botSend(chatId, '👍 סגרתי עריכה.');
                     delete conversations[convoKey];
                     return;
                 } else {
-                    await botSend(chatId, 'מה לעדכן?\n• סכום\n• טלפון\n• מייל\n• ת.ז / ח.פ\n• שיקים (שלח תמונה/PDF)\n• תשלום\n• סיימתי\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    await botSend(chatId, 'מה לעדכן?\n• סכום\n• טלפון\n• מייל\n• ת.ז / ח.פ\n• שיקים (שלח תמונה/PDF)\n• תשלום\n• סיימתי');
                     return;
                 }
 
@@ -1544,9 +1892,9 @@ async function handleMessage(msg) {
                     updates.updatedBy = senderFullName;
                     var ok = await updateRecord(convo.editRecord.docId, updates);
                     if (ok) {
-                        await botSend(chatId, '✅ *' + convo.editRecord.clientName + '* עודכן — ' + updateDesc + '\nעוד משהו? או *סיימתי*\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                        await botSend(chatId, '✅ *' + convo.editRecord.clientName + '* עודכן — ' + updateDesc + '\nעוד משהו? או *סיימתי*');
                     } else {
-                        await botSend(chatId, '❌ שגיאה. נסה שוב.\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                        await botSend(chatId, '❌ שגיאה. נסה שוב.');
                     }
                 }
                 return;
@@ -1561,7 +1909,7 @@ async function handleMessage(msg) {
                 if (fieldName === 'amountBeforeVat') {
                     newValue = parseFloat(newValue.replace(/[,\s]/g, '')) || 0;
                     if (newValue <= 0) {
-                        await botSend(chatId, 'סכום לא תקין. נסה שוב.\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                        await botSend(chatId, 'סכום לא תקין. נסה שוב.');
                         return;
                     }
                 }
@@ -1572,10 +1920,10 @@ async function handleMessage(msg) {
 
                 if (ok) {
                     var displayValue = fieldName === 'amountBeforeVat' ? newValue.toLocaleString('he-IL') + ' ₪' : newValue;
-                    await botSend(chatId, '✅ *' + convo.editRecord.clientName + '* עודכן — ' + displayValue + '\nעוד משהו? או *סיימתי*\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    await botSend(chatId, '✅ *' + convo.editRecord.clientName + '* עודכן — ' + displayValue + '\nעוד משהו? או *סיימתי*');
                     convo.editStep = 'what'; // Back to menu for more edits
                 } else {
-                    await botSend(chatId, '❌ שגיאה. נסה שוב.\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                    await botSend(chatId, '❌ שגיאה. נסה שוב.');
                 }
                 return;
             }
@@ -1642,7 +1990,7 @@ async function handleMessage(msg) {
                                 log('turn', convo.senderName + ' → ' + result.status + ' (OCR: ' + ocrResult.checks.length + ' checks from ' + (isPDF ? 'PDF' : 'image') + ')');
                             }
                         } else {
-                            await botSend(chatId, '😅 לא הצלחתי לזהות שיקים. נסה ' + (isPDF ? 'PDF ברור יותר' : 'תמונה ברורה יותר') + ', או ספר לי את הפרטים ידנית.\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                            await botSend(chatId, '❌ לא הצלחתי לזהות שיקים. נסה ' + (isPDF ? 'PDF ברור יותר' : 'תמונה ברורה יותר') + ', או ספר לי את הפרטים ידנית.');
                         }
                         return;
                     }
@@ -1660,7 +2008,7 @@ async function handleMessage(msg) {
                 try {
                     var filled = await verifyTransaction(clientLabel, convo.formData.amount);
                     if (filled) {
-                        await botSend(chatId, userName + ', מצאתי דיווח על *' + filled.clientName + '* (' + filled.amount.toLocaleString('he-IL') + ' ₪) במערכת.\nמעולה! סוגר את הטיפול 💪\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                        await botSend(chatId, '✅ ' + userName + ', מצאתי דיווח על *' + filled.clientName + '* (' + filled.amount.toLocaleString('he-IL') + ' ₪) במערכת.');
                         delete conversations[convoKey];
                         await startNextFromQueue(convoKey);
                         return;
@@ -1742,7 +2090,7 @@ async function handleMessage(msg) {
                 var amount = String(result.formData.amount || '').replace(/[,\s]/g, '');
                 var amountNum = parseFloat(amount) || 0;
                 var amountDisplay = amountNum > 0 ? amountNum.toLocaleString('he-IL') + ' ₪' : '';
-                await botSend(chatId, '✅ *נשמר!* ' + clientName + (amountDisplay ? ' — ' + amountDisplay : '') + ' נרשם במערכת 🎉\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                await botSend(chatId, '✅ *' + clientName + '* — ' + (amountDisplay || '') + ' נרשם');
                 stats.saved++;
                 log('saved', clientName + ' — ' + docId);
 
@@ -1751,7 +2099,7 @@ async function handleMessage(msg) {
                     var groupChat = await findGroupChat();
                     if (groupChat) {
                         var senderFirst = (convo.senderName || '').split(' ')[0] || 'משתמש';
-                        await botSend(groupChat, '✅ *' + clientName + '* דווח ונרשם בטופס מכר על ידי ' + senderFirst + '.\nתודה! מחכה לעוד 💪\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                        await botSend(groupChat, '✅ *' + clientName + '* דווח ונרשם על ידי ' + senderFirst + '.');
                     }
                 } catch (groupErr) {
                     log('error', 'Group notify failed: ' + groupErr.message);
@@ -1769,7 +2117,7 @@ async function handleMessage(msg) {
             var amount = convo.formData.amount || '';
             var userName = (convo.senderName || '').split(' ')[0] || 'היי';
 
-            await botSend(chatId, result.message + '\n\n📝 קישור לטופס:\nhttps://tofes-office.netlify.app\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+            await botSend(chatId, result.message + '\n\n📝 קישור לטופס:\nhttps://tofes-office.netlify.app');
 
             // Both cancelled and declined → monitor until filled
             convo.declined = true;
@@ -1886,7 +2234,7 @@ function startWebSalesListener() {
                     // Send to group
                     findGroupChat().then(function(groupChat) {
                         if (groupChat) {
-                            botSend(groupChat, '✅ *' + clientName + '* דווח ונרשם בטופס מכר על ידי ' + filler + '.\nהכנסוביץ - מס׳ 1 בדיווחים 🏆');
+                            botSend(groupChat, '✅ *' + clientName + '* דווח ונרשם בטופס מכר על ידי ' + filler + '.');
                         }
                     }).catch(function(e) {
                         log('error', 'Web sale notify failed: ' + e.message);
@@ -1904,6 +2252,176 @@ function startWebSalesListener() {
     }
 }
 
+// ==================== Email Leads Listener ====================
+// Listens for new leads from email (din.co.il) and announces in the leads group
+
+var emailLeadsListenerActive = false;
+
+function startEmailLeadsListener() {
+    if (emailLeadsListenerActive) return;
+    emailLeadsListenerActive = true;
+
+    try {
+        var firestore = require('firebase-admin').firestore();
+        var startTime = require('firebase-admin').firestore.Timestamp.now();
+
+        firestore.collection('leads')
+            .where('source', '==', 'email')
+            .where('createdAt', '>', startTime)
+            .onSnapshot(function(snapshot) {
+                snapshot.docChanges().forEach(function(change) {
+                    if (change.type !== 'added') return;
+
+                    var d = change.doc.data();
+                    var name = d.name || '';
+                    var phone = d.phone || '';
+                    var subject = d.subject || '';
+                    var score = d.aiScore || 0;
+
+                    if (!name && !phone) return; // Skip empty leads
+
+                    log('msg', 'Email lead detected: ' + (name || phone));
+
+                    // Announce in leads group
+                    if (cachedLeadsGroupChatId) {
+                        var emailMsg = '📧 *ליד מהמייל*\n';
+                        emailMsg += (name || 'לא ידוע') + (phone ? ' — ' + phone : '') + '\n';
+                        if (subject) emailMsg += subject + '\n';
+                        if (score) emailMsg += 'ציון: ' + score + '/10\n';
+                        emailMsg += 'מי מטפל?';
+                        botSend(cachedLeadsGroupChatId, emailMsg);
+
+                        // Add to recentLeads for reminder/assignment tracking
+                        recentLeads.unshift({
+                            docId: change.doc.id,
+                            msgId: null,
+                            lead: { name: name, phone: phone, subject: subject, type: 'email' },
+                            timestamp: Date.now(),
+                            assignedTo: null,
+                            senderName: 'email',
+                            reminded2: false,
+                            reminded5: false,
+                            reminded15: false
+                        });
+                        if (recentLeads.length > MAX_RECENT_LEADS) recentLeads.pop();
+                    } else {
+                        log('warn', 'Email lead received but leads group not cached yet');
+                    }
+                });
+            }, function(err) {
+                log('error', 'Email leads listener error: ' + err.message);
+                emailLeadsListenerActive = false;
+            });
+
+        log('msg', 'Email leads listener active — monitoring new leads from email');
+    } catch (e) {
+        log('error', 'Failed to start email leads listener: ' + e.message);
+        emailLeadsListenerActive = false;
+    }
+}
+
+// ==================== WhatsApp Name Enrichment ====================
+
+function isRealName(name) {
+    if (!name || !name.trim()) return false;
+    var clean = name.trim();
+    if (clean.length < 2) return false;
+    if (/^[\d\s\-+()]+$/.test(clean)) return false;
+    return true;
+}
+
+function normalizeToWaId(phone) {
+    var d = toInternational(phone);
+    while (d.startsWith('972972')) d = d.substring(3);
+    return d + '@c.us';
+}
+
+async function enrichLeadNamesFromWhatsApp(waClient, firestore) {
+    if (!firestore) firestore = require('firebase-admin').firestore();
+    var BATCH_LIMIT = 100;
+
+    var leadsSnap = await firestore.collection('leads').get();
+    var noName = [];
+
+    leadsSnap.forEach(function(doc) {
+        var data = doc.data();
+        var name = (data.name || '').trim();
+        var phone = (data.phone || '').trim();
+        if (phone && (!name || /^[\d\s\-+()]+$/.test(name))) {
+            noName.push({ docId: doc.id, phone: phone });
+        }
+    });
+
+    var totalWithoutName = noName.length;
+    var remaining = Math.max(0, totalWithoutName - BATCH_LIMIT);
+    if (noName.length > BATCH_LIMIT) noName = noName.slice(0, BATCH_LIMIT);
+
+    log('msg', 'Enrich: processing ' + noName.length + ' of ' + totalWithoutName + ' leads without name');
+
+    var enriched = 0, notFound = 0, notOnWhatsapp = 0, errors = 0;
+    var batch = firestore.batch();
+    var batchCount = 0;
+
+    for (var i = 0; i < noName.length; i++) {
+        var lead = noName[i];
+
+        try {
+            var waId = normalizeToWaId(lead.phone);
+
+            var isRegistered = await waClient.isRegisteredUser(waId);
+            if (!isRegistered) { notOnWhatsapp++; continue; }
+
+            var contact = await waClient.getContactById(waId);
+            var waName = contact.name || contact.pushname || '';
+
+            // Log first 10 for debugging
+            if (i < 10) {
+                log('msg', 'Enrich debug: ' + lead.phone + ' → pushname=[' + (contact.pushname || '') + '] name=[' + (contact.name || '') + '] waName=[' + waName + ']');
+            }
+
+            if (isRealName(waName)) {
+                var phoneDigits = lead.phone.replace(/\D/g, '');
+                if (phoneDigits.startsWith('972')) phoneDigits = '0' + phoneDigits.substring(3);
+
+                batch.update(firestore.collection('leads').doc(lead.docId), {
+                    name: waName.trim(),
+                    nameSource: contact.name ? 'whatsapp_contact' : 'whatsapp_pushname',
+                    phoneLast7: phoneDigits.slice(-7),
+                    lastUpdated: require('firebase-admin').firestore.FieldValue.serverTimestamp(),
+                    history: require('firebase-admin').firestore.FieldValue.arrayUnion({
+                        action: 'name_enriched',
+                        by: 'whatsapp-lookup',
+                        at: new Date().toISOString(),
+                        note: 'שם מוואטסאפ: ' + waName.trim()
+                    })
+                });
+                batchCount++;
+                enriched++;
+
+                if (batchCount >= 450) {
+                    await batch.commit();
+                    batch = firestore.batch();
+                    batchCount = 0;
+                }
+            } else {
+                notFound++;
+            }
+
+            // Rate limit every 10 lookups
+            if (i % 10 === 0 && i > 0) {
+                await new Promise(function(r) { setTimeout(r, 1500); });
+            }
+        } catch (e) {
+            errors++;
+        }
+    }
+
+    if (batchCount > 0) await batch.commit();
+
+    log('msg', 'Enrich done: ' + enriched + ' enriched, ' + notFound + ' no name, ' + notOnWhatsapp + ' not on WA, ' + errors + ' errors, ' + remaining + ' remaining');
+    return { enriched: enriched, notFound: notFound, notOnWhatsapp: notOnWhatsapp, errors: errors, remaining: remaining };
+}
+
 async function botSend(chatId, text) {
     try {
         var textHash = text.substring(0, 80);
@@ -1912,8 +2430,10 @@ async function botSend(chatId, text) {
 
         var sent = await wa.sendMessage(chatId, text);
         if (sent && sent.id) botMessageIds.add(sent.id._serialized);
+        return true;
     } catch (err) {
         log('error', 'Send failed: ' + err.message);
+        return false;
     }
 }
 
@@ -1962,11 +2482,12 @@ function saveConversations() {
         var data = {
             conversations: conversations,
             pendingQueue: pendingQueue,
+            recentLeads: recentLeads,
             savedAt: Date.now()
         };
         fs.writeFileSync(SESSION_FILE, JSON.stringify(data));
         var count = Object.keys(conversations).length;
-        if (count > 0) log('warn', 'Saved ' + count + ' conversations to disk');
+        if (count > 0 || recentLeads.length > 0) log('warn', 'Saved ' + count + ' conversations + ' + recentLeads.length + ' leads to disk');
     } catch (e) {
         log('error', 'Save conversations failed: ' + e.message);
     }
@@ -1992,6 +2513,18 @@ function loadConversations() {
             log('warn', 'Restored ' + count + ' conversations from disk');
         }
 
+        // Restore recentLeads with age cleanup
+        if (data.recentLeads && data.recentLeads.length > 0) {
+            var now = Date.now();
+            recentLeads = data.recentLeads.filter(function(rl) {
+                var age = now - rl.timestamp;
+                if (!rl.assignedTo && age > 60 * 60 * 1000) return false; // 1hr unassigned
+                if (rl.assignedTo && age > 48 * 60 * 60 * 1000) return false; // 48hr assigned
+                return true;
+            });
+            if (recentLeads.length > 0) log('warn', 'Restored ' + recentLeads.length + ' recent leads from disk');
+        }
+
         // Keep backup file (don't delete) — prevents data loss on rapid restarts
     } catch (e) {
         log('error', 'Load conversations failed: ' + e.message);
@@ -2000,7 +2533,7 @@ function loadConversations() {
 
 // Auto-save every 2 minutes (in case of unexpected crash)
 setInterval(function() {
-    if (Object.keys(conversations).length > 0) {
+    if (Object.keys(conversations).length > 0 || recentLeads.length > 0) {
         saveConversations();
     }
 }, 2 * 60 * 1000);

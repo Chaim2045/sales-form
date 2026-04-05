@@ -4,10 +4,14 @@ var fs = require('fs');
 var path = require('path');
 
 var SERVER = '212.80.206.148';
-var PASSWORD = process.argv[2] || 'psRHL2DlV26t9qPO';
+var PASSWORD = process.argv[2] || process.env.DEPLOY_SSH_PASSWORD;
+if (!PASSWORD) {
+    console.error('ERROR: SSH password required. Pass as arg or set DEPLOY_SSH_PASSWORD env var.');
+    process.exit(1);
+}
 var REMOTE_DIR = '/opt/hachnasovitz';
 
-var FILES = ['index.js', 'agent.js', 'firebase.js', 'package.json', 'ecosystem.config.js', '.env', 'firebase-service-account.json'];
+var FILES = ['index.js', 'agent.js', 'firebase.js', 'leads-detector.js', 'shabbat-checker.js', 'israel-time.js', 'phone-lookup.js', 'phone-utils.js', 'package.json', 'ecosystem.config.js', '.env', 'firebase-service-account.json'];
 
 var conn = new Client();
 

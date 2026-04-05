@@ -8,6 +8,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const { execSync } = require('child_process');
 const { israelNow } = require('./israel-time');
+const { lookupPhone } = require('./phone-lookup');
+const { normalizePhone: sharedNormalizePhone, getLast7: sharedGetLast7 } = require('./phone-utils');
 
 var db = null;
 var bucket = null;
@@ -911,9 +913,27 @@ async function processCheckPDF(base64Data) {
 async function saveLead(leadData) {
     var firestore = initFirebase();
 
+    // Phone lookup — enrich name if missing
+    var leadName = (leadData.name || '').trim();
+    var leadPhone = (leadData.phone || '').trim();
+    var nameSource = '';
+
+    if ((!leadName || /^\d+$/.test(leadName)) && leadPhone) {
+        try {
+            var lookup = await lookupPhone(leadPhone, firestore);
+            if (lookup && lookup.name) {
+                leadName = lookup.name;
+                nameSource = lookup.source;
+                console.log('[Leads] Phone lookup: ' + leadPhone + ' → ' + leadName + ' (' + nameSource + ')');
+            }
+        } catch (e) {
+            console.error('[Leads] Phone lookup failed:', e.message);
+        }
+    }
+
     var record = {
-        name: (leadData.name || '').trim(),
-        phone: (leadData.phone || '').trim(),
+        name: leadName,
+        phone: leadPhone,
         phoneLast7: getLast7(leadData.phone),
         subject: (leadData.subject || '').trim(),
         source: leadData.type || 'unknown',
@@ -928,11 +948,12 @@ async function saveLead(leadData) {
         originalMessage: (leadData.raw || '').substring(0, 500),
         crmUpdated: false,
         escalated: false,
+        nameSource: nameSource || null,
         history: [{
             action: 'created',
             by: 'bot',
             at: new Date().toISOString(),
-            note: 'ליד נקלט מ-' + (leadData.type || 'unknown')
+            note: 'ליד נקלט מ-' + (leadData.type || 'unknown') + (nameSource ? ' (שם מ-' + nameSource + ')' : '')
         }]
     };
 
@@ -1070,11 +1091,10 @@ async function getDueFollowups() {
         // Only look at leads created in the last 14 days (older = expired)
         var maxAge = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
+        // Simple query without orderBy to avoid composite index requirement
         var snapshot = await firestore.collection('leads')
             .where('status', 'in', ['assigned', 'contacted', 'followup', 'no_answer'])
-            .where('createdAt', '>=', maxAge)
-            .orderBy('createdAt', 'desc')
-            .limit(100)
+            .limit(200)
             .get();
 
         var due = [];
@@ -1117,8 +1137,14 @@ async function getDueFollowups() {
                 status: d.status,
                 statusNote: d.statusNote,
                 ageDays: Math.round(ageDays * 10) / 10,
-                reminderLevel: reminderLevel
+                reminderLevel: reminderLevel,
+                followupAt: followupTime
             });
+        });
+
+        // Sort by followup time ascending (most urgent first)
+        due.sort(function(a, b) {
+            return (a.followupAt ? a.followupAt.getTime() : 0) - (b.followupAt ? b.followupAt.getTime() : 0);
         });
 
         return due;
@@ -1130,23 +1156,10 @@ async function getDueFollowups() {
 
 // ==================== Cross-Collection Phone Lookup ====================
 
-// SHARED LOGIC — keep in sync with js/firebase-init.js normalizePhone()
-function normalizePhone(phone) {
-    if (!phone) return '';
-    var d = phone.replace(/\D/g, '');
-    if (d.startsWith('972')) d = '0' + d.substring(3);
-    if (d.length === 9 && /^[5]/.test(d)) d = '0' + d;
-    return d;
-}
-// backward compat alias
+// Phone normalization — delegated to shared phone-utils.js
+var normalizePhone = sharedNormalizePhone;
 var normalizePhoneForSearch = normalizePhone;
-
-// Get last 7 digits — the unique part of any Israeli phone
-function getLast7(phone) {
-    if (!phone) return '';
-    var digits = phone.replace(/\D/g, '');
-    return digits.slice(-7);
-}
+var getLast7 = sharedGetLast7;
 
 // ==================== Client Identity — getOrCreateClient ====================
 // SHARED LOGIC — keep in sync with js/client-utils.js
@@ -1394,8 +1407,20 @@ async function saveOrUpdateLead(leadData) {
                 phoneLast7: last7  // ensure field exists for future queries
             };
             // Update name if we have one and existing doesn't
-            if (leadData.name && (!found.data.name || /^\d+$/.test(found.data.name))) {
-                updates.name = leadData.name.trim();
+            var enrichedName = leadData.name;
+            if ((!enrichedName || /^\d+$/.test(enrichedName)) && (!found.data.name || /^\d+$/.test(found.data.name))) {
+                // Neither lead data nor existing has a name — try phone lookup
+                try {
+                    var lookupResult = await lookupPhone(leadData.phone, firestore);
+                    if (lookupResult && lookupResult.name) {
+                        enrichedName = lookupResult.name;
+                        updates.nameSource = lookupResult.source;
+                        console.log('[Leads] Dedup enriched: ' + leadData.phone + ' → ' + enrichedName);
+                    }
+                } catch (e) {}
+            }
+            if (enrichedName && (!found.data.name || /^\d+$/.test(found.data.name))) {
+                updates.name = enrichedName.trim();
             }
             if (leadData.subject && !found.data.subject) updates.subject = leadData.subject;
             if (leadData.raw) updates.originalMessage = (leadData.raw || '').substring(0, 500);
@@ -1427,8 +1452,8 @@ async function setMeetingDate(docId, meetingDate, note, meetingType, meetLink) {
         var updates = {
             meetingDate: new Date(meetingDate),
             meetingType: meetingType || 'physical',
-            meetingReminder1Sent: true,  // Default: disabled. Set to false on "כן" approval
-            meetingReminder2Sent: true,
+            meetingReminder1Sent: false,
+            meetingReminder2Sent: false,
             status: 'closed',
             lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             history: admin.firestore.FieldValue.arrayUnion({
@@ -1574,6 +1599,106 @@ async function ocrLeadImage(base64Data, mimetype) {
     }
 }
 
+// ==================== DM Lead Queries ====================
+
+async function getMyLeads(assigneeName) {
+    var firestore = initFirebase();
+    try {
+        var snapshot = await firestore.collection('leads')
+            .where('assignedTo', '==', assigneeName)
+            .limit(50)
+            .get();
+
+        var leads = [];
+        snapshot.forEach(function(doc) {
+            var d = doc.data();
+            var st = d.status || 'new';
+            // Only active leads — exclude closed and not_relevant
+            if (st === 'not_relevant' || st === 'closed') return;
+            leads.push({
+                docId: doc.id,
+                name: d.name || '',
+                phone: d.phone || '',
+                status: st,
+                subject: d.subject || '',
+                source: d.source || '',
+                createdAt: d.createdAt,
+                followupAt: d.followupAt
+            });
+        });
+
+        // Sort by createdAt desc (newest first)
+        leads.sort(function(a, b) {
+            var ta = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().getTime() : 0;
+            var tb = b.createdAt && b.createdAt.toDate ? b.createdAt.toDate().getTime() : 0;
+            return tb - ta;
+        });
+
+        return leads.slice(0, 20);
+    } catch (err) {
+        console.error('[Leads] getMyLeads error:', err.message);
+        return [];
+    }
+}
+
+async function searchLead(query) {
+    if (!query || query.trim().length < 2) return null;
+    var firestore = initFirebase();
+    try {
+        var digits = query.replace(/\D/g, '');
+        var isPhone = digits.length >= 7;
+
+        var found = null;
+
+        if (isPhone) {
+            // Search by phone (last 7 digits)
+            var last7 = digits.slice(-7);
+            var snap = await firestore.collection('leads')
+                .where('phoneLast7', '==', last7)
+                .limit(5)
+                .get();
+
+            snap.forEach(function(doc) {
+                if (!found) found = { docId: doc.id, data: doc.data() };
+            });
+        }
+
+        if (!found) {
+            // Search by name — load recent 300 and filter
+            var nameSnap = await firestore.collection('leads')
+                .orderBy('createdAt', 'desc')
+                .limit(300)
+                .get();
+
+            var queryLower = query.trim().toLowerCase();
+            nameSnap.forEach(function(doc) {
+                if (found) return;
+                var d = doc.data();
+                var name = (d.name || '').toLowerCase();
+                if (name.indexOf(queryLower) !== -1) {
+                    found = { docId: doc.id, data: d };
+                }
+            });
+        }
+
+        if (!found) return null;
+
+        // Cross-lookup for enrichment
+        var result = { lead: found, sales: [], billing: null };
+        var leadPhone = found.data.phone;
+        if (leadPhone) {
+            var cross = await findClientAcrossCollections(leadPhone);
+            result.sales = cross.sales || [];
+            result.billing = cross.billing || null;
+        }
+
+        return result;
+    } catch (err) {
+        console.error('[Leads] searchLead error:', err.message);
+        return null;
+    }
+}
+
 module.exports = {
     initFirebase,
     saveTransaction,
@@ -1600,5 +1725,7 @@ module.exports = {
     ocrLeadImage,
     getOrCreateClient,
     normalizePhone,
-    getLast7
+    getLast7,
+    getMyLeads,
+    searchLead
 };

@@ -291,7 +291,7 @@ function enrichLeadOnOpen(record) {
                 html += '<div class="ld-enrich-row">' +
                     '<span class="ld-enrich-label">ריטיינר</span> ' +
                     (billingMatch.amount ? Number(billingMatch.amount).toLocaleString('he-IL') + '₪/חודש' : '') +
-                    ' — ' + escapeHTML(billingMatch.status) +
+                    (billingMatch.status ? ' — ' + escapeHTML(billingMatch.status) : '') +
                     '</div>';
             }
             enrichContent.innerHTML = html;
