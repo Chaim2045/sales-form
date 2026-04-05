@@ -477,9 +477,15 @@ async function loadMoreLeads() {
     if (!leadsHasMore || leadsLoadingMore || !leadsLastDoc) return;
     leadsLoadingMore = true;
 
+    // Disconnect observer during load to prevent re-trigger loop
+    if (_leadsScrollObserver) { _leadsScrollObserver.disconnect(); _leadsScrollObserver = null; }
+
     // Show loading indicator
     var loadMoreBtn = document.getElementById('ldLoadMore');
-    if (loadMoreBtn) loadMoreBtn.textContent = 'טוען...';
+    if (loadMoreBtn) {
+        loadMoreBtn.textContent = 'טוען...';
+        loadMoreBtn.disabled = true;
+    }
 
     try {
         var snapshot = await db.collection('leads')
@@ -501,12 +507,32 @@ async function loadMoreLeads() {
         leadsDuplicateMap = scanForDuplicates(leadsRecords);
         populateLeadsFilters();
         updateLeadsSummary(getFilteredLeads());
+
+        // Update button instead of full re-render to avoid observer loop
+        if (loadMoreBtn) {
+            if (leadsHasMore) {
+                loadMoreBtn.textContent = 'טען עוד לידים (' + leadsRecords.length + ' טעונים)';
+                loadMoreBtn.disabled = false;
+            } else {
+                loadMoreBtn.parentElement.remove();
+            }
+        }
+
+        // Re-render content only (not pagination)
         renderLeadsView();
 
     } catch (err) {
         console.error('Load more leads error:', err);
+        if (loadMoreBtn) {
+            loadMoreBtn.textContent = 'שגיאה — נסה שוב';
+            loadMoreBtn.disabled = false;
+        }
     } finally {
         leadsLoadingMore = false;
+        // Re-attach observer after a delay to prevent immediate re-trigger
+        if (leadsHasMore) {
+            setTimeout(function() { setupInfiniteScroll(); }, 500);
+        }
     }
 }
 
@@ -830,19 +856,32 @@ function renderLeadsPagination(totalRecords, totalPages) {
     var container = document.getElementById('ldPagination');
     if (!container) return;
 
-    var html = '';
+    // Don't touch the load-more button if it already exists (prevents observer loop)
+    var existingLoadMore = document.getElementById('ldLoadMore');
 
-    // Page buttons (if more than 1 page of filtered results)
+    // Build page buttons
+    var pagesHtml = '';
     if (totalPages > 1) {
-        html += '<div style="display:flex;justify-content:center;gap:4px;padding:12px;">';
+        pagesHtml += '<div style="display:flex;justify-content:center;gap:4px;padding:12px;">';
         for (var p = 1; p <= totalPages; p++) {
             var active = p === leadsCurrentPage ? 'background:var(--accent);color:#fff;' : '';
-            html += '<button onclick="leadsGoToPage(' + p + ')" style="padding:4px 10px;border:1px solid var(--border-input);border-radius:var(--radius-sm);font-size:12px;cursor:pointer;' + active + '">' + p + '</button>';
+            pagesHtml += '<button onclick="leadsGoToPage(' + p + ')" style="padding:4px 10px;border:1px solid var(--border-input);border-radius:var(--radius-sm);font-size:12px;cursor:pointer;' + active + '">' + p + '</button>';
         }
-        html += '</div>';
+        pagesHtml += '</div>';
     }
 
-    // "Load more" button (if there are more batches in Firestore)
+    if (existingLoadMore) {
+        // Only update page buttons, leave load-more button alone
+        var pagesContainer = document.getElementById('ldPageButtons');
+        if (pagesContainer) {
+            pagesContainer.innerHTML = pagesHtml;
+        }
+        return;
+    }
+
+    // Full render (first time or after load-more removed itself)
+    var html = '<div id="ldPageButtons">' + pagesHtml + '</div>';
+
     if (leadsHasMore) {
         html += '<div style="text-align:center;padding:8px 0 16px;">' +
             '<button id="ldLoadMore" onclick="loadMoreLeads()" style="padding:8px 24px;border:1px solid var(--border-input);border-radius:var(--radius-md);font-size:13px;font-family:Heebo,sans-serif;cursor:pointer;color:var(--accent);background:var(--bg-primary);">' +
@@ -852,8 +891,10 @@ function renderLeadsPagination(totalRecords, totalPages) {
 
     container.innerHTML = html;
 
-    // Setup IntersectionObserver for infinite scroll
-    setupInfiniteScroll();
+    // Setup IntersectionObserver for infinite scroll (only on first render)
+    if (leadsHasMore) {
+        setTimeout(function() { setupInfiniteScroll(); }, 300);
+    }
 }
 
 var _leadsScrollObserver = null;
@@ -863,7 +904,7 @@ function setupInfiniteScroll() {
     if (_leadsScrollObserver) { _leadsScrollObserver.disconnect(); _leadsScrollObserver = null; }
 
     var loadMoreBtn = document.getElementById('ldLoadMore');
-    if (!loadMoreBtn || !leadsHasMore) return;
+    if (!loadMoreBtn || !leadsHasMore || leadsLoadingMore) return;
 
     _leadsScrollObserver = new IntersectionObserver(function(entries) {
         if (entries[0].isIntersecting && leadsHasMore && !leadsLoadingMore) {
