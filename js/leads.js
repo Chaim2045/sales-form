@@ -13,17 +13,54 @@ var leadsQuickFilter = 'all';
 var leadsLastSeenIds = {};
 var autoScoreQueue = [];
 var autoScoreRunning = false;
+var leadsDuplicateMap = {}; // docId → { isDuplicate, duplicateOf, primaryName }
+
+// ==================== SVG Icons ====================
+
+var LDI = {
+    new:         '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+    assigned:    '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    contacted:   '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+    followup:    '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>',
+    no_answer:   '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="1" y1="1" x2="23" y2="23"/></svg>',
+    closed:      '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    not_relevant:'<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    ai:          '<svg class="ld-icon ld-icon-ai" viewBox="0 0 24 24" fill="none" stroke="url(#aiGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></svg>',
+    save:        '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>',
+    trash:       '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+    calendar:    '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+    whatsapp:    '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
+    mail:        '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+    money:       '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+    lightbulb:   '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>',
+    scale:       '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M5 12H2l5-9 5 9H5z"/><path d="M19 12h-3l5-9 5 9h-7z" transform="translate(-5,0)"/></svg>',
+    clipboard:   '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>',
+    star:        '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+    flame:       '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>',
+    zap:         '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+    help:        '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    clock:       '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    building:    '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="6" x2="9.01" y2="6"/><line x1="15" y1="6" x2="15.01" y2="6"/><line x1="9" y1="10" x2="9.01" y2="10"/><line x1="15" y1="10" x2="15.01" y2="10"/><line x1="9" y1="14" x2="9.01" y2="14"/><line x1="15" y1="14" x2="15.01" y2="14"/><line x1="9" y1="18" x2="15" y2="18"/></svg>',
+    monitor:     '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+    link:        '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+    chart:       '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+    message:     '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+    edit:        '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+    imported:    '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>',
+    week:        '<svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14"/><line x1="12" y1="14" x2="12.01" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/></svg>'
+};
 
 // ==================== Status Labels ====================
 
 var LEAD_STATUS_LABELS = {
-    'new': '🆕 חדש',
-    'assigned': '👤 שויך',
-    'contacted': '📞 נוצר קשר',
-    'followup': '🔄 פולואפ',
-    'no_answer': '📵 לא ענה',
-    'closed': '✅ נסגר',
-    'not_relevant': '❌ לא רלוונטי'
+    'new': LDI.new + ' חדש',
+    'assigned': LDI.assigned + ' שויך',
+    'contacted': LDI.contacted + ' נוצר קשר',
+    'meeting_set': LDI.calendar + ' נקבעה פגישה',
+    'followup': LDI.followup + ' פולואפ',
+    'no_answer': LDI.no_answer + ' לא ענה',
+    'closed': LDI.closed + ' נסגר',
+    'not_relevant': LDI.not_relevant + ' לא רלוונטי'
 };
 
 var LEAD_SOURCE_LABELS = {
@@ -35,6 +72,18 @@ var LEAD_SOURCE_LABELS = {
     'image_lead': 'תמונה',
     'generic': 'אחר',
     'unknown': 'לא ידוע'
+};
+
+// Plain text labels for Chart.js (canvas can't render SVG)
+var LEAD_STATUS_TEXT = {
+    'new': 'חדש',
+    'assigned': 'שויך',
+    'contacted': 'נוצר קשר',
+    'meeting_set': 'נקבעה פגישה',
+    'followup': 'פולואפ',
+    'no_answer': 'לא ענה',
+    'closed': 'נסגר',
+    'not_relevant': 'לא רלוונטי'
 };
 
 // ==================== Show / Hide ====================
@@ -80,6 +129,240 @@ function hideLeadsManagement() {
         leadsRealtimeUnsubscribe = null;
     }
 }
+// Expose for navigation.js which redefines hideLeadsManagement
+window.hideLeadsManagement_internal = hideLeadsManagement;
+
+// Reset all leads state on logout — prevents data leak between users
+function resetLeadsState() {
+    hideLeadsManagement();
+    leadsRecords = [];
+    leadsDataLoaded = false;
+    leadsMyMode = false;
+    leadsQuickFilter = 'all';
+    leadsLastSeenIds = {};
+    autoScoreQueue = [];
+    autoScoreRunning = false;
+    leadsChartsInitialized = false;
+    leadsAllRecords = null;
+    currentLeadDocId = null;
+    leadsCurrentPage = 1;
+    leadsViewMode = 'table';
+    leadsDuplicateMap = {};
+    // Destroy Chart.js instances to prevent memory leak
+    Object.keys(leadsChartInstances).forEach(function(k) {
+        try { leadsChartInstances[k].destroy(); } catch(e) {}
+    });
+    leadsChartInstances = {};
+    // Clear localStorage to prevent state leak between users
+    try { localStorage.removeItem('ld_filters'); } catch(e) {}
+    try { localStorage.removeItem('ld_lastSeen'); } catch(e) {}
+}
+
+// ==================== Duplicate Detection ====================
+
+function getLast7(phone) {
+    if (!phone) return '';
+    return phone.replace(/\D/g, '').slice(-7);
+}
+
+function scanForDuplicates(records) {
+    var phoneMap = {};
+    var dupMap = {};
+
+    records.forEach(function(r) {
+        var last7 = getLast7(r.phone);
+        if (last7.length < 7) return;
+        if (!phoneMap[last7]) phoneMap[last7] = [];
+        phoneMap[last7].push(r);
+    });
+
+    Object.keys(phoneMap).forEach(function(last7) {
+        var group = phoneMap[last7];
+        if (group.length < 2) return;
+        // Sort: newest first = primary (keep), rest = duplicates
+        group.sort(function(a, b) {
+            var ta = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().getTime() : 0;
+            var tb = b.createdAt && b.createdAt.toDate ? b.createdAt.toDate().getTime() : 0;
+            return tb - ta;
+        });
+        for (var i = 1; i < group.length; i++) {
+            dupMap[group[i].id] = {
+                isDuplicate: true,
+                duplicateOf: group[0].id,
+                primaryName: group[0].name || group[0].phone || 'ליד'
+            };
+        }
+    });
+
+    return dupMap;
+}
+
+// ==================== Lead Enrichment ====================
+
+function enrichLeadOnOpen(record) {
+    var enrichEl = document.getElementById('ldModalEnrichment');
+    var enrichContent = document.getElementById('ldModalEnrichContent');
+    if (!enrichEl || !enrichContent) return;
+    enrichEl.style.display = 'none';
+    enrichContent.innerHTML = '';
+
+    var last7 = getLast7(record.phone);
+    if (last7.length < 7) return;
+
+    var salesMatches = [];
+    var billingMatch = null;
+
+    // Search sales_records
+    db.collection('sales_records')
+        .orderBy('timestamp', 'desc')
+        .limit(200)
+        .get()
+        .then(function(snap) {
+            snap.forEach(function(doc) {
+                var d = doc.data();
+                if (getLast7(d.phone) === last7) {
+                    salesMatches.push({
+                        name: d.clientName,
+                        amount: d.amountWithVat || d.amountBeforeVat || 0,
+                        type: d.transactionType || '',
+                        date: d.date || '',
+                        attorney: d.formFillerName || ''
+                    });
+                }
+            });
+
+            // Auto-enrich missing fields
+            if (salesMatches.length > 0) {
+                var enrichUpdates = {};
+                var first = salesMatches[0];
+                if (!record.name && first.name) enrichUpdates.name = first.name;
+                if (Object.keys(enrichUpdates).length > 0) {
+                    db.collection('leads').doc(record.id).update(enrichUpdates);
+                }
+            }
+
+            // Search recurring_billing
+            return db.collection('recurring_billing').limit(100).get();
+        })
+        .then(function(billingSnap) {
+            if (billingSnap) {
+                billingSnap.forEach(function(doc) {
+                    var d = doc.data();
+                    if (getLast7(d.phone) === last7) {
+                        billingMatch = {
+                            name: d.clientName,
+                            amount: d.recurringMonthlyAmount || 0,
+                            status: d.status || 'active'
+                        };
+                    }
+                });
+            }
+
+            // Render
+            if (salesMatches.length === 0 && !billingMatch) return;
+            enrichEl.style.display = '';
+
+            var html = '';
+            salesMatches.forEach(function(s) {
+                var dateStr = s.date ? (typeof s.date === 'string' ? s.date : '') : '';
+                html += '<div class="ld-enrich-row">' +
+                    '<span class="ld-enrich-label">עסקה</span> ' +
+                    escapeHTML(s.name || '') + ' — ' +
+                    '<strong>' + (s.amount ? Number(s.amount).toLocaleString('he-IL') + '₪' : '') + '</strong>' +
+                    (s.type ? ' (' + escapeHTML(s.type) + ')' : '') +
+                    (dateStr ? ' — ' + escapeHTML(dateStr) : '') +
+                    '</div>';
+            });
+            if (billingMatch) {
+                html += '<div class="ld-enrich-row">' +
+                    '<span class="ld-enrich-label">ריטיינר</span> ' +
+                    (billingMatch.amount ? Number(billingMatch.amount).toLocaleString('he-IL') + '₪/חודש' : '') +
+                    ' — ' + escapeHTML(billingMatch.status) +
+                    '</div>';
+            }
+            enrichContent.innerHTML = html;
+        })
+        .catch(function(err) {
+            console.error('Enrichment error:', err);
+        });
+}
+
+// ==================== Duplicate Alert in Modal ====================
+
+function showDuplicateAlert(record) {
+    var dupEl = document.getElementById('ldModalDuplicate');
+    if (!dupEl) return;
+
+    var dupInfo = leadsDuplicateMap[record.id];
+    if (!dupInfo) {
+        dupEl.style.display = 'none';
+        return;
+    }
+
+    var dupLink = document.getElementById('ldModalDupLink');
+    if (dupLink) {
+        dupLink.textContent = dupInfo.primaryName;
+        dupLink.onclick = function(e) { e.preventDefault(); openLeadModal(dupInfo.duplicateOf); };
+    }
+    dupEl.style.display = '';
+}
+
+// ==================== Merge Duplicates ====================
+
+function mergeDuplicateLeads() {
+    if (!currentLeadDocId) return;
+    var dupInfo = leadsDuplicateMap[currentLeadDocId];
+    if (!dupInfo) return;
+
+    var keepId = dupInfo.duplicateOf; // primary (newest)
+    var removeId = currentLeadDocId;  // this one (older duplicate)
+
+    if (!confirm('למזג ליד זה עם ' + dupInfo.primaryName + '?\nהליד הנוכחי יימחק, הנתונים יועברו.')) return;
+
+    var keepRecord = leadsRecords.find(function(r) { return r.id === keepId; });
+    var removeRecord = leadsRecords.find(function(r) { return r.id === removeId; });
+    if (!keepRecord || !removeRecord) return;
+
+    // Build updates: fill missing fields on primary from duplicate
+    var updates = { lastUpdated: firebase.firestore.FieldValue.serverTimestamp() };
+    if (!keepRecord.name && removeRecord.name) updates.name = removeRecord.name;
+    if (!keepRecord.email && removeRecord.email) updates.email = removeRecord.email;
+    if (!keepRecord.subject && removeRecord.subject) updates.subject = removeRecord.subject;
+    if (!keepRecord.assignedTo && removeRecord.assignedTo) updates.assignedTo = removeRecord.assignedTo;
+    if (!keepRecord.aiScore && removeRecord.aiScore) {
+        updates.aiScore = removeRecord.aiScore;
+        updates.aiReason = removeRecord.aiReason || '';
+        updates.aiCategory = removeRecord.aiCategory || '';
+    }
+
+    // Merge history
+    var removeHistory = removeRecord.history || [];
+    if (removeHistory.length > 0) {
+        removeHistory.forEach(function(h) {
+            updates.history = firebase.firestore.FieldValue.arrayUnion(h);
+        });
+    }
+    updates.history = firebase.firestore.FieldValue.arrayUnion({
+        action: 'merged',
+        by: currentUser || 'web',
+        at: new Date().toISOString(),
+        note: 'מוזג מליד כפול'
+    });
+
+    // Update primary, delete duplicate
+    db.collection('leads').doc(keepId).update(updates)
+        .then(function() {
+            return db.collection('leads').doc(removeId).delete();
+        })
+        .then(function() {
+            logAuditEvent('leads_merged', { keepId: keepId, removedId: removeId });
+            closeLeadModal();
+            openLeadModal(keepId);
+        })
+        .catch(function(err) {
+            alert('שגיאה במיזוג: ' + err.message);
+        });
+}
 
 // ==================== Load Data ====================
 
@@ -107,6 +390,7 @@ function loadLeadsData() {
                 }
                 document.getElementById('ldEmpty').style.display = 'none';
 
+                leadsDuplicateMap = scanForDuplicates(leadsRecords);
                 populateLeadsFilters();
                 updateLeadsSummary(getFilteredLeads());
                 updateMyDashboard();
@@ -168,7 +452,7 @@ function updateLeadsSummary(records) {
     records.forEach(function(r) {
         var st = r.status || 'new';
         if (st === 'new') newCount++;
-        else if (st === 'assigned' || st === 'contacted' || st === 'followup' || st === 'no_answer') activeCount++;
+        else if (st === 'assigned' || st === 'contacted' || st === 'meeting_set' || st === 'followup' || st === 'no_answer') activeCount++;
         else if (st === 'closed') closedCount++;
     });
 
@@ -305,8 +589,9 @@ function filterLeadsView() {
     leadsCurrentPage = 1;
     var filtered = getFilteredLeads();
     updateLeadsSummary(filtered);
-    renderLeadsView();
+    renderLeadsView(filtered);
     saveFilterState();
+    return filtered;
 }
 
 // ==================== View Mode ====================
@@ -322,8 +607,8 @@ function setLeadsViewMode(mode) {
 
 // ==================== Render Router ====================
 
-function renderLeadsView() {
-    var filtered = getFilteredLeads();
+function renderLeadsView(filtered) {
+    if (!filtered) filtered = getFilteredLeads();
     var tableView = document.getElementById('ldTableView');
     var cardsView = document.getElementById('ldCardsView');
     var kanbanView = document.getElementById('ldKanbanView');
@@ -375,6 +660,7 @@ function renderLeadsTableView(records, startIdx) {
         var dateStr = formatLeadDate(r.createdAt);
         var statusHtml = '<span class="ld-status ld-status-' + (r.status || 'new') + '">' + (LEAD_STATUS_LABELS[r.status] || r.status || 'חדש') + '</span>';
         var scoreHtml = renderScoreBadge(r.aiScore);
+        var dupBadge = leadsDuplicateMap[r.id] ? '<span class="ld-dup-badge">כפול</span>' : '';
         var sourceLabel = LEAD_SOURCE_LABELS[r.source] || r.source || '';
         var ts = r.createdAt ? (r.createdAt.toDate ? r.createdAt.toDate().getTime() : new Date(r.createdAt).getTime()) : 0;
         var isNew = (now - ts) < 300000;
@@ -385,7 +671,7 @@ function renderLeadsTableView(records, startIdx) {
         var phoneDigits = (r.phone || '').replace(/\D/g, '');
         var phoneHtml = phoneFormatted !== '—' ?
             '<a href="tel:' + phoneDigits + '" class="ld-phone-link" onclick="event.stopPropagation();">' + escapeHTML(phoneFormatted) + '</a>' +
-            '<button class="ld-wa-btn" onclick="event.stopPropagation();openWhatsApp(\'' + phoneDigits + '\')" title="WhatsApp">💬</button>' :
+            '<button class="ld-wa-btn" onclick="event.stopPropagation();openWhatsApp(\'' + phoneDigits + '\')" title="WhatsApp">' + LDI.whatsapp + '</button>' :
             '<span style="color:var(--text-quaternary);">—</span>';
 
         return '<tr' + pulseClass + ' onclick="openLeadModal(\'' + r.id + '\')" style="cursor:pointer;">' +
@@ -396,7 +682,7 @@ function renderLeadsTableView(records, startIdx) {
             '<td class="ld-phone-cell">' + phoneHtml + '</td>' +
             '<td style="font-size:12px;color:var(--text-secondary);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHTML(r.subject || '—') + '</td>' +
             '<td class="ld-source">' + escapeHTML(sourceLabel) + '</td>' +
-            '<td>' + scoreHtml + '</td>' +
+            '<td>' + scoreHtml + dupBadge + '</td>' +
             '<td style="font-size:12px;color:var(--accent);font-weight:500;">' + escapeHTML(r.assignedTo || '—') + '</td>' +
             '<td>' + statusHtml + '</td>' +
             '<td><button class="bm-action-secondary" onclick="event.stopPropagation();openLeadModal(\'' + r.id + '\')" style="padding:3px 10px;font-size:11px;">פרטים</button></td>' +
@@ -411,6 +697,7 @@ function renderLeadsCardsView(records) {
     container.innerHTML = records.map(function(r) {
         var statusHtml = '<span class="ld-status ld-status-' + (r.status || 'new') + '">' + (LEAD_STATUS_LABELS[r.status] || 'חדש') + '</span>';
         var scoreHtml = renderScoreBadge(r.aiScore);
+        var dupBadge = leadsDuplicateMap[r.id] ? '<span class="ld-dup-badge">כפול</span>' : '';
 
         return '<div class="bm-card" onclick="openLeadModal(\'' + r.id + '\')" style="cursor:pointer;">' +
             '<div class="bm-card-top">' +
@@ -418,7 +705,7 @@ function renderLeadsCardsView(records) {
                     '<div class="bm-card-name">' + escapeHTML(r.name || r.phone || 'ליד') + '</div>' +
                     '<div class="bm-card-case">' + escapeHTML(r.subject || '—') + ' | ' + formatLeadDate(r.createdAt) + '</div>' +
                 '</div>' +
-                '<div style="display:flex;gap:6px;align-items:center;">' + scoreHtml + statusHtml + '</div>' +
+                '<div style="display:flex;gap:6px;align-items:center;">' + dupBadge + scoreHtml + statusHtml + '</div>' +
             '</div>' +
             '<div class="bm-card-body">' +
                 '<div class="bm-card-field"><div class="bm-card-field-label">טלפון</div><div class="bm-card-field-value" style="direction:ltr;text-align:right;">' + escapeHTML(formatPhone(r.phone)) + '</div></div>' +
@@ -434,17 +721,17 @@ function renderLeadsCardsView(records) {
 function renderLeadsKanbanView(records) {
     var container = document.getElementById('ldKanbanContainer');
     var columns = [
-        { key: 'new', label: '🆕 חדש', items: [] },
-        { key: 'active', label: '📞 בטיפול', items: [] },
-        { key: 'followup', label: '🔄 פולואפ', items: [] },
-        { key: 'closed', label: '✅ נסגר', items: [] }
+        { key: 'new', label: LDI.new + ' חדש', items: [] },
+        { key: 'active', label: LDI.contacted + ' בטיפול', items: [] },
+        { key: 'followup', label: LDI.followup + ' פולואפ', items: [] },
+        { key: 'closed', label: LDI.closed + ' נסגר', items: [] }
     ];
 
     records.forEach(function(r) {
         var st = r.status || 'new';
         if (st === 'new') columns[0].items.push(r);
         else if (st === 'assigned' || st === 'contacted' || st === 'no_answer') columns[1].items.push(r);
-        else if (st === 'followup') columns[2].items.push(r);
+        else if (st === 'meeting_set' || st === 'followup') columns[2].items.push(r);
         else if (st === 'closed' || st === 'not_relevant') columns[3].items.push(r);
         else columns[0].items.push(r);
     });
@@ -504,9 +791,38 @@ function openLeadModal(docId) {
     document.getElementById('ldModalSource').textContent = LEAD_SOURCE_LABELS[record.source] || record.source || '—';
     document.getElementById('ldModalDate').textContent = formatLeadDateTime(record.createdAt);
 
+    var emailVal = record.email || '';
+
+    // Estimated value (display row)
+    var valRow = document.getElementById('ldModalValueRow');
+    var estVal = record.aiEstimatedValue || record.estimatedValue || '';
+    if (estVal) {
+        document.getElementById('ldModalValueDisplay').textContent = estVal;
+        valRow.style.display = '';
+    } else {
+        valRow.style.display = 'none';
+    }
+
+    // Quick action buttons
+    var phoneDigits = (record.phone || '').replace(/\D/g, '');
+    var waDigits = phoneDigits.startsWith('0') ? '972' + phoneDigits.substring(1) : phoneDigits;
+    document.getElementById('ldQuickCall').href = phoneDigits ? 'tel:' + phoneDigits : '#';
+    document.getElementById('ldQuickWA').href = phoneDigits ? 'https://wa.me/' + waDigits : '#';
+    var quickEmail = document.getElementById('ldQuickEmail');
+    if (emailVal) {
+        quickEmail.href = 'mailto:' + emailVal;
+        quickEmail.style.display = '';
+    } else {
+        quickEmail.style.display = 'none';
+    }
+
+    // Editable fields
     document.getElementById('ldModalStatus').value = record.status || 'new';
     document.getElementById('ldModalAssignee').value = record.assignedTo || '';
     document.getElementById('ldModalNotes').value = record.statusNote || '';
+    document.getElementById('ldModalCategory').value = record.aiCategory || record.category || '';
+    document.getElementById('ldModalEmailInput').value = record.email || '';
+    document.getElementById('ldModalCityInput').value = record.city || '';
 
     if (record.followupAt) {
         var d = record.followupAt.toDate ? record.followupAt.toDate() : new Date(record.followupAt);
@@ -516,28 +832,60 @@ function openLeadModal(docId) {
         document.getElementById('ldModalFollowup').value = '';
     }
 
+    // Meta bar — age, contact attempts, followup reminder
+    populateMetaBar(record);
+
+    // Meeting info
+    var meetSection = document.getElementById('ldModalMeetingSection');
+    if (record.meetingDate) {
+        var md = record.meetingDate.toDate ? record.meetingDate.toDate() : new Date(record.meetingDate);
+        document.getElementById('ldModalMeetingDate').innerHTML = LDI.calendar + ' ' + md.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }) + ' ' + md.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+        var mtEl = document.getElementById('ldModalMeetingType');
+        mtEl.innerHTML = record.meetingType === 'online' ? LDI.monitor + ' פגישה מקוונת' : LDI.building + ' פגישה פיזית';
+        var meetLink = document.getElementById('ldModalMeetLink');
+        if (record.meetLink) {
+            meetLink.href = record.meetLink;
+            meetLink.style.display = '';
+        } else {
+            meetLink.style.display = 'none';
+        }
+        meetSection.style.display = '';
+    } else {
+        meetSection.style.display = 'none';
+    }
+
     // AI Score
     var scoreEl = document.getElementById('ldModalScore');
     if (record.aiScore) {
-        scoreEl.textContent = '⭐ ' + record.aiScore + '/10';
+        scoreEl.innerHTML = LDI.ai + ' ' + record.aiScore + '/10';
         scoreEl.className = 'ld-score-badge ld-score-' + (record.aiScore >= 7 ? 'high' : record.aiScore >= 4 ? 'med' : 'low');
         scoreEl.style.display = '';
     } else {
         scoreEl.style.display = 'none';
     }
 
-    // AI Analysis (enhanced)
-    var aiBox = document.getElementById('ldModalAI');
+    // AI Summary one-liner (visible in action zone)
+    var aiSummary = document.getElementById('ldModalAISummary');
+    var aiSummaryText = document.getElementById('ldModalAISummaryText');
+    if (record.aiAction || record.aiReason) {
+        aiSummaryText.innerHTML = LDI.ai + ' ' + escapeHTML(record.aiAction || record.aiReason || '');
+        aiSummary.style.display = '';
+    } else {
+        aiSummary.style.display = 'none';
+    }
+
+    // AI Full Analysis (collapsible details)
+    var aiDetails = document.getElementById('ldModalAIDetails');
     if (record.aiReason) {
         var aiHtml = '<p>' + escapeHTML(record.aiReason) + '</p>';
-        if (record.aiAction) aiHtml += '<p style="margin-top:6px;font-weight:500;">💡 ' + escapeHTML(record.aiAction) + '</p>';
-        if (record.aiEstimatedValue) aiHtml += '<p style="margin-top:6px;">💰 הערכת שווי: <strong>' + escapeHTML(record.aiEstimatedValue) + '</strong></p>';
-        if (record.aiCallPrep) aiHtml += '<div style="margin-top:8px;padding:8px;background:rgba(59,130,246,0.04);border-radius:6px;"><div style="font-size:11px;font-weight:600;color:var(--accent);margin-bottom:4px;">📋 הכנה לשיחה:</div><p style="margin:0;">' + escapeHTML(record.aiCallPrep) + '</p></div>';
-        if (record.aiLegalContext) aiHtml += '<div style="margin-top:6px;font-size:12px;color:var(--text-tertiary);">⚖️ ' + escapeHTML(record.aiLegalContext) + '</div>';
+        if (record.aiAction) aiHtml += '<p style="margin-top:6px;font-weight:500;">' + LDI.lightbulb + ' ' + escapeHTML(record.aiAction) + '</p>';
+        if (record.aiEstimatedValue) aiHtml += '<p style="margin-top:6px;">' + LDI.money + ' הערכת שווי: <strong>' + escapeHTML(record.aiEstimatedValue) + '</strong></p>';
+        if (record.aiCallPrep) aiHtml += '<div style="margin-top:8px;padding:8px;background:rgba(59,130,246,0.04);border-radius:6px;"><div style="font-size:11px;font-weight:600;color:var(--accent);margin-bottom:4px;">' + LDI.clipboard + ' הכנה לשיחה:</div><p style="margin:0;">' + escapeHTML(record.aiCallPrep) + '</p></div>';
+        if (record.aiLegalContext) aiHtml += '<div style="margin-top:6px;font-size:12px;color:var(--text-tertiary);">' + LDI.scale + ' ' + escapeHTML(record.aiLegalContext) + '</div>';
         document.getElementById('ldModalAIContent').innerHTML = aiHtml;
-        aiBox.style.display = '';
+        aiDetails.style.display = '';
     } else {
-        aiBox.style.display = 'none';
+        aiDetails.style.display = 'none';
     }
 
     // Timeline (Phase 4)
@@ -553,6 +901,12 @@ function openLeadModal(docId) {
     } else {
         origEl.style.display = 'none';
     }
+
+    // Enrichment: cross-collection data
+    enrichLeadOnOpen(record);
+
+    // Duplicate alert
+    showDuplicateAlert(record);
 
     document.getElementById('leadDetailModal').style.display = 'flex';
 }
@@ -571,11 +925,14 @@ function saveLeadUpdate() {
     var newAssignee = document.getElementById('ldModalAssignee').value;
     var newNotes = document.getElementById('ldModalNotes').value.trim();
     var newFollowup = document.getElementById('ldModalFollowup').value;
+    var newCategory = document.getElementById('ldModalCategory').value;
+    var newEmail = document.getElementById('ldModalEmailInput').value.trim();
+    var newCity = document.getElementById('ldModalCityInput').value.trim();
 
     var updates = {
         status: newStatus,
         assignedTo: newAssignee || null,
-        statusNote: newNotes,
+        statusNote: '',
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
         history: firebase.firestore.FieldValue.arrayUnion({
             action: newStatus,
@@ -595,6 +952,11 @@ function saveLeadUpdate() {
         updates.followupAt = null;
     }
 
+    // Save extra editable fields — aiCategory is the single source of truth for category
+    if (newCategory) updates.aiCategory = newCategory;
+    if (newEmail) updates.email = newEmail;
+    if (newCity) updates.city = newCity;
+
     db.collection('leads').doc(currentLeadDocId).update(updates)
         .then(function() {
             closeLeadModal();
@@ -608,12 +970,13 @@ function saveLeadUpdate() {
 // ==================== AI Scoring ====================
 
 function scoreLead() {
-    if (!currentLeadDocId) return;
-    var record = leadsRecords.find(function(r) { return r.id === currentLeadDocId; });
+    var docId = currentLeadDocId; // Capture before async chain
+    if (!docId) return;
+    var record = leadsRecords.find(function(r) { return r.id === docId; });
     if (!record) return;
 
     var btn = document.querySelector('.ld-modal-actions .ld-btn-secondary');
-    if (btn) { btn.textContent = '🤖 מנתח...'; btn.disabled = true; }
+    if (btn) { btn.innerHTML = LDI.ai + ' מנתח...'; btn.disabled = true; }
 
     var authUser = firebase.auth().currentUser;
     if (!authUser) { alert('לא מחובר'); return; }
@@ -636,7 +999,7 @@ function scoreLead() {
     }).then(function(res) { return res.json(); })
     .then(function(data) {
         if (data.score) {
-            db.collection('leads').doc(currentLeadDocId).update({
+            db.collection('leads').doc(docId).update({
                 aiScore: data.score,
                 aiReason: data.reason || '',
                 aiCategory: data.category || '',
@@ -648,14 +1011,14 @@ function scoreLead() {
                 aiLegalContext: data.legalContext || '',
                 aiScoredAt: firebase.firestore.FieldValue.serverTimestamp()
             }).then(function() {
-                openLeadModal(currentLeadDocId);
+                openLeadModal(docId);
             });
         }
     }).catch(function(err) {
         console.error('AI scoring error:', err);
         alert('שגיאה בניתוח AI: ' + err.message);
     }).finally(function() {
-        if (btn) { btn.textContent = '🤖 נתח AI'; btn.disabled = false; }
+        if (btn) { btn.innerHTML = LDI.ai + ' נתח AI'; btn.disabled = false; }
     });
 }
 
@@ -673,9 +1036,9 @@ function scoreAllLeads() {
             alert('הניתוח הושלם!');
             return;
         }
-        currentLeadDocId = unscored[idx].id;
+        var leadToScore = unscored[idx];
         idx++;
-        // Simple sequential scoring
+        // Simple sequential scoring — does NOT mutate currentLeadDocId
         var authUser = firebase.auth().currentUser;
         if (!authUser) return;
         authUser.getIdToken().then(function(idToken) {
@@ -685,23 +1048,28 @@ function scoreAllLeads() {
                 body: JSON.stringify({
                     action: 'score',
                     lead: {
-                        name: unscored[idx - 1].name || '',
-                        subject: unscored[idx - 1].subject || '',
-                        originalMessage: unscored[idx - 1].originalMessage || '',
-                        source: unscored[idx - 1].source || ''
+                        name: leadToScore.name || '',
+                        subject: leadToScore.subject || '',
+                        originalMessage: leadToScore.originalMessage || '',
+                        source: leadToScore.source || '',
+                        phone: leadToScore.phone || ''
                     }
                 })
             });
         }).then(function(res) { return res.json(); })
         .then(function(data) {
             if (data.score) {
-                return db.collection('leads').doc(unscored[idx - 1].id).update({
+                return db.collection('leads').doc(leadToScore.id).update({
                     aiScore: data.score,
                     aiReason: data.reason || '',
                     aiCategory: data.category || '',
                     aiSuggestedAssignee: data.suggestedAssignee || '',
                     aiUrgency: data.urgency || '',
-                    aiAction: data.action || ''
+                    aiAction: data.action || '',
+                    aiCallPrep: data.callPrep || '',
+                    aiEstimatedValue: data.estimatedValue || '',
+                    aiLegalContext: data.legalContext || '',
+                    aiScoredAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             }
         }).then(function() {
@@ -772,7 +1140,7 @@ function formatPhone(phone) {
 function renderScoreBadge(score) {
     if (!score) return '<span class="ld-score ld-score-none">—</span>';
     var cls = score >= 7 ? 'high' : score >= 4 ? 'med' : 'low';
-    return '<span class="ld-score ld-score-' + cls + '">⭐' + score + '</span>';
+    return '<span class="ld-score ld-score-' + cls + '">' + LDI.ai + score + '</span>';
 }
 
 function escapeHTML(str) {
@@ -790,10 +1158,11 @@ function deleteCurrentLead() {
     }
     if (!confirm('למחוק את הליד הזה לצמיתות?')) return;
 
-    db.collection('leads').doc(currentLeadDocId).delete()
+    var docIdToDelete = currentLeadDocId;
+    db.collection('leads').doc(docIdToDelete).delete()
         .then(function() {
+            logAuditEvent('lead_deleted', { leadId: docIdToDelete });
             closeLeadModal();
-            logAuditEvent('lead_deleted', { leadId: currentLeadDocId });
         })
         .catch(function(err) {
             alert('שגיאה במחיקה: ' + err.message);
@@ -874,6 +1243,7 @@ function saveFilterState() {
             assignee: document.getElementById('ldFilterAssignee').value || '',
             score: (document.getElementById('ldFilterScore') || {}).value || '',
             category: (document.getElementById('ldFilterCategory') || {}).value || '',
+            period: (document.getElementById('ldFilterPeriod') || {}).value || '',
             myMode: leadsMyMode,
             viewMode: leadsViewMode,
             quickFilter: leadsQuickFilter
@@ -893,7 +1263,175 @@ function restoreFilterState() {
         if (scoreEl && saved.score) scoreEl.value = saved.score;
         var catEl = document.getElementById('ldFilterCategory');
         if (catEl && saved.category) catEl.value = saved.category;
+        var periodEl = document.getElementById('ldFilterPeriod');
+        if (periodEl && saved.period) {
+            periodEl.value = saved.period;
+            applyPeriodFilter();
+        }
     } catch(e) {}
+}
+
+// ==================== Meta Bar ====================
+
+function populateMetaBar(record) {
+    // 1. Lead age — reuse relativeTime() for text
+    var ageEl = document.getElementById('ldMetaAge');
+    if (record.createdAt) {
+        var created = record.createdAt.toDate ? record.createdAt.toDate() : new Date(record.createdAt);
+        var diffMins = Math.floor((Date.now() - created.getTime()) / 60000);
+        ageEl.innerHTML = LDI.clock + ' ' + relativeTime(record.createdAt);
+        // Color: green if fresh (<1hr), amber if today, gray if older
+        if (diffMins < 60) ageEl.className = 'ld-meta-item ld-meta-fresh';
+        else if (diffMins < 1440) ageEl.className = 'ld-meta-item ld-meta-today';
+        else ageEl.className = 'ld-meta-item';
+    }
+
+    // 2. Contact attempts — count from history
+    var attemptsEl = document.getElementById('ldMetaAttempts');
+    var attempts = 0;
+    (record.history || []).forEach(function(h) {
+        var a = h.action || '';
+        if (a === 'contacted' || a === 'no_answer') attempts++;
+    });
+    if (attempts > 0) {
+        attemptsEl.innerHTML = LDI.contacted + ' ' + attempts + ' ניסיונות קשר';
+        if (attempts >= 3) attemptsEl.className = 'ld-meta-item ld-meta-warn';
+        else attemptsEl.className = 'ld-meta-item';
+        attemptsEl.style.display = '';
+    } else {
+        attemptsEl.style.display = 'none';
+    }
+
+    // 3. Followup reminder
+    var fuEl = document.getElementById('ldMetaFollowup');
+    if (record.followupAt) {
+        var fuDate = record.followupAt.toDate ? record.followupAt.toDate() : new Date(record.followupAt);
+        var fuDiff = fuDate.getTime() - Date.now();
+        var fuText = '';
+        if (fuDiff < 0) {
+            fuText = LDI.followup + ' <strong style="color:var(--error);">פולואפ באיחור!</strong>';
+        } else if (fuDiff < 3600000) {
+            fuText = LDI.followup + ' <strong>פולואפ בעוד ' + Math.max(1, Math.round(fuDiff / 60000)) + ' דק׳</strong>';
+        } else if (fuDiff < 86400000) {
+            fuText = LDI.followup + ' פולואפ היום ב-' + fuDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+        } else {
+            fuText = LDI.followup + ' פולואפ ' + fuDate.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }) + ' ' + fuDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+        }
+        fuEl.innerHTML = fuText;
+        fuEl.className = fuDiff < 0 ? 'ld-meta-item ld-meta-overdue' : 'ld-meta-item ld-meta-followup';
+        fuEl.style.display = '';
+    } else {
+        fuEl.style.display = 'none';
+    }
+}
+
+// ==================== Period Filter ====================
+
+function applyPeriodFilter() {
+    var val = document.getElementById('ldFilterPeriod').value;
+    var fromInput = document.getElementById('ldFilterDateFrom');
+    var toInput = document.getElementById('ldFilterDateTo');
+
+    if (val === 'custom') {
+        fromInput.style.display = '';
+        toInput.style.display = '';
+        // Don't filter yet — wait for user to pick dates
+        return;
+    }
+
+    // Hide custom date inputs for preset periods
+    fromInput.style.display = 'none';
+    toInput.style.display = 'none';
+
+    if (!val) {
+        fromInput.value = '';
+        toInput.value = '';
+        document.getElementById('ldPeriodStats').style.display = 'none';
+        filterLeadsView();
+        return;
+    }
+
+    var now = new Date();
+    var fromDate, toDate;
+
+    switch (val) {
+        case 'this_month':
+            fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            toDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            break;
+        case 'last_month':
+            fromDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            toDate = new Date(now.getFullYear(), now.getMonth(), 0);
+            break;
+        case 'this_quarter':
+            var qStart = Math.floor(now.getMonth() / 3) * 3;
+            fromDate = new Date(now.getFullYear(), qStart, 1);
+            toDate = new Date(now.getFullYear(), qStart + 3, 0);
+            break;
+        case 'last_quarter':
+            var qStart2 = Math.floor(now.getMonth() / 3) * 3 - 3;
+            var qYear = now.getFullYear();
+            if (qStart2 < 0) { qStart2 += 12; qYear--; }
+            fromDate = new Date(qYear, qStart2, 1);
+            toDate = new Date(qYear, qStart2 + 3, 0);
+            break;
+        case 'this_year':
+            fromDate = new Date(now.getFullYear(), 0, 1);
+            toDate = new Date(now.getFullYear(), 11, 31);
+            break;
+        case 'last_year':
+            fromDate = new Date(now.getFullYear() - 1, 0, 1);
+            toDate = new Date(now.getFullYear() - 1, 11, 31);
+            break;
+    }
+
+    if (fromDate && toDate) {
+        fromInput.value = fromDate.toISOString().substring(0, 10);
+        toInput.value = toDate.toISOString().substring(0, 10);
+    }
+
+    var filtered = filterLeadsView();
+    updatePeriodStats(filtered);
+}
+
+function onCustomDateChange() {
+    var filtered = filterLeadsView();
+    updatePeriodStats(filtered);
+}
+
+function updatePeriodStats(filtered) {
+    var periodVal = document.getElementById('ldFilterPeriod').value;
+    var statsEl = document.getElementById('ldPeriodStats');
+    if (!periodVal) { statsEl.style.display = 'none'; return; }
+
+    if (!filtered) filtered = getFilteredLeads();
+    var total = filtered.length;
+    var closed = 0;
+    var notRelevant = 0;
+
+    filtered.forEach(function(r) {
+        if (r.status === 'closed') closed++;
+        if (r.status === 'not_relevant') notRelevant++;
+    });
+
+    var conversion = total > 0 ? Math.round((closed / total) * 100) : 0;
+
+    // Period label
+    var periodLabels = {
+        'this_month': 'החודש הזה',
+        'last_month': 'חודש שעבר',
+        'this_quarter': 'הרבעון הזה',
+        'last_quarter': 'רבעון שעבר',
+        'this_year': 'השנה',
+        'last_year': 'שנה שעברה',
+        'custom': 'טווח מותאם'
+    };
+    document.getElementById('ldPeriodLabel').textContent = periodLabels[periodVal] || '';
+    document.getElementById('ldPeriodTotal').textContent = total;
+    document.getElementById('ldPeriodClosed').textContent = closed;
+    document.getElementById('ldPeriodNotRelevant').textContent = notRelevant;
+    document.getElementById('ldPeriodConversion').textContent = conversion + '%';
+    statsEl.style.display = '';
 }
 
 // ==================== Timeline (Phase 4) ====================
@@ -902,22 +1440,23 @@ function renderTimeline(record) {
     var events = [];
 
     if (record.createdAt) {
-        events.push({ icon: '🆕', color: '#3b82f6', text: 'ליד נוצר', detail: 'מקור: ' + (LEAD_SOURCE_LABELS[record.source] || record.source || 'לא ידוע'), at: record.createdAt });
+        events.push({ icon: LDI.new, color: '#3b82f6', text: 'ליד נוצר', detail: 'מקור: ' + (LEAD_SOURCE_LABELS[record.source] || record.source || 'לא ידוע'), at: record.createdAt });
     }
     if (record.aiScoredAt) {
-        events.push({ icon: '🤖', color: '#8b5cf6', text: 'ניתוח AI: ' + (record.aiScore || '?') + '/10', detail: record.aiReason || '', at: record.aiScoredAt });
+        events.push({ icon: LDI.ai, color: '#8b5cf6', text: 'ניתוח AI: ' + (record.aiScore || '?') + '/10', detail: record.aiReason || '', at: record.aiScoredAt });
     }
 
     (record.history || []).forEach(function(h) {
-        var icon = '📝', color = '#6b7280';
+        var icon = LDI.edit, color = '#6b7280';
         var action = h.action || '';
-        if (action === 'assigned' || action === 'created' || (h.note && h.note.indexOf('שויך') !== -1)) { icon = '👤'; color = '#8b5cf6'; }
-        else if (action === 'contacted') { icon = '📞'; color = '#f59e0b'; }
-        else if (action === 'closed') { icon = '✅'; color = '#10b981'; }
-        else if (action === 'followup') { icon = '🔄'; color = '#06b6d4'; }
-        else if (action === 'not_relevant') { icon = '❌'; color = '#ef4444'; }
-        else if (action === 'no_answer') { icon = '📵'; color = '#6b7280'; }
-        else if (action === 'imported') { icon = '📥'; color = '#94a3b8'; }
+        if (action === 'assigned' || action === 'created' || (h.note && h.note.indexOf('שויך') !== -1)) { icon = LDI.assigned; color = '#8b5cf6'; }
+        else if (action === 'contacted') { icon = LDI.contacted; color = '#f59e0b'; }
+        else if (action === 'meeting_set') { icon = LDI.calendar; color = '#8b5cf6'; }
+        else if (action === 'closed') { icon = LDI.closed; color = '#10b981'; }
+        else if (action === 'followup') { icon = LDI.followup; color = '#06b6d4'; }
+        else if (action === 'not_relevant') { icon = LDI.not_relevant; color = '#ef4444'; }
+        else if (action === 'no_answer') { icon = LDI.no_answer; color = '#6b7280'; }
+        else if (action === 'imported') { icon = LDI.imported; color = '#94a3b8'; }
 
         events.push({ icon: icon, color: color, text: h.note || (LEAD_STATUS_LABELS[action] || action), detail: h.by ? 'ע"י ' + h.by : '', at: h.at });
     });
@@ -1281,18 +1820,19 @@ function renderStatusChart(records) {
     var statusMap = {};
     records.forEach(function(r) {
         var st = r.status || 'new';
-        var label = LEAD_STATUS_LABELS[st] || st;
+        var label = LEAD_STATUS_TEXT[st] || st;
         statusMap[label] = (statusMap[label] || 0) + 1;
     });
 
     var statusColors = {
-        '🆕 חדש': '#3b82f6',
-        '👤 שויך': '#8b5cf6',
-        '📞 נוצר קשר': '#f59e0b',
-        '🔄 פולואפ': '#06b6d4',
-        '📵 לא ענה': '#6b7280',
-        '✅ נסגר': '#10b981',
-        '❌ לא רלוונטי': '#ef4444'
+        'חדש': '#3b82f6',
+        'שויך': '#8b5cf6',
+        'נוצר קשר': '#f59e0b',
+        'נקבעה פגישה': '#8b5cf6',
+        'פולואפ': '#06b6d4',
+        'לא ענה': '#6b7280',
+        'נסגר': '#10b981',
+        'לא רלוונטי': '#ef4444'
     };
 
     var labels = Object.keys(statusMap);
@@ -1445,7 +1985,7 @@ function renderFunnelChart(records) {
 
     var total = records.length;
     var contactedCount = records.filter(function(r) {
-        return ['contacted', 'followup', 'closed', 'assigned'].indexOf(r.status) !== -1;
+        return ['contacted', 'meeting_set', 'followup', 'closed', 'assigned'].indexOf(r.status) !== -1;
     }).length;
     var closedCount = records.filter(function(r) { return r.status === 'closed'; }).length;
 

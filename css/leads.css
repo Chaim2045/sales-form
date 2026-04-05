@@ -1,5 +1,82 @@
 /* ==================== Leads CRM Styles ==================== */
 
+/* ==================== Inline SVG Icons ==================== */
+
+.ld-icon {
+    width: 14px;
+    height: 14px;
+    display: inline-block;
+    vertical-align: -2px;
+    flex-shrink: 0;
+}
+
+.ld-quick-btn .ld-icon {
+    width: 16px;
+    height: 16px;
+    vertical-align: -3px;
+}
+
+.ld-chip .ld-icon {
+    width: 13px;
+    height: 13px;
+    vertical-align: -2px;
+}
+
+.ld-score .ld-icon,
+.ld-score-badge .ld-icon {
+    width: 12px;
+    height: 12px;
+    vertical-align: -1px;
+}
+
+.ld-status .ld-icon {
+    width: 12px;
+    height: 12px;
+    vertical-align: -2px;
+}
+
+.ld-timeline-dot .ld-icon {
+    width: 14px;
+    height: 14px;
+    stroke: #fff;
+}
+
+.ld-meeting-detail .ld-icon,
+.ld-meeting-link .ld-icon {
+    width: 13px;
+    height: 13px;
+    vertical-align: -2px;
+}
+
+.ld-my-stat-label .ld-icon {
+    width: 13px;
+    height: 13px;
+    vertical-align: -2px;
+}
+
+.bm-export-btn .ld-icon {
+    width: 13px;
+    height: 13px;
+    vertical-align: -2px;
+}
+
+/* ==================== AI Gradient Icon ==================== */
+
+.ld-icon-ai {
+    width: 16px;
+    height: 16px;
+}
+
+.ld-ai-btn {
+    background: linear-gradient(135deg, rgba(66,133,244,0.06), rgba(155,114,203,0.06), rgba(217,101,112,0.06));
+    border-color: rgba(155,114,203,0.2);
+}
+
+.ld-ai-btn:hover {
+    background: linear-gradient(135deg, rgba(66,133,244,0.12), rgba(155,114,203,0.12), rgba(217,101,112,0.12));
+    border-color: rgba(155,114,203,0.35);
+}
+
 /* Header buttons (used in leadsManagement) */
 #leadsManagement .bm-export-btn {
     padding: 6px 14px;
@@ -84,6 +161,7 @@
 .ld-status-new { background: rgba(59,130,246,0.1); color: #3b82f6; }
 .ld-status-assigned { background: rgba(139,92,246,0.1); color: #8b5cf6; }
 .ld-status-contacted { background: rgba(245,158,11,0.1); color: #f59e0b; }
+.ld-status-meeting_set { background: rgba(139,92,246,0.1); color: #8b5cf6; }
 .ld-status-followup { background: rgba(6,182,212,0.1); color: #06b6d4; }
 .ld-status-no_answer { background: rgba(107,114,128,0.1); color: #6b7280; }
 .ld-status-closed { background: rgba(16,185,129,0.1); color: #10b981; }
@@ -628,6 +706,99 @@
     border-color: #ef4444;
 }
 
+/* ==================== Duplicate Badge ==================== */
+
+.ld-dup-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #b45309;
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 4px;
+    margin-right: 4px;
+}
+
+/* ==================== Duplicate Alert ==================== */
+
+.ld-dup-alert {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    background: rgba(245,158,11,0.06);
+    border: 1px solid rgba(245,158,11,0.2);
+    border-radius: 6px;
+    font-size: 13px;
+    color: #92400e;
+}
+
+.ld-btn-small {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #b45309;
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: auto;
+}
+
+.ld-btn-small:hover {
+    background: rgba(245,158,11,0.2);
+}
+
+/* ==================== Enrichment Section ==================== */
+
+.ld-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border-default);
+}
+
+.ld-enrich-row {
+    padding: 5px 0;
+    font-size: 13px;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-default);
+}
+
+.ld-enrich-row:last-child {
+    border-bottom: none;
+}
+
+.ld-enrich-label {
+    display: inline-block;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 3px;
+    margin-left: 6px;
+}
+
+.ld-enrich-row:first-child .ld-enrich-label {
+    color: #059669;
+    background: rgba(16,185,129,0.08);
+}
+
+.ld-enrich-row:nth-child(n+2) .ld-enrich-label {
+    color: var(--accent);
+    background: rgba(59,130,246,0.06);
+}
+
+#ldModalEnrichment {
+    margin: 10px 0;
+    padding: 10px;
+    background: rgba(0,0,0,0.015);
+    border-radius: 6px;
+}
+
 /* ==================== My Leads Dashboard ==================== */
 
 .ld-my-dashboard {
@@ -856,4 +1027,278 @@
     justify-content: center;
     padding: 0 4px;
     line-height: 1;
+}
+
+/* ==================== Modal Sections ==================== */
+
+.ld-modal-section {
+    margin-bottom: 16px;
+}
+
+.ld-section-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border-default);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* ==================== Quick Actions Bar ==================== */
+
+.ld-quick-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.ld-quick-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--accent);
+    background: rgba(59,130,246,0.06);
+    border: 1px solid rgba(59,130,246,0.12);
+    transition: background 0.15s, border-color 0.15s;
+    cursor: pointer;
+}
+
+.ld-quick-btn:hover {
+    background: rgba(59,130,246,0.12);
+    border-color: rgba(59,130,246,0.2);
+}
+
+/* ==================== Meeting Info ==================== */
+
+.ld-meeting-info {
+    background: rgba(16,185,129,0.04);
+    border: 1px solid rgba(16,185,129,0.12);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+}
+
+.ld-meeting-detail {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.ld-meeting-detail:last-child {
+    margin-bottom: 0;
+}
+
+.ld-meeting-link {
+    display: inline-block;
+    font-size: 12px;
+    color: var(--accent);
+    text-decoration: none;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+.ld-meeting-link:hover {
+    text-decoration: underline;
+}
+
+/* ==================== Period Stats Bar ==================== */
+
+.ld-period-stats {
+    background: rgba(59,130,246,0.04);
+    border: 1px solid rgba(59,130,246,0.1);
+    border-radius: var(--radius-md);
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.ld-period-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    min-width: 90px;
+}
+
+.ld-period-numbers {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.ld-period-stat {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.ld-period-stat strong {
+    font-size: 15px;
+    margin-left: 3px;
+}
+
+/* ==================== Meta Bar ==================== */
+
+.ld-meta-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 8px 0;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border-default);
+}
+
+.ld-meta-item {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.ld-meta-item .ld-icon {
+    width: 12px;
+    height: 12px;
+}
+
+.ld-meta-fresh {
+    color: var(--success);
+    font-weight: 600;
+}
+
+.ld-meta-today {
+    color: var(--warning);
+}
+
+.ld-meta-warn {
+    color: var(--warning);
+    font-weight: 500;
+}
+
+.ld-meta-overdue {
+    color: var(--error);
+    font-weight: 600;
+}
+
+.ld-meta-followup {
+    color: var(--accent);
+}
+
+/* ==================== AI Summary One-liner ==================== */
+
+.ld-ai-summary {
+    background: linear-gradient(135deg, rgba(66,133,244,0.05), rgba(155,114,203,0.05), rgba(217,101,112,0.05));
+    border: 1px solid rgba(155,114,203,0.15);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.ld-ai-summary .ld-icon {
+    vertical-align: -2px;
+}
+
+/* ==================== Action Zone ==================== */
+
+.ld-action-zone {
+    background: var(--bg-hover);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    margin-bottom: 12px;
+}
+
+.ld-action-zone .ld-modal-fields {
+    margin-bottom: 12px;
+}
+
+.ld-action-zone .ld-modal-actions {
+    margin-bottom: 0;
+}
+
+/* ==================== Collapsible Details ==================== */
+
+.ld-details {
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.ld-details-summary {
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s;
+}
+
+.ld-details-summary::-webkit-details-marker {
+    display: none;
+}
+
+.ld-details-summary::after {
+    content: '▸';
+    margin-right: auto;
+    font-size: 11px;
+    color: var(--text-quaternary);
+    transition: transform 0.2s;
+}
+
+.ld-details[open] > .ld-details-summary::after {
+    transform: rotate(90deg);
+}
+
+.ld-details-summary:hover {
+    background: var(--bg-hover);
+}
+
+.ld-details-content {
+    padding: 0 14px 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.ld-details-content p {
+    margin: 0;
+}
+
+@media (max-width: 500px) {
+    .ld-period-stats {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px 12px;
+    }
+    .ld-period-numbers {
+        gap: 12px;
+    }
+    .ld-quick-actions {
+        flex-wrap: wrap;
+    }
+    .ld-quick-btn {
+        font-size: 12px;
+        padding: 6px 8px;
+    }
+    .ld-action-zone {
+        padding: 10px;
+    }
 }
