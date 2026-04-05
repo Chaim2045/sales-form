@@ -5,8 +5,13 @@ var leadsRecords = [];
 var leadsViewMode = 'table';
 var leadsCurrentPage = 1;
 var LEADS_PAGE_SIZE = 20;
+var LEADS_BATCH_SIZE = 50;
 var leadsDataLoaded = false;
 var leadsRealtimeUnsubscribe = null;
+var leadsNewListener = null; // realtime listener for new leads only
+var leadsLastDoc = null;     // cursor for pagination
+var leadsHasMore = true;     // are there more batches to load
+var leadsLoadingMore = false; // prevent double-load
 var currentLeadDocId = null;
 var leadsMyMode = false;
 var leadsQuickFilter = 'all';
@@ -128,6 +133,10 @@ function hideLeadsManagement() {
         leadsRealtimeUnsubscribe();
         leadsRealtimeUnsubscribe = null;
     }
+    if (leadsNewListener) {
+        leadsNewListener();
+        leadsNewListener = null;
+    }
 }
 // Expose for navigation.js which redefines hideLeadsManagement
 window.hideLeadsManagement_internal = hideLeadsManagement;
@@ -148,6 +157,10 @@ function resetLeadsState() {
     leadsCurrentPage = 1;
     leadsViewMode = 'table';
     leadsDuplicateMap = {};
+    leadsLastDoc = null;
+    leadsHasMore = true;
+    leadsLoadingMore = false;
+    if (leadsNewListener) { leadsNewListener(); leadsNewListener = null; }
     // Destroy Chart.js instances to prevent memory leak
     Object.keys(leadsChartInstances).forEach(function(k) {
         try { leadsChartInstances[k].destroy(); } catch(e) {}
@@ -366,46 +379,81 @@ function mergeDuplicateLeads() {
 
 // ==================== Load Data ====================
 
-function loadLeadsData() {
+async function loadLeadsData() {
     var loading = document.getElementById('ldLoading');
     if (loading) loading.style.display = '';
 
     try {
-        // Use realtime listener for live updates
-        leadsRealtimeUnsubscribe = db.collection('leads')
+        // 1. Load first batch (cursor-based)
+        var snapshot = await db.collection('leads')
             .orderBy('createdAt', 'desc')
-            .limit(500)
-            .onSnapshot(function(snapshot) {
-                leadsRecords = [];
-                snapshot.forEach(function(doc) {
-                    leadsRecords.push(Object.assign({ id: doc.id }, doc.data()));
-                });
+            .limit(LEADS_BATCH_SIZE)
+            .get();
 
-                leadsDataLoaded = true;
-                if (loading) loading.style.display = 'none';
+        leadsRecords = [];
+        snapshot.forEach(function(doc) {
+            leadsRecords.push(Object.assign({ id: doc.id }, doc.data()));
+        });
 
-                if (leadsRecords.length === 0) {
-                    document.getElementById('ldEmpty').style.display = '';
-                    return;
-                }
-                document.getElementById('ldEmpty').style.display = 'none';
+        // Save cursor for "load more"
+        leadsLastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
+        leadsHasMore = snapshot.docs.length === LEADS_BATCH_SIZE;
+        leadsDataLoaded = true;
+        if (loading) loading.style.display = 'none';
 
-                leadsDuplicateMap = scanForDuplicates(leadsRecords);
-                populateLeadsFilters();
-                updateLeadsSummary(getFilteredLeads());
-                updateMyDashboard();
-                renderLeadsView();
+        if (leadsRecords.length === 0) {
+            document.getElementById('ldEmpty').style.display = '';
+        } else {
+            document.getElementById('ldEmpty').style.display = 'none';
+        }
 
-                // Detect new hot leads for notifications
-                snapshot.docChanges().forEach(function(change) {
+        leadsDuplicateMap = scanForDuplicates(leadsRecords);
+        populateLeadsFilters();
+        updateLeadsSummary(getFilteredLeads());
+        updateMyDashboard();
+        renderLeadsView();
+
+        // Mark all loaded as seen
+        leadsRecords.forEach(function(r) { leadsLastSeenIds[r.id] = true; });
+
+        // Auto-score new unscored leads
+        var unscored = leadsRecords.filter(function(r) {
+            return !r.aiScore && !r.aiScoredAt && r.status !== 'not_relevant' && autoScoreQueue.indexOf(r.id) === -1;
+        });
+        if (unscored.length > 0) {
+            unscored.slice(0, 10).forEach(function(r) { autoScoreQueue.push(r.id); });
+            processAutoScoreQueue();
+        }
+
+        // 2. Realtime listener — only for NEW leads arriving after initial load
+        var realtimeCutoff = new Date(Date.now() - 60000); // 1 minute ago
+        leadsNewListener = db.collection('leads')
+            .where('createdAt', '>', realtimeCutoff)
+            .onSnapshot(function(snap) {
+                snap.docChanges().forEach(function(change) {
                     if (change.type === 'added' && !leadsLastSeenIds[change.doc.id]) {
-                        var d = change.doc.data();
+                        var newLead = Object.assign({ id: change.doc.id }, change.doc.data());
                         leadsLastSeenIds[change.doc.id] = true;
-                        if (d.aiScore >= 7) showLeadNotification(d);
+                        // Add to top of list
+                        leadsRecords.unshift(newLead);
+                        leadsDuplicateMap = scanForDuplicates(leadsRecords);
+                        populateLeadsFilters();
+                        updateLeadsSummary(getFilteredLeads());
+                        renderLeadsView();
+
+                        if (newLead.aiScore >= 7) showLeadNotification(newLead);
+                    } else if (change.type === 'modified') {
+                        // Update existing record in-place
+                        var updatedData = Object.assign({ id: change.doc.id }, change.doc.data());
+                        var idx = leadsRecords.findIndex(function(r) { return r.id === change.doc.id; });
+                        if (idx !== -1) {
+                            leadsRecords[idx] = updatedData;
+                            renderLeadsView();
+                        }
                     }
                 });
 
-                // Badge count for new leads
+                // Badge count
                 var lastSeen = parseInt(localStorage.getItem('ld_lastSeen') || '0');
                 var newSinceSeen = leadsRecords.filter(function(r) {
                     if (r.status !== 'new') return false;
@@ -416,28 +464,49 @@ function loadLeadsData() {
                 if (!leadsEl || !leadsEl.classList.contains('active')) {
                     updateLeadsBadge(newSinceSeen);
                 }
-
-                // Auto-score new unscored leads
-                var unscored = leadsRecords.filter(function(r) {
-                    return !r.aiScore && !r.aiScoredAt && r.status !== 'not_relevant' && autoScoreQueue.indexOf(r.id) === -1;
-                });
-                if (unscored.length > 0) {
-                    unscored.slice(0, 10).forEach(function(r) { autoScoreQueue.push(r.id); });
-                    processAutoScoreQueue();
-                }
-
-                // Refresh charts if analytics panel is open
-                var analyticsBody = document.getElementById('ldAnalyticsBody');
-                if (analyticsBody && analyticsBody.style.display !== 'none') {
-                    leadsAllRecords = null;
-                    loadAllLeadsForAnalytics();
-                }
-            }, function(error) {
-                console.error('Leads listener error:', error);
-                if (loading) loading.innerHTML = '<p style="color:var(--error);">שגיאה בטעינת לידים</p>';
             });
+
     } catch (err) {
         console.error('Load leads error:', err);
+        if (loading) loading.innerHTML = '<p style="color:var(--error);">שגיאה בטעינת לידים</p>';
+    }
+}
+
+// Load more leads (cursor-based pagination)
+async function loadMoreLeads() {
+    if (!leadsHasMore || leadsLoadingMore || !leadsLastDoc) return;
+    leadsLoadingMore = true;
+
+    // Show loading indicator
+    var loadMoreBtn = document.getElementById('ldLoadMore');
+    if (loadMoreBtn) loadMoreBtn.textContent = 'טוען...';
+
+    try {
+        var snapshot = await db.collection('leads')
+            .orderBy('createdAt', 'desc')
+            .startAfter(leadsLastDoc)
+            .limit(LEADS_BATCH_SIZE)
+            .get();
+
+        snapshot.forEach(function(doc) {
+            if (!leadsLastSeenIds[doc.id]) {
+                leadsRecords.push(Object.assign({ id: doc.id }, doc.data()));
+                leadsLastSeenIds[doc.id] = true;
+            }
+        });
+
+        leadsLastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
+        leadsHasMore = snapshot.docs.length === LEADS_BATCH_SIZE;
+
+        leadsDuplicateMap = scanForDuplicates(leadsRecords);
+        populateLeadsFilters();
+        updateLeadsSummary(getFilteredLeads());
+        renderLeadsView();
+
+    } catch (err) {
+        console.error('Load more leads error:', err);
+    } finally {
+        leadsLoadingMore = false;
     }
 }
 
@@ -759,18 +828,50 @@ function renderLeadsKanbanView(records) {
 
 function renderLeadsPagination(totalRecords, totalPages) {
     var container = document.getElementById('ldPagination');
-    if (!container || totalPages <= 1) {
-        if (container) container.innerHTML = '';
-        return;
+    if (!container) return;
+
+    var html = '';
+
+    // Page buttons (if more than 1 page of filtered results)
+    if (totalPages > 1) {
+        html += '<div style="display:flex;justify-content:center;gap:4px;padding:12px;">';
+        for (var p = 1; p <= totalPages; p++) {
+            var active = p === leadsCurrentPage ? 'background:var(--accent);color:#fff;' : '';
+            html += '<button onclick="leadsGoToPage(' + p + ')" style="padding:4px 10px;border:1px solid var(--border-input);border-radius:var(--radius-sm);font-size:12px;cursor:pointer;' + active + '">' + p + '</button>';
+        }
+        html += '</div>';
     }
 
-    var html = '<div style="display:flex;justify-content:center;gap:4px;padding:12px;">';
-    for (var p = 1; p <= totalPages; p++) {
-        var active = p === leadsCurrentPage ? 'background:var(--accent);color:#fff;' : '';
-        html += '<button onclick="leadsGoToPage(' + p + ')" style="padding:4px 10px;border:1px solid var(--border-input);border-radius:var(--radius-sm);font-size:12px;cursor:pointer;' + active + '">' + p + '</button>';
+    // "Load more" button (if there are more batches in Firestore)
+    if (leadsHasMore) {
+        html += '<div style="text-align:center;padding:8px 0 16px;">' +
+            '<button id="ldLoadMore" onclick="loadMoreLeads()" style="padding:8px 24px;border:1px solid var(--border-input);border-radius:var(--radius-md);font-size:13px;font-family:Heebo,sans-serif;cursor:pointer;color:var(--accent);background:var(--bg-primary);">' +
+            'טען עוד לידים (' + leadsRecords.length + ' טעונים)' +
+            '</button></div>';
     }
-    html += '</div>';
+
     container.innerHTML = html;
+
+    // Setup IntersectionObserver for infinite scroll
+    setupInfiniteScroll();
+}
+
+var _leadsScrollObserver = null;
+
+function setupInfiniteScroll() {
+    // Cleanup previous observer
+    if (_leadsScrollObserver) { _leadsScrollObserver.disconnect(); _leadsScrollObserver = null; }
+
+    var loadMoreBtn = document.getElementById('ldLoadMore');
+    if (!loadMoreBtn || !leadsHasMore) return;
+
+    _leadsScrollObserver = new IntersectionObserver(function(entries) {
+        if (entries[0].isIntersecting && leadsHasMore && !leadsLoadingMore) {
+            loadMoreLeads();
+        }
+    }, { rootMargin: '200px' });
+
+    _leadsScrollObserver.observe(loadMoreBtn);
 }
 
 function leadsGoToPage(page) {
@@ -1667,13 +1768,18 @@ function loadAllLeadsForAnalytics() {
         return;
     }
 
-    // Load ALL leads (no limit) for full analytics
-    db.collection('leads').orderBy('createdAt', 'desc').get().then(function(snapshot) {
+    // Rolling window: last 90 days only (fast — ~500 docs max instead of 6,800+)
+    var ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    db.collection('leads')
+        .where('createdAt', '>', ninetyDaysAgo)
+        .orderBy('createdAt', 'desc')
+        .limit(1000)
+        .get().then(function(snapshot) {
         leadsAllRecords = [];
         snapshot.forEach(function(doc) {
             leadsAllRecords.push(Object.assign({ id: doc.id }, doc.data()));
         });
-        console.log('[Analytics] Loaded ' + leadsAllRecords.length + ' leads for charts');
+        console.log('[Analytics] Loaded ' + leadsAllRecords.length + ' leads (90 days) for charts');
         renderLeadsCharts(leadsAllRecords);
     }).catch(function(err) {
         console.error('[Analytics] Load error:', err);
