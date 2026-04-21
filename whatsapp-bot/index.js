@@ -2025,12 +2025,8 @@ async function handleMessage(msg) {
         convo.reminders = 0;
         convo.history.push({ role: 'user', content: body });
 
-        // Get Claude's response (with 1 auto-retry on failure)
+        // Get Claude's response (no auto-retry — cost optimization)
         var result = await conversationTurn(convo.history, convo.existingClientData);
-        if (!result) {
-            log('warn', 'Claude failed — retrying once...');
-            result = await conversationTurn(convo.history, convo.existingClientData);
-        }
         if (!result) {
             await botSend(chatId, '🔄 שגיאה — נסה שוב');
             stats.errors++;

@@ -3,6 +3,7 @@
 **Project Name:** טופס מכר | Sales Form System  
 **Organization:** משרד עו"ד גיא הרשקוביץ (Law Office - Guy Hershkowitz)  
 **Repository:** https://github.com/Chaim2045/sales-form  
+**Canonical Local Path:** `C:\Users\haim\Projects\tofes-mecher` *(ONLY location — do not use any other path)*  
 **Hosting:** Netlify  
 **Backend:** Firebase (Firestore, Auth, Storage)  
 **Technologies:** Vanilla JavaScript, HTML5, CSS3, Firebase, Netlify Functions (Node.js)

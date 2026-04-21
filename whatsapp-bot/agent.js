@@ -3,6 +3,7 @@
 
 const Anthropic = require('@anthropic-ai/sdk');
 const client = new Anthropic();
+const { israelTodayISO } = require('./israel-time');
 
 const FORM_INSTRUCTIONS = `אתה *הכנסוביץ* — הבוט של משרד עו"ד גיא הרשקוביץ ושות'.
 תפקידך: למלא טופס מכר דרך שיחת וואטסאפ עם עובדי המשרד.
@@ -144,9 +145,9 @@ JSON בלבד! אסור טקסט מחוץ ל-JSON:
 // Run a conversation turn — send message history to Claude
 async function conversationTurn(history, existingClientData) {
     try {
-        // Keep only last 16 messages to avoid slow responses
+        // Keep only last 6 messages (cost optimization — was 16)
         var messages = [];
-        var startIdx = Math.max(0, history.length - 16);
+        var startIdx = Math.max(0, history.length - 6);
 
         // Always keep the first message (original transaction context)
         if (startIdx > 0) {
@@ -160,7 +161,7 @@ async function conversationTurn(history, existingClientData) {
 
         // Add today's date and existing client data
         var today = new Date().toLocaleDateString('he-IL', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: 'long', day: 'numeric' });
-        var todayISO = new Date(Date.now() + 3 * 3600000).toISOString().split('T')[0]; // Israel is UTC+3
+        var todayISO = israelTodayISO();
         var systemAddition = '\n\n══ תאריך היום: ' + today + ' (' + todayISO + ') — לשימוש פנימי בלבד, אל תציין את התאריך למשתמש ══';
         if (existingClientData) {
             systemAddition += '\n\n══ נתוני לקוח קיימים במערכת ══\n' + JSON.stringify(existingClientData, null, 2) + '\nאם הלקוח קיים, מלא אוטומטית מה שיש ושאל רק מה שחסר.';
@@ -175,7 +176,10 @@ async function conversationTurn(history, existingClientData) {
             client.messages.create({
                 model: 'claude-haiku-4-5-20251001',
                 max_tokens: 1000,
-                system: FORM_INSTRUCTIONS + systemAddition,
+                system: [
+                    { type: 'text', text: FORM_INSTRUCTIONS, cache_control: { type: 'ephemeral' } },
+                    { type: 'text', text: systemAddition }
+                ],
                 messages: messages
             }),
             timeoutPromise
