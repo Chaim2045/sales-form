@@ -371,8 +371,29 @@ select {
     display: none;
 }
 
-input.error, select.error {
-    border-color: var(--error);
+input.error, select.error, textarea.error {
+    border-color: var(--error) !important;
+    background: rgba(239, 68, 68, 0.04);
+    animation: tofesShake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+input.error:focus, select.error:focus, textarea.error:focus {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+    outline: none;
+}
+
+@keyframes tofesShake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-3px); }
+    40%, 60% { transform: translateX(3px); }
+}
+
+.error-highlight {
+    outline: 2px solid var(--error) !important;
+    border-radius: 8px;
+    padding: 4px;
+    animation: tofesShake 0.4s cubic-bezier(.36,.07,.19,.97) both;
 }
 
 /* VAT Display */

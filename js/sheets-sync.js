@@ -8,7 +8,7 @@ async function syncToSheets(data) {
         var sheetsData = {
             _authToken: WEBHOOK_SECRET,
             timestamp: new Date().toISOString(),
-            date: data.date || new Date().toISOString().split('T')[0]
+            date: data.date || getTodayIL()
         };
 
         // Copy all data properties

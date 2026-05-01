@@ -160,11 +160,11 @@ async function generatePaymentDocs(docId, client) {
         batch.set(payRef, {
             monthNumber: i + 1,
             plannedAmount: thisMonthAmount,
-            plannedDate: chargeDate.toISOString().split('T')[0],
+            plannedDate: toDateStringIL(chargeDate),
             billingIdSuffix: billingPrefix ? billingPrefix + '-' + (i + 1) : '',
             status: isAlreadyPaid ? 'בוצע' : 'ממתין',
             actualAmountPaid: isAlreadyPaid ? thisMonthAmount : null,
-            actualPaymentDate: isAlreadyPaid ? chargeDate.toISOString().split('T')[0] : null,
+            actualPaymentDate: isAlreadyPaid ? toDateStringIL(chargeDate) : null,
             completedBy: isAlreadyPaid ? 'מיגרציה' : null,
             completedAt: isAlreadyPaid ? firebase.firestore.FieldValue.serverTimestamp() : null,
             receiptNumber: '',
@@ -357,7 +357,7 @@ function buildBillingSheetRow(client, payment, totalMonths) {
     var totalM = parseInt(totalMonths) || 0;
 
     return {
-        date: payment.actualPaymentDate || new Date().toISOString().split('T')[0],
+        date: payment.actualPaymentDate || getTodayIL(),
         formFillerName: payment.completedBy || '',
         clientName: client.clientName || '',
         phone: client.phone || '',
@@ -397,11 +397,14 @@ async function markSinglePayment(clientDocId, paymentDocId) {
     if (actualAmount === null) return;
 
     if (plannedAmount && actualAmount > plannedAmount * 1.1) {
-        if (!confirm('הסכום גבוה ב-' + Math.round((actualAmount / plannedAmount - 1) * 100) + '% מהסכום המתוכנן. להמשיך?')) return;
+        var ok = await tofesConfirm('הסכום גבוה ב-' + Math.round((actualAmount / plannedAmount - 1) * 100) + '% מהסכום המתוכנן. להמשיך?', {
+            title: 'סכום חריג', icon: 'warn', okText: 'המשך', cancelText: 'ביטול', danger: false
+        });
+        if (!ok) return;
     }
 
     // modal לתאריך תשלום
-    var today = new Date().toISOString().split('T')[0];
+    var today = getTodayIL();
     var actualDate = await showInputModal('תאריך תשלום', today, 'date');
     if (actualDate === null) return;
 
@@ -482,9 +485,11 @@ async function restoreBillingVatRecords() {
         { clientName: 'טריידינג סקילס בעמ', actualAmountWithVat: 14750 }
     ];
 
-    if (!confirm('האם לשחזר את הסכומים הנכונים עבור:\n' +
-        corrections.map(function(c) { return c.clientName + ': ' + c.actualAmountWithVat + ' ₪ כולל מע"מ'; }).join('\n')
-    )) return;
+    var restoreOk = await tofesConfirm('האם לשחזר את הסכומים הנכונים עבור:\n' +
+        corrections.map(function(c) { return c.clientName + ': ' + c.actualAmountWithVat + ' ₪ כולל מע"מ'; }).join('\n'),
+        { title: 'שחזור סכומים', icon: 'warn', okText: 'שחזר', cancelText: 'ביטול' }
+    );
+    if (!restoreOk) return;
 
     var snapshot = await db.collection('sales_records')
         .where('transactionType', '==', 'חיוב חודשי - גבייה')
@@ -543,7 +548,9 @@ async function restoreBillingVatRecords() {
 
 // ========== תיקון מע"מ בגבייה חודשית (עם דגל למניעת תיקון כפול) ==========
 async function fixBillingVatRecords() {
-    if (!confirm('האם לתקן את חישוב המע"מ בכל רשומות הגבייה החודשית?\nהסכום ששולם יטופל ככולל מע"מ (במקום לפני מע"מ).')) return;
+    var fixOk = await tofesConfirm('האם לתקן את חישוב המע"מ בכל רשומות הגבייה החודשית?\nהסכום ששולם יטופל ככולל מע"מ (במקום לפני מע"מ).',
+        { title: 'תיקון מע"מ', icon: 'warn', okText: 'תקן', cancelText: 'ביטול' });
+    if (!fixOk) return;
 
     var snapshot = await db.collection('sales_records')
         .where('transactionType', '==', 'חיוב חודשי - גבייה')
@@ -685,7 +692,10 @@ async function editCompletedPayment(clientDocId, paymentDocId) {
     var newDate = await showInputModal('תאריך תשלום בפועל', currentDate, 'date');
     if (newDate === null) {
         // ביטול — אפשרות לבטל סימון
-        if (confirm('האם לבטל סימון תשלום זה כבוצע?')) {
+        var unmark = await tofesConfirm('האם לבטל סימון תשלום זה כבוצע?', {
+            title: 'ביטול סימון תשלום', icon: 'warn', okText: 'בטל סימון', cancelText: 'השאר'
+        });
+        if (unmark) {
             try {
                 var payRef = db.collection('recurring_billing').doc(clientDocId)
                     .collection('payments').doc(paymentDocId);
@@ -758,7 +768,10 @@ async function recalcClientSummary(docId) {
 var _deletingPayment = false;
 async function deletePayment(clientDocId, paymentDocId, monthNumber) {
     if (_deletingPayment) return;
-    if (!confirm('האם להסיר את תשלום #' + monthNumber + ' מהסדרה?\nפעולה זו לא ניתנת לביטול.')) return;
+    var delOk = await tofesConfirm('האם להסיר את תשלום #' + monthNumber + ' מהסדרה?\nפעולה זו לא ניתנת לביטול.', {
+        title: 'מחיקת תשלום', icon: 'warn', okText: 'מחק', cancelText: 'ביטול', danger: true
+    });
+    if (!delOk) return;
 
     _deletingPayment = true;
     try {
@@ -786,7 +799,7 @@ async function markNextPayment() {
 
 async function markAllDuePayments() {
     if (!currentPaymentDocId) return;
-    var today = new Date().toISOString().split('T')[0];
+    var today = getTodayIL();
     var duePayments = currentPayments.filter(function(p) {
         return (p.status === 'ממתין' || p.status === 'באיחור') && p.plannedDate <= today;
     });
@@ -794,13 +807,16 @@ async function markAllDuePayments() {
         alert('אין תשלומים שהגיע מועד פירעונם');
         return;
     }
-    if (!confirm('יש ' + duePayments.length + ' תשלומים שהגיע מועדם. לסמן הכל כבוצע?')) return;
+    var batchOk = await tofesConfirm('יש ' + duePayments.length + ' תשלומים שהגיע מועדם. לסמן הכל כבוצע?', {
+        title: 'סימון קבוצתי', icon: 'info', okText: 'סמן הכל', cancelText: 'ביטול', danger: false
+    });
+    if (!batchOk) return;
 
     var btn = document.getElementById('pmBatchMarkBtn');
     if (btn) btn.disabled = true;
     try {
         var batch = db.batch();
-        var nowISO = new Date().toISOString().split('T')[0];
+        var nowISO = getTodayIL();
         duePayments.forEach(function(p) {
             var ref = db.collection('recurring_billing').doc(currentPaymentDocId)
                 .collection('payments').doc(p.id);
@@ -887,9 +903,10 @@ async function quickMarkPayment(docId) {
         }
 
         var planned = parseFloat(next.plannedAmount) || 0;
-        if (!confirm('לסמן תשלום #' + next.monthNumber + ' (₪' + planned.toLocaleString('he-IL') + ') כבוצע?')) {
-            return;
-        }
+        var markOk = await tofesConfirm('לסמן תשלום #' + next.monthNumber + ' (₪' + planned.toLocaleString('he-IL') + ') כבוצע?', {
+            title: 'סימון תשלום', icon: 'info', okText: 'סמן כבוצע', cancelText: 'ביטול', danger: false
+        });
+        if (!markOk) return;
 
         currentPaymentDocId = docId;
         currentPayments = payments;
@@ -1002,7 +1019,7 @@ async function extendBillingSeriesUI() {
             batch.set(payRef, {
                 monthNumber: monthIndex + 1,
                 plannedAmount: monthlyAmount,
-                plannedDate: chargeDate.toISOString().split('T')[0],
+                plannedDate: toDateStringIL(chargeDate),
                 billingIdSuffix: billingPrefix ? billingPrefix + '-' + (monthIndex + 1) : '',
                 status: 'ממתין',
                 actualAmountPaid: null,

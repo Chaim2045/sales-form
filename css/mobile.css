@@ -4,6 +4,36 @@
    Loaded AFTER all other CSS files.
    ================================================================ */
 
+/* ──── Date inputs - RTL fix for iOS/Android native pickers ──── */
+input[type="date"] {
+    direction: ltr;
+    text-align: right;
+    -webkit-appearance: none;
+    appearance: none;
+    min-height: 44px;
+    font-family: inherit;
+    font-size: 15px;
+    padding: 10px 12px;
+    background: #fff;
+}
+input[type="date"]::-webkit-date-and-time-value {
+    text-align: right;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+    margin-inline-start: 0;
+    margin-inline-end: 0;
+    cursor: pointer;
+    opacity: 0.7;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+@media (max-width: 767.98px) {
+    input[type="date"] {
+        font-size: 16px; /* prevent iOS zoom on focus */
+    }
+}
+
 /* ──── 1. Safe Areas (iPhone X+ notch) — mobile only ──── */
 @media (max-width: 767.98px) {
     body {

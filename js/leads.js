@@ -323,7 +323,7 @@ function showDuplicateAlert(record) {
 
 // ==================== Merge Duplicates ====================
 
-function mergeDuplicateLeads() {
+async function mergeDuplicateLeads() {
     if (!currentLeadDocId) return;
     var dupInfo = leadsDuplicateMap[currentLeadDocId];
     if (!dupInfo) return;
@@ -331,7 +331,10 @@ function mergeDuplicateLeads() {
     var keepId = dupInfo.duplicateOf; // primary (newest)
     var removeId = currentLeadDocId;  // this one (older duplicate)
 
-    if (!confirm('למזג ליד זה עם ' + dupInfo.primaryName + '?\nהליד הנוכחי יימחק, הנתונים יועברו.')) return;
+    var mergeOk = await tofesConfirm('למזג ליד זה עם ' + dupInfo.primaryName + '?\nהליד הנוכחי יימחק, הנתונים יועברו.', {
+        title: 'מיזוג לידים', icon: 'warn', okText: 'מזג', cancelText: 'ביטול'
+    });
+    if (!mergeOk) return;
 
     var keepRecord = leadsRecords.find(function(r) { return r.id === keepId; });
     var removeRecord = leadsRecords.find(function(r) { return r.id === removeId; });
@@ -1173,13 +1176,16 @@ function scoreLead() {
     });
 }
 
-function scoreAllLeads() {
+async function scoreAllLeads() {
     var unscored = leadsRecords.filter(function(r) { return !r.aiScore && r.status !== 'not_relevant'; });
     if (unscored.length === 0) {
         alert('כל הלידים כבר נותחו');
         return;
     }
-    if (!confirm('לנתח ' + unscored.length + ' לידים? (עלות API)')) return;
+    var scoreOk = await tofesConfirm('לנתח ' + unscored.length + ' לידים? (עלות API)', {
+        title: 'ניתוח AI', icon: 'info', okText: 'נתח', cancelText: 'ביטול', danger: false
+    });
+    if (!scoreOk) return;
 
     var idx = 0;
     function next() {
@@ -1256,7 +1262,7 @@ function exportLeadsCSV() {
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = 'leads_' + new Date().toISOString().split('T')[0] + '.csv';
+    a.download = 'leads_' + getTodayIL() + '.csv';
     a.click();
     URL.revokeObjectURL(url);
 }
@@ -1301,13 +1307,16 @@ function escapeHTML(str) {
 
 // ==================== Delete Lead ====================
 
-function deleteCurrentLead() {
+async function deleteCurrentLead() {
     if (!currentLeadDocId) return;
     if (currentUserRole !== 'master') {
-        alert('רק מנהל ראשי יכול למחוק לידים');
+        await tofesAlert('רק מנהל ראשי יכול למחוק לידים', { icon: 'error', title: 'אין הרשאה' });
         return;
     }
-    if (!confirm('למחוק את הליד הזה לצמיתות?')) return;
+    var delLeadOk = await tofesConfirm('למחוק את הליד הזה לצמיתות?', {
+        title: 'מחיקת ליד', icon: 'error', okText: 'מחק', cancelText: 'ביטול', danger: true
+    });
+    if (!delLeadOk) return;
 
     var docIdToDelete = currentLeadDocId;
     db.collection('leads').doc(docIdToDelete).delete()
@@ -1714,13 +1723,16 @@ function clearBulkSelection() {
     updateBulkBar();
 }
 
-function executeBulkAction() {
+async function executeBulkAction() {
     var checked = document.querySelectorAll('.ld-row-check:checked');
     if (checked.length === 0) return;
     var newStatus = document.getElementById('ldBulkStatus').value;
     var newAssignee = document.getElementById('ldBulkAssignee').value;
-    if (!newStatus && !newAssignee) { alert('בחר סטטוס או אחראי'); return; }
-    if (!confirm('לעדכן ' + checked.length + ' לידים?')) return;
+    if (!newStatus && !newAssignee) { await tofesAlert('בחר סטטוס או אחראי', { icon: 'warn', title: 'בחירה חסרה' }); return; }
+    var bulkOk = await tofesConfirm('לעדכן ' + checked.length + ' לידים?', {
+        title: 'עדכון קבוצתי', icon: 'info', okText: 'עדכן', cancelText: 'ביטול', danger: false
+    });
+    if (!bulkOk) return;
 
     var batch = db.batch();
     checked.forEach(function(cb) {

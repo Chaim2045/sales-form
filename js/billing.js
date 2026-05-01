@@ -152,7 +152,10 @@ async function submitBillingForm() {
     var today = new Date();
     today.setHours(0, 0, 0, 0);
     if (startDateObj < today) {
-        if (!confirm('תאריך ההתחלה שנבחר הוא בעבר (' + startDate + '). להמשיך?')) return;
+        var pastOk = await tofesConfirm('תאריך ההתחלה שנבחר הוא בעבר (' + startDate + '). להמשיך?', {
+            title: 'תאריך בעבר', icon: 'warn', okText: 'המשך', cancelText: 'תקן', danger: false
+        });
+        if (!pastOk) return;
     }
 
     const submitBtn = document.getElementById('billingSubmitBtn');
@@ -213,7 +216,10 @@ async function submitBillingForm() {
                 if (d.data().status !== 'בוטל') activeExisting.push(d.data());
             });
             if (activeExisting.length > 0) {
-                if (!confirm('לקוח עם טלפון זהה כבר קיים: ' + activeExisting[0].clientName + '.\nלהוסיף בכל זאת?')) {
+                var dupOk = await tofesConfirm('לקוח עם טלפון זהה כבר קיים: ' + activeExisting[0].clientName + '.\nלהוסיף בכל זאת?', {
+                    title: 'לקוח כפול', icon: 'warn', okText: 'הוסף בכל זאת', cancelText: 'ביטול', danger: false
+                });
+                if (!dupOk) {
                     submitBtn.disabled = false;
                     document.getElementById('billingSubmitText').textContent = 'שמור וצור תזכורות';
                     return;
@@ -436,7 +442,7 @@ async function exportBillingReport() {
         });
 
         // הורדת הקובץ
-        var today = new Date().toISOString().split('T')[0];
+        var today = getTodayIL();
         var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         var link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
@@ -1688,7 +1694,7 @@ async function syncPaymentsAfterEdit(docId, oldData, newData) {
                 if (p.data.status !== 'בוצע' && p.data.status !== 'בוטל') {
                     var monthIdx = p.data.monthNumber - 1;
                     var newChargeDate = safeChargeDate(start.getFullYear(), start.getMonth() + monthIdx, newDayOfMonth);
-                    var newDateStr = newChargeDate.toISOString().split('T')[0];
+                    var newDateStr = toDateStringIL(newChargeDate);
                     if (newDateStr !== p.data.plannedDate) {
                         var ref = db.collection('recurring_billing').doc(docId)
                             .collection('payments').doc(p.id);
@@ -1766,11 +1772,11 @@ async function syncPaymentsAfterEdit(docId, oldData, newData) {
                 batch.set(payRef, {
                     monthNumber: i + 1,
                     plannedAmount: newAmount,
-                    plannedDate: chargeDate.toISOString().split('T')[0],
+                    plannedDate: toDateStringIL(chargeDate),
                     billingIdSuffix: billingPrefix ? billingPrefix + '-' + (i + 1) : '',
                     status: i < newPaidAlready ? 'בוצע' : 'ממתין',
                     actualAmountPaid: i < newPaidAlready ? newAmount : null,
-                    actualPaymentDate: i < newPaidAlready ? chargeDate.toISOString().split('T')[0] : null,
+                    actualPaymentDate: i < newPaidAlready ? toDateStringIL(chargeDate) : null,
                     completedBy: i < newPaidAlready ? 'עריכה ידנית' : null,
                     completedAt: i < newPaidAlready ? firebase.firestore.FieldValue.serverTimestamp() : null,
                     notes: ''
@@ -1813,7 +1819,9 @@ async function confirmDeleteBilling(docId, clientName) {
         return;
     }
 
-    var confirmed = confirm('האם אתה בטוח שברצונך למחוק את לקוח הגבייה "' + clientName + '"?\n\nכל התשלומים של לקוח זה יימחקו.\nפעולה זו אינה ניתנת לביטול.');
+    var confirmed = await tofesConfirm('האם אתה בטוח שברצונך למחוק את לקוח הגבייה "' + clientName + '"?\n\nכל התשלומים של לקוח זה יימחקו.\nפעולה זו אינה ניתנת לביטול.', {
+        title: 'מחיקת לקוח גבייה', icon: 'error', okText: 'מחק לצמיתות', cancelText: 'ביטול', danger: true
+    });
     if (!confirmed) return;
 
     try {

@@ -1,3 +1,8 @@
+// Defer alert/confirm patches until tofes helpers loaded (sales-form.js)
+// כאן רק מאחסנים native versions - הpatch עצמו ב-sales-form.js
+window._nativeAlert = window._nativeAlert || window.alert;
+window._nativeConfirm = window._nativeConfirm || window.confirm;
+
 // Firebase Configuration - Using environment variables
 var firebaseConfig = {
     apiKey: window.ENV_CONFIG.FIREBASE_API_KEY,
@@ -34,8 +39,31 @@ function validateStrongPassword(password) {
 // ========== ולידציות ישראליות (משותף) ==========
 
 function validateIsraeliPhone(phone) {
+    if (!phone) return false;
+    // נרמול קודם - תמיכה ב-+972, 972, וכו'
     var digits = phone.replace(/\D/g, '');
-    return /^0[2-9]\d{7,8}$/.test(digits);
+    if (digits.startsWith('972')) digits = '0' + digits.substring(3);
+    if (digits.length === 9 && /^[5]/.test(digits)) digits = '0' + digits;
+    // נייד: 05X-XXXXXXX (10 ספרות, מתחיל ב-05)
+    if (/^05\d{8}$/.test(digits)) return true;
+    // VoIP / operators: 07X-XXXXXXX (10 ספרות, 072/073/074/076/077/078/079)
+    if (/^07[2-9]\d{7}$/.test(digits)) return true;
+    // קווי: 0X-XXXXXXX (9 ספרות, X = 2,3,4,8,9)
+    if (/^0[2-489]\d{7}$/.test(digits)) return true;
+    return false;
+}
+
+// ========== Date helpers (Asia/Jerusalem) ==========
+// תאריך היום בישראל - YYYY-MM-DD
+function getTodayIL() {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+}
+
+// המרת אובייקט Date ל-YYYY-MM-DD בלי לאבד יום בגלל UTC shift
+// (חשוב לתאריכים שנבנו ע"י new Date(year,month,day) - local midnight)
+function toDateStringIL(date) {
+    if (!(date instanceof Date)) date = new Date(date);
+    return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
 }
 
 function validateIsraeliId(id) {

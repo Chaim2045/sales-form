@@ -564,7 +564,7 @@ function exportSalesReport() {
             csvContent += line + '\n';
         });
 
-        var today = new Date().toISOString().split('T')[0];
+        var today = getTodayIL();
         var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         var link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
@@ -596,7 +596,9 @@ function openSaleEditModal(saleId) {
 
     // Fill edit form
     document.getElementById('saleEditId').value = record.id;
-    document.getElementById('saleEditDate').value = record.date || '';
+    var saleEditDateEl = document.getElementById('saleEditDate');
+    saleEditDateEl.value = record.date || '';
+    saleEditDateEl.setAttribute('max', getTodayIL());
     document.getElementById('saleEditClientName').value = record.clientName || '';
     document.getElementById('saleEditPhone').value = record.phone || '';
     document.getElementById('saleEditEmail').value = record.email || '';
@@ -624,18 +626,55 @@ async function saveSaleEdit() {
 
     var clientName = document.getElementById('saleEditClientName').value.trim();
     if (!clientName) {
-        alert('שם לקוח הוא שדה חובה');
+        await tofesAlert('שם לקוח הוא שדה חובה', { icon: 'error', title: 'שדה חסר' });
         return;
     }
 
-    var amountBefore = parseFloat(document.getElementById('saleEditAmount').value) || 0;
-    var vatAmount = Math.round(amountBefore * VAT_RATE * 100) / 100;
-    var amountWith = Math.round((amountBefore + vatAmount) * 100) / 100;
+    var parseFn = (typeof parseAmount === 'function') ? parseAmount : function(v) { return parseFloat(String(v).replace(/,/g, '')) || 0; };
+    var amountBefore = parseFn(document.getElementById('saleEditAmount').value);
+    if (amountBefore <= 0) {
+        await tofesAlert('סכום לפני מע"מ חייב להיות גדול מ-0', { icon: 'error', title: 'סכום לא תקין' });
+        return;
+    }
+    // עיגול half-up עם Number.EPSILON
+    var roundFn = (typeof roundMoney === 'function') ? roundMoney : function(n) {
+        return Math.round((parseFloat(n) + Number.EPSILON) * 100) / 100;
+    };
+    amountBefore = roundFn(amountBefore);
+    var vatAmount = roundFn(amountBefore * VAT_RATE);
+    var amountWith = roundFn(amountBefore + vatAmount);
+
+    // ולידציית טלפון/ת.ז גם ב-edit
+    var editPhone = document.getElementById('saleEditPhone').value.trim();
+    if (editPhone && typeof validateIsraeliPhone === 'function' && !validateIsraeliPhone(editPhone)) {
+        await tofesAlert('מספר טלפון לא תקין. נא להזין מספר ישראלי תקין.', { icon: 'error', title: 'טלפון שגוי' });
+        return;
+    }
+    var editId = document.getElementById('saleEditIdNumber').value.trim();
+    if (editId && typeof validateIsraeliId === 'function' && !validateIsraeliId(editId)) {
+        var idOk = await tofesConfirm('ת.ז/ח.פ לא עובר בדיקת ספרת ביקורת. ייתכן שהוקלד שגוי.\nלשמור בכל זאת?', {
+            title: 'ת.ז/ח.פ חשוד',
+            icon: 'warn',
+            okText: 'שמור בכל זאת',
+            cancelText: 'תקן'
+        });
+        if (!idOk) return;
+    }
 
     var editedDate = document.getElementById('saleEditDate').value;
+    var todayIL = getTodayIL();
+    if (!editedDate) {
+        await tofesAlert('תאריך עסקה הוא שדה חובה', { icon: 'error', title: 'שדה חסר' });
+        return;
+    }
+    if (editedDate > todayIL) {
+        await tofesAlert('תאריך עסקה לא יכול להיות בעתיד', { icon: 'error', title: 'תאריך לא תקין' });
+        return;
+    }
 
     var updateData = {
         date: editedDate,
+        isBackdated: editedDate !== todayIL,
         clientName: clientName,
         phone: document.getElementById('saleEditPhone').value.trim(),
         email: document.getElementById('saleEditEmail').value.trim(),
@@ -750,7 +789,7 @@ function openInvoicePopup(saleId) {
     var existing = document.getElementById('invoicePopupOverlay');
     if (existing) existing.remove();
 
-    var today = new Date().toISOString().split('T')[0];
+    var today = getTodayIL();
 
     var overlay = document.createElement('div');
     overlay.id = 'invoicePopupOverlay';
@@ -866,7 +905,9 @@ async function confirmDeleteSale(saleId, clientName) {
         return;
     }
 
-    var confirmed = confirm('האם אתה בטוח שברצונך למחוק את הרשומה של "' + clientName + '"?\n\nפעולה זו אינה ניתנת לביטול.');
+    var confirmed = await tofesConfirm('האם אתה בטוח שברצונך למחוק את הרשומה של "' + clientName + '"?\n\nפעולה זו אינה ניתנת לביטול.', {
+        title: 'מחיקת רשומה', icon: 'error', okText: 'מחק', cancelText: 'ביטול', danger: true
+    });
     if (!confirmed) return;
 
     try {

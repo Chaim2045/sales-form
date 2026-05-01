@@ -132,12 +132,14 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
     // ולידציית טלפון ות.ז
     var phoneVal = (document.getElementById('phone').value || '').trim();
     if (phoneVal && !validateIsraeliPhone(phoneVal)) {
-        alert('מספר טלפון לא תקין. נא להזין מספר ישראלי (לדוגמה: 0501234567)');
+        await tofesAlert('מספר טלפון לא תקין. נא להזין מספר ישראלי (לדוגמה: 0501234567)', { icon: 'error', title: 'טלפון שגוי' });
+        showStep(1);
         return;
     }
     var idVal = (document.getElementById('idNumber').value || '').trim();
     if (idVal && !validateIsraeliId(idVal)) {
-        alert('מספר ת.ז לא תקין. נא לבדוק את המספר ולנסות שוב.');
+        await tofesAlert('מספר ת.ז/ח.פ לא תקין. נא לבדוק את המספר ולנסות שוב.', { icon: 'error', title: 'ת.ז שגוי' });
+        showStep(1);
         return;
     }
 
@@ -147,12 +149,14 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
         var splitRows = document.querySelectorAll('.split-payment-row');
         var splitTotal = 0;
         splitRows.forEach(function(row) {
-            splitTotal += parseFloat(row.querySelector('.split-payment-amount').value) || 0;
+            splitTotal += parseAmount(row.querySelector('.split-payment-amount').value);
         });
-        var amountForCheck = parseFloat(document.getElementById('amount').value) || 0;
-        var totalRequiredForCheck = amountForCheck * (1 + VAT_RATE);
-        if (Math.abs(totalRequiredForCheck - splitTotal) > 1) {
-            alert('סכום התשלומים המפוצלים (₪' + splitTotal.toFixed(2) + ') לא תואם את סה"כ העסקה (₪' + totalRequiredForCheck.toFixed(2) + ')');
+        splitTotal = roundMoney(splitTotal);
+        var amountForCheck = parseAmount(document.getElementById('amount').value);
+        var totalRequiredForCheck = roundMoney(amountForCheck * (1 + VAT_RATE));
+        if (Math.abs(totalRequiredForCheck - splitTotal) > 0.01) {
+            await tofesAlert('סכום התשלומים המפוצלים (₪' + formatMoney(splitTotal) + ') לא תואם את סה"כ העסקה (₪' + formatMoney(totalRequiredForCheck) + ')', { icon: 'error', title: 'אי-התאמת סכומים' });
+            showStep(3);
             return;
         }
     }
@@ -168,9 +172,9 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
 
     try {
         const transactionType = document.getElementById('transactionType').value;
-        const amountBeforeVat = parseFloat(document.getElementById('amount').value);
-        const vatAmount = amountBeforeVat * VAT_RATE;
-        const amountWithVat = amountBeforeVat + vatAmount;
+        const amountBeforeVat = roundMoney(parseAmount(document.getElementById('amount').value));
+        const vatAmount = roundMoney(amountBeforeVat * VAT_RATE);
+        const amountWithVat = roundMoney(amountBeforeVat + vatAmount);
 
         let transactionDescription = document.getElementById('transactionDescription').value;
 
@@ -222,9 +226,18 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
             }).join(' + ');
         }
 
+        // תאריך עסקה: שדה משתמש (יכול להיות אחורה), fallback להיום
+        var todayIL = getTodayIL();
+        var userTransactionDate = document.getElementById('transactionDate').value || todayIL;
+        // הגנה: לא לאפשר עתיד גם ב-submit
+        if (userTransactionDate > todayIL) userTransactionDate = todayIL;
+        var isBackdated = userTransactionDate !== todayIL;
+
         const formData = {
             timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-            date: new Date().toISOString().split('T')[0],
+            date: userTransactionDate,
+            reportedDate: todayIL,
+            isBackdated: isBackdated,
             formFillerName: currentUser,
             clientName: document.getElementById('clientName').value,
             phone: document.getElementById('phone').value,
@@ -316,6 +329,22 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
 
         document.getElementById('summaryAmount').textContent = formData.amountWithVat.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
+        // הצגת תאריך עסקה + badge backdated
+        var sumDateRow = document.getElementById('summaryDateRow');
+        var sumDate = document.getElementById('summaryDate');
+        var sumBackdated = document.getElementById('summaryBackdatedBadge');
+        var sumBackdatedDate = document.getElementById('summaryBackdatedDate');
+        if (sumDateRow && sumDate) {
+            sumDate.textContent = formData.date;
+            sumDateRow.style.display = '';
+        }
+        if (formData.isBackdated && sumBackdated && sumBackdatedDate) {
+            sumBackdatedDate.textContent = formData.date;
+            sumBackdated.style.display = 'block';
+        } else if (sumBackdated) {
+            sumBackdated.style.display = 'none';
+        }
+
         // Clear draft after successful submission
         if (typeof clearDraft === 'function') clearDraft();
 
@@ -393,6 +422,14 @@ function resetForm() {
     // Remove validation toast if visible
     var toast = document.getElementById('validationErrorToast');
     if (toast) toast.remove();
+
+    // Reset transactionDate ל-היום (Asia/Jerusalem)
+    var dateEl = document.getElementById('transactionDate');
+    if (dateEl) {
+        var todayIL = getTodayIL();
+        dateEl.value = todayIL;
+        dateEl.setAttribute('max', todayIL);
+    }
 
     // Reset to step 1
     showStep(1);

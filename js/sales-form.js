@@ -27,6 +27,14 @@ function prefillFromLocalStorage() {
     var lastAttorney = localStorage.getItem('tofes_lastAttorney');
     var lastBranch = localStorage.getItem('tofes_lastBranch');
 
+    // אתחול תאריך עסקה - ברירת מחדל: היום (Asia/Jerusalem), max=היום
+    var dateEl = document.getElementById('transactionDate');
+    if (dateEl) {
+        var todayIL = getTodayIL();
+        if (!dateEl.value) dateEl.value = todayIL;
+        dateEl.setAttribute('max', todayIL);
+    }
+
     var attEl = document.getElementById('attorney');
     if (lastAttorney && attEl && !attEl.value) {
         attEl.value = lastAttorney;
@@ -36,6 +44,37 @@ function prefillFromLocalStorage() {
         branchEl.value = lastBranch;
     }
 }
+
+// עדכון badge "דיווח רטרואקטיבי" בשינוי תאריך עסקה
+function updateBackdatedBadge() {
+    var dateEl = document.getElementById('transactionDate');
+    var badge = document.getElementById('backdatedBadge');
+    var badgeText = document.getElementById('backdatedBadgeText');
+    if (!dateEl || !badge) return;
+    var todayIL = getTodayIL();
+    var val = dateEl.value;
+    if (!val || val === todayIL) {
+        badge.style.display = 'none';
+        return;
+    }
+    if (val > todayIL) {
+        badge.style.display = 'none';
+        return;
+    }
+    // חישוב הפרש ימים
+    var diff = Math.round((new Date(todayIL) - new Date(val)) / 86400000);
+    var label = diff === 1 ? 'יום אחד' : diff < 30 ? diff + ' ימים' : Math.floor(diff / 30) + ' חודשים';
+    if (badgeText) badgeText.textContent = 'דיווח רטרואקטיבי - ' + label + ' אחורה';
+    badge.style.display = 'block';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var dateEl = document.getElementById('transactionDate');
+    if (dateEl) {
+        dateEl.addEventListener('change', updateBackdatedBadge);
+        dateEl.addEventListener('input', updateBackdatedBadge);
+    }
+});
 
 // Step Navigation
 function updateProgress() {
@@ -111,6 +150,38 @@ function validateStep(step) {
         }
     });
 
+    // Special validation for step 1 - phone, ID, email
+    if (step === 1) {
+        var phoneEl = document.getElementById('phone');
+        var phoneVal = (phoneEl.value || '').trim();
+        if (phoneVal && typeof validateIsraeliPhone === 'function' && !validateIsraeliPhone(phoneVal)) {
+            phoneEl.classList.add('error');
+            isValid = false;
+            errors.push('טלפון לא תקין (נדרש מספר ישראלי)');
+        }
+        var idEl = document.getElementById('idNumber');
+        var idVal = (idEl.value || '').trim();
+        if (idVal && typeof validateIsraeliId === 'function' && !validateIsraeliId(idVal)) {
+            idEl.classList.add('error');
+            isValid = false;
+            errors.push('ת.ז/ח.פ לא תקין (ספרת ביקורת)');
+        }
+        var emailEl = document.getElementById('email');
+        var emailVal = (emailEl.value || '').trim();
+        if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailVal)) {
+            emailEl.classList.add('error');
+            isValid = false;
+            errors.push('כתובת מייל לא תקינה');
+        }
+        var nameEl = document.getElementById('clientName');
+        var nameVal = (nameEl.value || '').trim();
+        if (nameEl.value && nameVal.length < 2) {
+            nameEl.classList.add('error');
+            isValid = false;
+            errors.push('שם לקוח קצר מדי');
+        }
+    }
+
     // Special validation for amount field in step 2
     if (step === 2) {
         const amountField = document.getElementById('amount');
@@ -163,7 +234,8 @@ function validateStep(step) {
                 // בדיקת שדות שיקים דינמיים
                 var checksCount = parseInt(document.getElementById('checksCount').value) || 0;
                 var checksSum = 0;
-                var today = new Date().toISOString().split('T')[0];
+                // Asia/Jerusalem date (en-CA → YYYY-MM-DD)
+                var today = getTodayIL();
                 for (var i = 1; i <= checksCount; i++) {
                     var dateInput = document.getElementById('check_date_' + i);
                     var amountInput = document.getElementById('check_amount_' + i);
@@ -178,34 +250,46 @@ function validateStep(step) {
                     } else if (dateInput) {
                         dateInput.classList.remove('error');
                     }
-                    if (amountInput && (!amountInput.value || parseFloat(amountInput.value) <= 0)) {
+                    if (amountInput && (!amountInput.value || parseAmount(amountInput.value) <= 0)) {
                         amountInput.classList.add('error');
                         isValid = false;
                         errors.push('סכום שיק ' + i);
                     } else if (amountInput) {
                         amountInput.classList.remove('error');
-                        checksSum += parseFloat(amountInput.value) || 0;
+                        checksSum += parseAmount(amountInput.value);
                     }
                 }
 
                 // וולידציה: סכום השיקים הבודדים = סה"כ
                 var checksTotalInput = document.getElementById('checksTotalAmount');
-                var checksTotal = parseFloat(checksTotalInput ? checksTotalInput.value : 0) || 0;
-                if (checksCount > 0 && checksTotal > 0 && checksSum > 0 && Math.abs(checksSum - checksTotal) > 1) {
+                var checksTotal = parseAmount(checksTotalInput ? checksTotalInput.value : 0);
+                checksSum = roundMoney(checksSum);
+                if (checksCount > 0 && checksTotal > 0 && checksSum > 0 && Math.abs(checksSum - checksTotal) > 0.01) {
                     isValid = false;
-                    errors.push('סכום השיקים (' + checksSum.toFixed(0) + ') לא תואם לסה"כ (' + checksTotal.toFixed(0) + ')');
+                    errors.push('סכום השיקים (' + formatMoney(checksSum) + ') לא תואם לסה"כ (' + formatMoney(checksTotal) + ')');
                     if (checksTotalInput) checksTotalInput.classList.add('error');
                 } else if (checksTotalInput) {
                     checksTotalInput.classList.remove('error');
+                }
+
+                // הצלבה: סכום שיקים = סכום עסקה כולל מע"מ
+                var amountForCheck = parseAmount(document.getElementById('amount').value);
+                var totalRequiredForChecks = roundMoney(amountForCheck * (1 + VAT_RATE));
+                if (amountForCheck > 0 && checksTotal > 0 && Math.abs(totalRequiredForChecks - checksTotal) > 0.01) {
+                    isValid = false;
+                    errors.push('סה"כ שיקים (' + formatMoney(checksTotal) + ') לא תואם לסכום העסקה כולל מע"מ (' + formatMoney(totalRequiredForChecks) + ')');
+                    if (checksTotalInput) checksTotalInput.classList.add('error');
                 }
             }
 
             if (paymentMethod.value === 'פיצול תשלום') {
                 var splitRows = document.querySelectorAll('.split-payment-row');
                 var hasValidRow = false;
+                var splitTotalEntered = 0;
                 splitRows.forEach(function(row, idx) {
                     var method = row.querySelector('.split-payment-method');
                     var amount = row.querySelector('.split-payment-amount');
+                    var rowId = row.getAttribute('data-row-id');
                     if (!method.value) {
                         method.classList.add('error');
                         isValid = false;
@@ -214,18 +298,99 @@ function validateStep(step) {
                         method.classList.remove('error');
                         hasValidRow = true;
                     }
-                    if (!amount.value || parseFloat(amount.value) <= 0) {
+                    if (!amount.value || parseAmount(amount.value) <= 0) {
                         amount.classList.add('error');
                         isValid = false;
                         errors.push('סכום בשורה ' + (idx + 1));
                     } else {
                         amount.classList.remove('error');
+                        splitTotalEntered += parseAmount(amount.value);
+                    }
+
+                    // ולידציית sub-fields לפי method
+                    if (method.value === 'כרטיס אשראי' && rowId) {
+                        var ccStatus = document.querySelector('input[name="cc_status_' + rowId + '"]:checked');
+                        if (!ccStatus) {
+                            isValid = false;
+                            errors.push('סטטוס אשראי בשורה ' + (idx + 1));
+                        } else if (ccStatus.value === 'חיוב מלא') {
+                            var ccPay = document.getElementById('cc_payments_' + rowId);
+                            if (ccPay && (!ccPay.value || parseInt(ccPay.value) < 1 || parseInt(ccPay.value) > 36)) {
+                                ccPay.classList.add('error');
+                                isValid = false;
+                                errors.push('מספר תשלומים בשורה ' + (idx + 1) + ' (1-36)');
+                            } else if (ccPay) ccPay.classList.remove('error');
+                        } else if (ccStatus.value === 'פיקדון') {
+                            var ccMon = document.getElementById('cc_monthly_' + rowId);
+                            var ccMonths = document.getElementById('cc_months_' + rowId);
+                            if (ccMon && (!ccMon.value || parseAmount(ccMon.value) <= 0)) {
+                                ccMon.classList.add('error');
+                                isValid = false;
+                                errors.push('חיוב חודשי בשורה ' + (idx + 1));
+                            } else if (ccMon) ccMon.classList.remove('error');
+                            if (ccMonths && (!ccMonths.value || parseInt(ccMonths.value) < 1)) {
+                                ccMonths.classList.add('error');
+                                isValid = false;
+                                errors.push('מספר חודשים בשורה ' + (idx + 1));
+                            } else if (ccMonths) ccMonths.classList.remove('error');
+                        } else if (ccStatus.value === 'אשראי זמני') {
+                            var ccTemp = document.getElementById('cc_temp_text_' + rowId);
+                            if (ccTemp && !ccTemp.value.trim()) {
+                                ccTemp.classList.add('error');
+                                isValid = false;
+                                errors.push('פרטי החלפה בשורה ' + (idx + 1));
+                            } else if (ccTemp) ccTemp.classList.remove('error');
+                        }
+                    }
+
+                    if (method.value === 'שיקים דחויים' && rowId) {
+                        var cCount = document.getElementById('checks_count_' + rowId);
+                        var cAmount = document.getElementById('checks_amount_' + rowId);
+                        if (cCount && (!cCount.value || parseInt(cCount.value) < 1)) {
+                            cCount.classList.add('error');
+                            isValid = false;
+                            errors.push('כמות שיקים בשורה ' + (idx + 1));
+                        } else if (cCount) cCount.classList.remove('error');
+                        if (cAmount && (!cAmount.value || parseAmount(cAmount.value) <= 0)) {
+                            cAmount.classList.add('error');
+                            isValid = false;
+                            errors.push('סכום שיק בשורה ' + (idx + 1));
+                        } else if (cAmount) cAmount.classList.remove('error');
                     }
                 });
                 if (splitRows.length === 0) {
                     isValid = false;
                     errors.push('יש להוסיף לפחות שורת פיצול אחת');
                 }
+
+                // הצלבת total split = amount + VAT
+                var amtSplit = parseAmount(document.getElementById('amount').value);
+                var requiredSplit = roundMoney(amtSplit * (1 + VAT_RATE));
+                splitTotalEntered = roundMoney(splitTotalEntered);
+                if (amtSplit > 0 && splitTotalEntered > 0 && Math.abs(requiredSplit - splitTotalEntered) > 0.01) {
+                    isValid = false;
+                    errors.push('סה"כ פיצול (' + formatMoney(splitTotalEntered) + ') לא תואם סכום עסקה כולל מע"מ (' + formatMoney(requiredSplit) + ')');
+                }
+            }
+        }
+    }
+
+    // Validation step 4 - תאריך עסקה
+    if (step === 4) {
+        var dateEl = document.getElementById('transactionDate');
+        if (dateEl) {
+            var dateVal = dateEl.value;
+            var todayIL = getTodayIL();
+            if (!dateVal) {
+                dateEl.classList.add('error');
+                isValid = false;
+                errors.push('תאריך עסקה');
+            } else if (dateVal > todayIL) {
+                dateEl.classList.add('error');
+                isValid = false;
+                errors.push('תאריך עסקה לא יכול להיות בעתיד');
+            } else {
+                dateEl.classList.remove('error');
             }
         }
     }
@@ -281,14 +446,23 @@ function showValidationError(errors) {
         document.head.appendChild(style);
     }
 
-    // הסרה אוטומטית אחרי 10 שניות (או לחיצה על X)
-    setTimeout(function() {
+    // timeout דינמי: 4 שניות בסיס + 1.5 שנייה לכל שגיאה (מקס 30s)
+    var timeoutMs = Math.min(30000, 4000 + (errors.length * 1500));
+    var dismissTimer = setTimeout(function() {
         if (toast.parentNode) {
             toast.style.opacity = '0';
             toast.style.transition = 'opacity 0.3s ease';
             setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
         }
-    }, 10000);
+    }, timeoutMs);
+
+    // hover משעה את הtimeout (קריאה רגועה)
+    toast.addEventListener('mouseenter', function() { clearTimeout(dismissTimer); });
+    toast.addEventListener('mouseleave', function() {
+        dismissTimer = setTimeout(function() {
+            if (toast.parentNode) toast.remove();
+        }, 3000);
+    });
 }
 
 function nextStep() {
@@ -342,7 +516,7 @@ function updateAmountFromHours() {
     const totalAmount = hours * rate;
 
     if (totalAmount > 0) {
-        document.getElementById('amount').value = totalAmount.toFixed(2);
+        document.getElementById('amount').value = formatMoney(totalAmount);
         updateVatDisplay();
     }
 }
@@ -373,7 +547,13 @@ function collectChecksDetails() {
 
 // Checks Details - Dynamic Fields
 document.getElementById('checksCount').addEventListener('input', function() {
-    const count = parseInt(this.value) || 0;
+    let count = parseInt(this.value) || 0;
+    // הגבלת max - מניעת קריסת דפדפן
+    if (count > 50) {
+        count = 50;
+        this.value = 50;
+        tofesAlert('ניתן להזין עד 50 שיקים. הכמות הוגבלה אוטומטית.', { icon: 'warn', title: 'מקסימום שיקים' });
+    }
     const container = document.getElementById('checksDetailsContainer');
     container.innerHTML = '';
 
@@ -425,7 +605,7 @@ function autoCalculateLastCheck() {
     const lastCheckInput = document.getElementById(`check_amount_${checksCount}`);
 
     if (lastCheckInput && lastCheckAmount >= 0) {
-        lastCheckInput.value = lastCheckAmount.toFixed(2);
+        lastCheckInput.value = formatMoney(lastCheckAmount);
     }
 }
 
@@ -438,17 +618,152 @@ function parseAmount(value) {
     return isNaN(parsed) ? 0 : parsed;
 }
 
+// עיגול half-up מדויק (מתקן באג floating point של toFixed)
+// 0.5 ומעלה -> מעלה, פחות מ-0.5 -> מטה
+// דוגמה: 1.005 -> 1.01 (לא 1.00 כמו toFixed)
+function roundMoney(n) {
+    var num = parseFloat(n) || 0;
+    // Number.EPSILON תיקון שגיאת floating point
+    return Math.round((num + Number.EPSILON) * 100) / 100;
+}
+
+// פורמט להצגה - תמיד 2 ספרות אחרי נקודה
+function formatMoney(n) {
+    return roundMoney(n).toFixed(2);
+}
+
+// ========== Custom RTL Modal Helpers ==========
+// תחליף ל-alert()/confirm() native, מותאם RTL + עברית
+
+function _ensureTofesModalStyles() {
+    if (document.getElementById('tofesModalStyles')) return;
+    var s = document.createElement('style');
+    s.id = 'tofesModalStyles';
+    s.textContent = '' +
+    '.tofes-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;direction:rtl;font-family:Heebo,sans-serif;animation:tofesFadeIn 0.18s ease;}' +
+    '.tofes-modal-box{background:#fff;border-radius:14px;max-width:420px;width:90%;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,0.25);animation:tofesScaleIn 0.2s cubic-bezier(.16,1,.3,1);}' +
+    '.tofes-modal-icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:24px;}' +
+    '.tofes-modal-icon.warn{background:#fef3c7;color:#92400e;}' +
+    '.tofes-modal-icon.error{background:#fee2e2;color:#991b1b;}' +
+    '.tofes-modal-icon.info{background:#dbeafe;color:#1e40af;}' +
+    '.tofes-modal-title{font-size:17px;font-weight:700;color:#1f2937;margin-bottom:8px;}' +
+    '.tofes-modal-msg{font-size:14px;color:#4b5563;line-height:1.5;margin-bottom:20px;white-space:pre-wrap;}' +
+    '.tofes-modal-actions{display:flex;gap:10px;justify-content:flex-start;}' +
+    '.tofes-modal-btn{padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:transform 0.1s, box-shadow 0.1s;}' +
+    '.tofes-modal-btn:active{transform:scale(0.97);}' +
+    '.tofes-modal-btn.primary{background:#2563eb;color:#fff;}' +
+    '.tofes-modal-btn.primary:hover{background:#1d4ed8;}' +
+    '.tofes-modal-btn.danger{background:#dc2626;color:#fff;}' +
+    '.tofes-modal-btn.danger:hover{background:#b91c1c;}' +
+    '.tofes-modal-btn.secondary{background:#e5e7eb;color:#374151;}' +
+    '.tofes-modal-btn.secondary:hover{background:#d1d5db;}' +
+    '@keyframes tofesFadeIn{from{opacity:0;}to{opacity:1;}}' +
+    '@keyframes tofesScaleIn{from{opacity:0;transform:scale(0.92);}to{opacity:1;transform:scale(1);}}';
+    document.head.appendChild(s);
+}
+
+function tofesAlert(message, opts) {
+    return new Promise(function(resolve) {
+        _ensureTofesModalStyles();
+        opts = opts || {};
+        var icon = opts.icon || 'info';
+        var title = opts.title || (icon === 'error' ? 'שגיאה' : icon === 'warn' ? 'אזהרה' : 'הודעה');
+        var btnText = opts.btnText || 'הבנתי';
+
+        var overlay = document.createElement('div');
+        overlay.className = 'tofes-modal-overlay';
+        overlay.innerHTML =
+            '<div class="tofes-modal-box" role="dialog" aria-modal="true">' +
+                '<div class="tofes-modal-icon ' + icon + '">' + (icon === 'error' ? '⚠' : icon === 'warn' ? '⚠' : 'ℹ') + '</div>' +
+                '<div class="tofes-modal-title"></div>' +
+                '<div class="tofes-modal-msg"></div>' +
+                '<div class="tofes-modal-actions">' +
+                    '<button class="tofes-modal-btn primary"></button>' +
+                '</div>' +
+            '</div>';
+        overlay.querySelector('.tofes-modal-title').textContent = title;
+        overlay.querySelector('.tofes-modal-msg').textContent = message;
+        overlay.querySelector('.tofes-modal-btn').textContent = btnText;
+
+        function close() { overlay.remove(); document.removeEventListener('keydown', onKey); resolve(); }
+        function onKey(e) { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); close(); } }
+
+        overlay.querySelector('.tofes-modal-btn').onclick = close;
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
+        document.addEventListener('keydown', onKey);
+        document.body.appendChild(overlay);
+        setTimeout(function() { overlay.querySelector('.tofes-modal-btn').focus(); }, 50);
+    });
+}
+
+// Monkey-patch window.alert → tofesAlert (async OK כי alert לא מחזיר ערך)
+// שומר native ב-_nativeAlert למקרה debug
+(function() {
+    if (window._nativeAlert) return; // כבר תוקן
+    window._nativeAlert = window.alert;
+    window.alert = function(msg) {
+        // זיהוי icon לפי תוכן
+        var s = String(msg || '');
+        var icon = 'info';
+        if (/שגיאה|לא תקין|לא נמצא|פג תוקף|נסיונות רבים|אין נתונים|חובה|אסור/.test(s)) icon = 'error';
+        else if (/אזהרה|בעבר|כבר קיים|בכל זאת|הופחת|מקסימום/.test(s)) icon = 'warn';
+        try { tofesAlert(s, { icon: icon }); }
+        catch (e) { window._nativeAlert(s); }
+    };
+})();
+
+function tofesConfirm(message, opts) {
+    return new Promise(function(resolve) {
+        _ensureTofesModalStyles();
+        opts = opts || {};
+        var icon = opts.icon || 'warn';
+        var title = opts.title || 'אישור פעולה';
+        var okText = opts.okText || 'המשך';
+        var cancelText = opts.cancelText || 'ביטול';
+        var danger = opts.danger !== false;
+
+        var overlay = document.createElement('div');
+        overlay.className = 'tofes-modal-overlay';
+        overlay.innerHTML =
+            '<div class="tofes-modal-box" role="dialog" aria-modal="true">' +
+                '<div class="tofes-modal-icon ' + icon + '">⚠</div>' +
+                '<div class="tofes-modal-title"></div>' +
+                '<div class="tofes-modal-msg"></div>' +
+                '<div class="tofes-modal-actions">' +
+                    '<button class="tofes-modal-btn ' + (danger ? 'danger' : 'primary') + '" data-act="ok"></button>' +
+                    '<button class="tofes-modal-btn secondary" data-act="cancel"></button>' +
+                '</div>' +
+            '</div>';
+        overlay.querySelector('.tofes-modal-title').textContent = title;
+        overlay.querySelector('.tofes-modal-msg').textContent = message;
+        overlay.querySelector('[data-act="ok"]').textContent = okText;
+        overlay.querySelector('[data-act="cancel"]').textContent = cancelText;
+
+        function done(val) { overlay.remove(); document.removeEventListener('keydown', onKey); resolve(val); }
+        function onKey(e) {
+            if (e.key === 'Escape') { e.preventDefault(); done(false); }
+            if (e.key === 'Enter') { e.preventDefault(); done(true); }
+        }
+        overlay.querySelector('[data-act="ok"]').onclick = function() { done(true); };
+        overlay.querySelector('[data-act="cancel"]').onclick = function() { done(false); };
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) done(false); });
+        document.addEventListener('keydown', onKey);
+        document.body.appendChild(overlay);
+        setTimeout(function() { overlay.querySelector('[data-act="cancel"]').focus(); }, 50);
+    });
+}
+
 // VAT Calculation Display
 function updateVatDisplay() {
     const amountBeforeVat = parseAmount(document.getElementById('amount').value);
 
     if (amountBeforeVat > 0) {
-        const vatAmount = amountBeforeVat * VAT_RATE;
-        const amountWithVat = amountBeforeVat + vatAmount;
+        const vatAmount = roundMoney(amountBeforeVat * VAT_RATE);
+        const amountWithVat = roundMoney(amountBeforeVat + vatAmount);
 
-        document.getElementById('amountBeforeVat').textContent = '₪' + amountBeforeVat.toFixed(2);
-        document.getElementById('vatAmount').textContent = '₪' + vatAmount.toFixed(2);
-        document.getElementById('amountWithVat').textContent = '₪' + amountWithVat.toFixed(2);
+        document.getElementById('amountBeforeVat').textContent = '₪' + formatMoney(amountBeforeVat);
+        document.getElementById('vatAmount').textContent = '₪' + formatMoney(vatAmount);
+        document.getElementById('amountWithVat').textContent = '₪' + formatMoney(amountWithVat);
         var vatLabel = document.getElementById('vatRateLabel');
         if (vatLabel) vatLabel.textContent = 'מע"מ (' + (VAT_RATE * 100) + '%):';
         document.getElementById('vatDisplay').classList.add('show');
@@ -464,13 +779,53 @@ let splitPaymentRowCounter = 0;
 
 // Payment Method Change Handler
 document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
-    radio.addEventListener('change', function() {
+    radio.addEventListener('change', async function() {
         const ccConfirm = document.getElementById('creditCardConfirmation');
         const checksDetail = document.getElementById('checksDetails');
         const splitPaymentDetail = document.getElementById('splitPaymentDetails');
         const checksPhoto = document.getElementById('checksPhoto');
         const checksCount = document.getElementById('checksCount');
         const checksTotalAmount = document.getElementById('checksTotalAmount');
+
+        // אזהרה לפני מחיקת נתונים (כולל אשראי)
+        var hasChecksData = (checksCount && checksCount.value) || (checksTotalAmount && checksTotalAmount.value);
+        var hasSplitData = document.querySelectorAll('.split-payment-row').length > 0 &&
+                           Array.from(document.querySelectorAll('.split-payment-amount')).some(function(i) { return i.value; });
+        var ccStatusSelected = document.querySelector('input[name="creditCardStatus"]:checked');
+        var hasCcData = ccConfirm.classList.contains('show') && (
+            ccStatusSelected ||
+            (document.getElementById('paymentsCount').value) ||
+            (document.getElementById('monthlyCharge').value) ||
+            (document.getElementById('temporaryCreditText').value) ||
+            (document.getElementById('recurringMonthlyAmount').value)
+        );
+        var willHideChecks = checksDetail.classList.contains('show') && this.value !== 'שיקים דחויים';
+        var willHideSplit = splitPaymentDetail.classList.contains('show') && this.value !== 'פיצול תשלום';
+        var willHideCc = ccConfirm.classList.contains('show') && this.value !== 'כרטיס אשראי';
+
+        if ((willHideChecks && hasChecksData) || (willHideSplit && hasSplitData) || (willHideCc && hasCcData)) {
+            var ok = await tofesConfirm('שינוי אמצעי תשלום ימחק את הנתונים שהזנת. להמשיך?', {
+                title: 'שינוי אמצעי תשלום',
+                icon: 'warn',
+                okText: 'מחק והמשך',
+                cancelText: 'השאר'
+            });
+            if (!ok) {
+                // החזרת הבחירה הקודמת + ביטול שינוי
+                var prevChecked = document.querySelector('input[name="paymentMethod"][data-was-checked="true"]');
+                if (prevChecked && prevChecked !== this) {
+                    prevChecked.checked = true;
+                } else {
+                    this.checked = false;
+                }
+                return;
+            }
+        }
+        // סימון הבחירה החדשה כ-current
+        document.querySelectorAll('input[name="paymentMethod"]').forEach(function(r) {
+            r.removeAttribute('data-was-checked');
+        });
+        this.setAttribute('data-was-checked', 'true');
 
         ccConfirm.classList.remove('show');
         checksDetail.classList.remove('show');
@@ -607,9 +962,9 @@ function showEncouragementMessage(paymentMethod) {
 
 // Update Amount Reminder Function
 function updateAmountReminder(type) {
-    const amountBeforeVat = parseFloat(document.getElementById('amount').value) || 0;
+    const amountBeforeVat = parseAmount(document.getElementById('amount').value);
     if (amountBeforeVat > 0) {
-        const amountWithVat = amountBeforeVat * (1 + VAT_RATE);
+        const amountWithVat = roundMoney(amountBeforeVat * (1 + VAT_RATE));
         const formattedAmount = '₪' + amountWithVat.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
         if (type === 'cc') {
@@ -832,13 +1187,14 @@ function updateSplitPaymentSummary() {
     let totalEntered = 0;
 
     rows.forEach(row => {
-        const amount = parseFloat(row.querySelector('.split-payment-amount').value) || 0;
+        const amount = parseAmount(row.querySelector('.split-payment-amount').value);
         totalEntered += amount;
     });
+    totalEntered = roundMoney(totalEntered);
 
-    const amountBeforeVat = parseFloat(document.getElementById('amount').value) || 0;
-    const totalRequired = amountBeforeVat * (1 + VAT_RATE);
-    const remaining = totalRequired - totalEntered;
+    const amountBeforeVat = parseAmount(document.getElementById('amount').value);
+    const totalRequired = roundMoney(amountBeforeVat * (1 + VAT_RATE));
+    const remaining = roundMoney(totalRequired - totalEntered);
 
     document.getElementById('splitTotalEntered').textContent = '₪' + totalEntered.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('splitRemaining').textContent = '₪' + remaining.toLocaleString('he-IL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -869,7 +1225,7 @@ async function getSplitPaymentData() {
     for (const row of rows) {
         const rowId = row.getAttribute('data-row-id');
         const method = row.querySelector('.split-payment-method').value;
-        const amount = parseFloat(row.querySelector('.split-payment-amount').value) || 0;
+        const amount = roundMoney(parseAmount(row.querySelector('.split-payment-amount').value));
 
         if (!method || amount <= 0) continue;
 
