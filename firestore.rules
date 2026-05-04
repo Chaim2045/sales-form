@@ -89,6 +89,17 @@ service cloud.firestore {
       allow write: if isAuth() && request.auth.uid == userId;
     }
 
+    // ─── Bot Status (public read for status page, write by admin SDK only) ───
+    match /bot_status/{docId} {
+      allow read: if true;
+      allow write: if false;
+
+      match /daily_stats/{dateId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
     // ─── Deny everything else (including deprecated public_users) ───
     match /{document=**} {
       allow read, write: if false;

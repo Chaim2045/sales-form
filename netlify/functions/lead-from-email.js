@@ -42,6 +42,7 @@ async function parseEmailWithClaude(emailBody, emailSubject, emailFrom) {
         '  "email": "מייל הלקוח אם יש",\n' +
         '  "subject": "נושא הפנייה (3-5 מילים)",\n' +
         '  "summary": "סיכום קצר",\n' +
+        '  "callDuration": "משך השיחה אם מצוין (למשל 00:42, 03:15). אם לא מצוין: null",\n' +
         '  "isLead": true/false,\n' +
         '  "score": 1-10\n' +
         '}\n\n' +
@@ -49,6 +50,7 @@ async function parseEmailWithClaude(emailBody, emailSubject, emailFrom) {
         '- "שיחה שלא נענתה מלקוח מאתר דין" = ליד חם (score: 7+)\n' +
         '- "שיחה שנענתה / קיבלת שיחה מלקוח מאתר דין" = גם ליד! (score: 6) — צריך מעקב\n' +
         '- כל מייל מ-din.co.il עם מספר טלפון של לקוח = ליד\n' +
+        '- מייל מ-callbiz.co.il עם פרטי לקוח = ליד (score: 6)\n' +
         '- "פנייה חדשה מהפורום" / "טופס יצירת קשר" עם טלפון של לקוח = ליד\n' +
         '- הודעה עם שם + טלפון + נושא משפטי = ליד\n' +
         '- גם אם יש רק טלפון בלי שם — עדיין ליד (name: null)\n\n' +
@@ -116,6 +118,7 @@ async function saveLeadToFirestore(leadData) {
             createdAt: { timestampValue: new Date().toISOString() },
             lastUpdated: { timestampValue: new Date().toISOString() },
             originalMessage: { stringValue: (leadData.originalBody || '').substring(0, 500) },
+            callDuration: { stringValue: leadData.callDuration || '' },
             crmUpdated: { booleanValue: false },
             escalated: { booleanValue: false },
             aiScore: { integerValue: leadData.score || 0 },

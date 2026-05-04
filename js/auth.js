@@ -80,6 +80,8 @@ function handleLogout() {
     document.getElementById('loginError').textContent = '';
     // Clear draft on logout for security
     if (typeof clearDraft === 'function') clearDraft();
+    // Reset leads state to prevent data leaking between users
+    if (typeof resetLeadsState === 'function') resetLeadsState();
     // Show quick login button if credentials are saved
     checkQuickLoginAvailable();
     auth.signOut();

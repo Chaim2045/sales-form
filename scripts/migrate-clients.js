@@ -8,8 +8,8 @@
 // Priority: recurring_billing > sales_records > leads
 // Dedup key: phoneLast7 (last 7 digits of phone)
 
-var admin = require('firebase-admin');
 var path = require('path');
+var admin = require(path.resolve(__dirname, '..', 'whatsapp-bot', 'node_modules', 'firebase-admin'));
 
 var DRY_RUN = process.argv.includes('--dry-run');
 var BATCH_SIZE = 400; // Firestore max is 500, keep margin
@@ -28,7 +28,7 @@ function getLast7(phone) {
 }
 
 // Init Firebase Admin
-var serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './firebase-service-account.json';
+var serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || path.resolve(__dirname, '..', 'whatsapp-bot', 'firebase-service-account.json');
 var serviceAccount = require(path.resolve(serviceAccountPath));
 
 admin.initializeApp({

@@ -22,6 +22,7 @@ function checkForNewLeads() {
   var queries = [
     'from:din.co.il is:unread -label:' + labelName,
     'from:mishpati.co.il is:unread -label:' + labelName,
+    'from:callbiz.co.il is:unread -label:' + labelName,
     'from:noreply subject:(פנייה OR ליד OR lead OR "טופס יצירת קשר" OR "פניה חדשה") is:unread -label:' + labelName
   ];
 
