@@ -332,9 +332,17 @@ function renderSalesTableView(records, startIdx) {
         var paymentDisplay = r.isSplitPayment ? 'פיצול תשלום' : escapeHTML(r.paymentMethod || '—');
 
         // File badge — clean SVG icon
-        var fileBadge = r.checksPhotoURL
-            ? '<a href="' + escapeHTML(r.checksPhotoURL) + '" target="_blank" rel="noopener" class="sm-file-icon" onclick="event.stopPropagation();" title="צפה בקובץ"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></a>'
-            : '<span style="color:#e2e8f0;">—</span>';
+        var fileBadge;
+        if (r.checksPhotoURL) {
+            fileBadge = '<a href="' + escapeHTML(r.checksPhotoURL) + '" target="_blank" rel="noopener" class="sm-file-icon" onclick="event.stopPropagation();" title="צפה בקובץ"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></a>';
+        } else if (needsCheckFile(r)) {
+            fileBadge = '<button onclick="event.stopPropagation();openCheckFileUploadModal(\'' + escapeHTML(r.id) + '\')" title="חסר קובץ שיקים — לחץ להעלאה" style="background:none;border:none;cursor:pointer;padding:4px;display:inline-flex;align-items:center;">' +
+                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+                '</button>';
+        } else {
+            fileBadge = '<span style="color:#e2e8f0;">—</span>';
+        }
+        var fileTdStyle = (!r.checksPhotoURL && needsCheckFile(r)) ? 'text-align:center;background:rgba(239,68,68,0.07);' : 'text-align:center;';
 
         // Invoice status — red only on this cell
         var invoiceCell = '';
@@ -356,7 +364,7 @@ function renderSalesTableView(records, startIdx) {
             '<td style="color:#64748b;">' + paymentDisplay + '</td>' +
             '<td style="color:#64748b;">' + escapeHTML(r.attorney || '—') + '</td>' +
             '<td style="color:#64748b;">' + escapeHTML(r.branch || '—') + '</td>' +
-            '<td style="text-align:center;">' + fileBadge + '</td>' +
+            '<td style="' + fileTdStyle + '">' + fileBadge + '</td>' +
             '<td style="' + invoiceTdStyle + '">' + invoiceCell + '</td>' +
             '<td><button class="bm-action-secondary" onclick="event.stopPropagation();openSaleDetailModal(\'' + escapeHTML(r.id) + '\')" style="padding:4px 12px;font-size:12px;">פרטים</button></td>' +
         '</tr>';
@@ -372,9 +380,14 @@ function renderSalesCardsView(records, startIdx) {
         var amountWith = parseFloat(r.amountWithVat) || 0;
         var paymentDisplay = r.isSplitPayment ? 'פיצול תשלום' : escapeHTML(r.paymentMethod || '—');
 
-        var fileBadge = r.checksPhotoURL
-            ? '<a href="' + escapeHTML(r.checksPhotoURL) + '" target="_blank" rel="noopener" class="sm-file-icon" onclick="event.stopPropagation();" title="צפה בקובץ" style="display:inline-flex;align-items:center;gap:4px;color:#2563eb;font-size:12px;font-weight:500;text-decoration:none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>קובץ</a>'
-            : '';
+        var fileBadge;
+        if (r.checksPhotoURL) {
+            fileBadge = '<a href="' + escapeHTML(r.checksPhotoURL) + '" target="_blank" rel="noopener" class="sm-file-icon" onclick="event.stopPropagation();" title="צפה בקובץ" style="display:inline-flex;align-items:center;gap:4px;color:#2563eb;font-size:12px;font-weight:500;text-decoration:none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>קובץ</a>';
+        } else if (needsCheckFile(r)) {
+            fileBadge = '<button onclick="event.stopPropagation();openCheckFileUploadModal(\'' + escapeHTML(r.id) + '\')" title="חסר קובץ שיקים — לחץ להעלאה" style="display:inline-flex;align-items:center;gap:4px;color:#dc2626;font-size:12px;font-weight:600;background:none;border:none;cursor:pointer;padding:0;font-family:Heebo,sans-serif;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>חסר קובץ שיקים</button>';
+        } else {
+            fileBadge = '';
+        }
 
         var invoiceHtml = '';
         var invoiceBg = '';
@@ -492,12 +505,25 @@ function openSaleDetailModal(saleId) {
     if (record.notes) html += saleDetailRow('הערות', record.notes);
 
     // קבצים מצורפים
-    if (record.checksPhotoURL) {
+    var missingCheckFile = needsCheckFile(record);
+    if (record.checksPhotoURL || missingCheckFile) {
         html += '<div class="billing-section-title" style="margin-top:16px;">קבצים מצורפים</div>';
-        html += '<div style="padding:8px 0;">';
-        html += '<a href="' + escapeHTML(record.checksPhotoURL) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#f0f9ff;border:1px solid #bfdbfe;border-radius:8px;color:#2563eb;font-size:13px;text-decoration:none;font-weight:500;">';
-        html += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
-        html += 'צפה בקובץ מצורף</a>';
+        html += '<div style="padding:8px 0;display:flex;flex-direction:column;gap:8px;align-items:flex-start;">';
+        if (record.checksPhotoURL) {
+            html += '<a href="' + escapeHTML(record.checksPhotoURL) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#f0f9ff;border:1px solid #bfdbfe;border-radius:8px;color:#2563eb;font-size:13px;text-decoration:none;font-weight:500;">';
+            html += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+            html += 'צפה בקובץ מצורף</a>';
+            html += '<button onclick="openCheckFileUploadModal(\'' + escapeHTML(record.id) + '\')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:white;border:1px solid #cbd5e1;border-radius:8px;color:#475569;font-size:13px;font-weight:500;cursor:pointer;font-family:Heebo,sans-serif;">';
+            html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+            html += 'החלף קובץ</button>';
+        } else {
+            html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:13px;font-weight:500;">';
+            html += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+            html += 'חסר קובץ שיקים — הלקוח דווח כמשלם בשיקים אך לא הועלה צילום</div>';
+            html += '<button onclick="openCheckFileUploadModal(\'' + escapeHTML(record.id) + '\')" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">';
+            html += '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+            html += 'העלה קובץ שיקים</button>';
+        }
         html += '</div>';
     }
 
@@ -895,6 +921,278 @@ function copyAllClientDetails(record) {
 
     copyToClipboard(lines.join('\n'), 'כל הפרטים');
     logAuditEvent('client_details_copied', { clientName: record.clientName || '' });
+}
+
+// ========== זיהוי + טיפול בקבצי שיקים חסרים ==========
+
+var CHECKS_PAYMENT_LABEL = 'שיקים דחויים'; // "שיקים דחויים"
+
+function needsCheckFile(record) {
+    if (!record || record.checksPhotoURL) return false;
+    if (record.paymentMethod === CHECKS_PAYMENT_LABEL) return true;
+    if (record.isSplitPayment && record.paymentBreakdown) {
+        try {
+            var splits = JSON.parse(record.paymentBreakdown);
+            return splits.some(function(p) { return p && p.method === CHECKS_PAYMENT_LABEL; });
+        } catch (e) { return false; }
+    }
+    return false;
+}
+
+// state for upload modal
+var _checkUploadCurrentSaleId = null;
+var _checkUploadCurrentFile = null;
+var _checkUploadOcrChecks = null;
+
+function openCheckFileUploadModal(saleId) {
+    closeSaleDetailModal();
+    var existing = document.getElementById('checkUploadOverlay');
+    if (existing) existing.remove();
+
+    _checkUploadCurrentSaleId = saleId;
+    _checkUploadCurrentFile = null;
+    _checkUploadOcrChecks = null;
+
+    var record = null;
+    for (var i = 0; i < salesRecords.length; i++) {
+        if (salesRecords[i].id === saleId) { record = salesRecords[i]; break; }
+    }
+    var clientName = record ? (record.clientName || '') : '';
+    var hasExisting = record && record.checksPhotoURL;
+    var titleText = hasExisting ? 'החלפת קובץ שיקים' : 'העלאת קובץ שיקים';
+
+    var overlay = document.createElement('div');
+    overlay.id = 'checkUploadOverlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML =
+        '<div style="background:white;border-radius:16px;padding:24px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;font-family:Heebo,sans-serif;direction:rtl;box-shadow:0 20px 60px rgba(0,0,0,0.2);">' +
+            '<h3 style="margin:0 0 6px;font-size:17px;color:#1e293b;text-align:center;">' + titleText + '</h3>' +
+            '<div style="text-align:center;font-size:13px;color:#64748b;margin-bottom:16px;">' + escapeHTML(clientName) + '</div>' +
+            '<label for="checkUploadFileInput" style="display:block;padding:24px;border:2px dashed #cbd5e1;border-radius:12px;text-align:center;cursor:pointer;background:#f8fafc;">' +
+                '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.8" style="margin:0 auto 8px;display:block;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
+                '<div style="font-size:14px;color:#475569;font-weight:500;">בחר קובץ להעלאה</div>' +
+                '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">תמונות / PDF, עד 10MB</div>' +
+            '</label>' +
+            '<input type="file" id="checkUploadFileInput" accept="image/*,application/pdf" style="display:none;" onchange="handleCheckUploadFileSelect(event)">' +
+            '<div id="checkUploadFileName" style="margin-top:10px;font-size:13px;color:#1e293b;font-weight:500;text-align:center;display:none;"></div>' +
+            '<div id="checkUploadStatus" style="margin-top:10px;font-size:13px;text-align:center;display:none;"></div>' +
+            '<div id="checkUploadOcrSection" style="margin-top:14px;padding:14px;background:#f0f9ff;border-radius:10px;border:1px solid #bfdbfe;display:none;">' +
+                '<div style="font-size:13px;color:#1e40af;font-weight:600;margin-bottom:6px;">קרא פרטי שיקים אוטומטית (אופציונלי)</div>' +
+                '<div style="font-size:12px;color:#475569;margin-bottom:10px;">המערכת תזהה תאריך וסכום לכל שיק ותציע לשמור ברשומה.</div>' +
+                '<button type="button" id="checkUploadOcrBtn" onclick="runOcrOnCheckUpload()" style="width:100%;padding:9px;background:#2563eb;color:white;border:none;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">הפעל OCR</button>' +
+                '<div id="checkUploadOcrResult" style="margin-top:10px;display:none;"></div>' +
+            '</div>' +
+            '<div style="display:flex;gap:8px;margin-top:18px;">' +
+                '<button id="checkUploadSubmitBtn" onclick="uploadCheckFileToSale()" disabled style="flex:1;padding:10px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;opacity:0.5;">העלה</button>' +
+                '<button onclick="closeCheckUploadModal()" style="flex:1;padding:10px;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-size:14px;font-weight:500;font-family:Heebo,sans-serif;cursor:pointer;">סגור</button>' +
+            '</div>' +
+        '</div>';
+
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeCheckUploadModal();
+    });
+
+    document.body.appendChild(overlay);
+}
+
+function closeCheckUploadModal() {
+    var el = document.getElementById('checkUploadOverlay');
+    if (el) el.remove();
+    _checkUploadCurrentSaleId = null;
+    _checkUploadCurrentFile = null;
+    _checkUploadOcrChecks = null;
+}
+
+function showCheckUploadStatus(msg, type) {
+    var el = document.getElementById('checkUploadStatus');
+    if (!el) return;
+    if (!msg) { el.style.display = 'none'; return; }
+    el.textContent = msg;
+    el.style.display = 'block';
+    if (type === 'error') el.style.color = '#dc2626';
+    else if (type === 'success') el.style.color = '#059669';
+    else el.style.color = '#475569';
+}
+
+function handleCheckUploadFileSelect(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+
+    var allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'application/pdf'];
+    if (allowed.indexOf(file.type) === -1) {
+        showCheckUploadStatus('סוג קובץ לא מורשה (תמונה או PDF בלבד)', 'error');
+        e.target.value = '';
+        return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+        showCheckUploadStatus('הקובץ גדול מדי (מקסימום 10MB)', 'error');
+        e.target.value = '';
+        return;
+    }
+
+    _checkUploadCurrentFile = file;
+    var nameEl = document.getElementById('checkUploadFileName');
+    nameEl.textContent = '✓ ' + file.name;
+    nameEl.style.display = 'block';
+
+    var btn = document.getElementById('checkUploadSubmitBtn');
+    btn.disabled = false;
+    btn.style.opacity = '1';
+
+    showCheckUploadStatus('', null);
+}
+
+async function uploadCheckFileToSale() {
+    if (!_checkUploadCurrentSaleId || !_checkUploadCurrentFile) return;
+
+    var btn = document.getElementById('checkUploadSubmitBtn');
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.textContent = 'מעלה...';
+    showCheckUploadStatus('מעלה את הקובץ...', 'loading');
+
+    try {
+        var downloadURL = await uploadFile(_checkUploadCurrentFile, 'checks/' + _checkUploadCurrentFile.name);
+
+        await db.collection('sales_records').doc(_checkUploadCurrentSaleId).update({
+            checksPhotoURL: downloadURL,
+            checksPhotoUploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            checksPhotoUploadedBy: authUser ? authUser.email : 'unknown'
+        });
+
+        if (typeof logAuditEvent === 'function') {
+            logAuditEvent('check_file_uploaded_post', { saleId: _checkUploadCurrentSaleId });
+        }
+
+        var localRecord = null;
+        for (var i = 0; i < salesRecords.length; i++) {
+            if (salesRecords[i].id === _checkUploadCurrentSaleId) {
+                salesRecords[i].checksPhotoURL = downloadURL;
+                localRecord = salesRecords[i];
+                break;
+            }
+        }
+
+        // Sync to Google Sheets
+        if (typeof syncToSheets === 'function' && localRecord) {
+            syncToSheets({
+                action: 'updateSaleRow',
+                firebaseDocId: _checkUploadCurrentSaleId,
+                clientName: localRecord.clientName || '',
+                checksPhotoURL: downloadURL
+            });
+        }
+
+        showCheckUploadStatus('✓ הקובץ הועלה בהצלחה', 'success');
+        btn.style.display = 'none';
+        document.getElementById('checkUploadOcrSection').style.display = 'block';
+
+        renderSalesView();
+
+    } catch (err) {
+        console.error('Check file upload error:', err);
+        showCheckUploadStatus('שגיאה בהעלאה: ' + (err.message || ''), 'error');
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.textContent = 'העלה';
+    }
+}
+
+async function runOcrOnCheckUpload() {
+    if (!_checkUploadCurrentFile || !_checkUploadCurrentSaleId) return;
+    if (typeof ocrExtractCheckData !== 'function') {
+        alert('OCR לא זמין כרגע');
+        return;
+    }
+
+    var ocrBtn = document.getElementById('checkUploadOcrBtn');
+    var resultEl = document.getElementById('checkUploadOcrResult');
+    ocrBtn.disabled = true;
+    ocrBtn.textContent = 'מנתח...';
+    resultEl.style.display = 'none';
+
+    try {
+        var result = await ocrExtractCheckData(_checkUploadCurrentFile);
+        if (result && result.checks && result.checks.length > 0) {
+            _checkUploadOcrChecks = result.checks;
+            var html = '<div style="font-size:13px;color:#1e40af;font-weight:600;margin-bottom:8px;">נמצאו ' + result.checks.length + ' שיקים:</div>';
+            html += '<div style="max-height:200px;overflow-y:auto;">';
+            result.checks.forEach(function(c, idx) {
+                var dateDisplay = c.date ? formatDate(c.date) : '—';
+                var amountDisplay = (c.amount || c.amount === 0) ? '₪' + Number(c.amount).toLocaleString('he-IL') : '—';
+                html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e2e8f0;font-size:13px;">' +
+                    '<span style="color:#475569;">שיק #' + (idx + 1) + '</span>' +
+                    '<span style="color:#1e293b;">' + dateDisplay + ' | ' + amountDisplay + '</span>' +
+                '</div>';
+            });
+            html += '</div>';
+            html += '<button onclick="saveOcrChecksToSale()" style="width:100%;margin-top:10px;padding:8px;background:#059669;color:white;border:none;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">שמור פרטי שיקים ברשומה</button>';
+            resultEl.innerHTML = html;
+            resultEl.style.display = 'block';
+        } else {
+            resultEl.innerHTML = '<div style="font-size:13px;color:#b45309;text-align:center;">לא זוהו פרטי שיק בקובץ.</div>';
+            resultEl.style.display = 'block';
+        }
+    } catch (err) {
+        console.error('OCR on uploaded check error:', err);
+        resultEl.innerHTML = '<div style="font-size:13px;color:#dc2626;text-align:center;">שגיאה ב-OCR: ' + escapeHTML(err.message || '') + '</div>';
+        resultEl.style.display = 'block';
+    } finally {
+        ocrBtn.disabled = false;
+        ocrBtn.textContent = 'הפעל OCR שוב';
+    }
+}
+
+async function saveOcrChecksToSale() {
+    if (!_checkUploadCurrentSaleId || !_checkUploadOcrChecks) return;
+
+    try {
+        var checksList = _checkUploadOcrChecks.map(function(c) {
+            return { date: c.date || '', amount: parseFloat(c.amount) || 0 };
+        });
+        var totalAmount = checksList.reduce(function(sum, c) { return sum + (c.amount || 0); }, 0);
+
+        await db.collection('sales_records').doc(_checkUploadCurrentSaleId).update({
+            checksDetailedList: checksList,
+            checksCount: String(checksList.length),
+            checksTotalAmount: String(totalAmount),
+            checksOcrAt: firebase.firestore.FieldValue.serverTimestamp(),
+            checksOcrBy: authUser ? authUser.email : 'unknown'
+        });
+
+        if (typeof logAuditEvent === 'function') {
+            logAuditEvent('check_ocr_saved_post', { saleId: _checkUploadCurrentSaleId, count: checksList.length });
+        }
+
+        var ocrLocalRecord = null;
+        for (var i = 0; i < salesRecords.length; i++) {
+            if (salesRecords[i].id === _checkUploadCurrentSaleId) {
+                salesRecords[i].checksDetailedList = checksList;
+                salesRecords[i].checksCount = String(checksList.length);
+                salesRecords[i].checksTotalAmount = String(totalAmount);
+                ocrLocalRecord = salesRecords[i];
+                break;
+            }
+        }
+
+        // Sync OCR results to Google Sheets
+        if (typeof syncToSheets === 'function' && ocrLocalRecord) {
+            syncToSheets({
+                action: 'updateSaleRow',
+                firebaseDocId: _checkUploadCurrentSaleId,
+                clientName: ocrLocalRecord.clientName || '',
+                checksDetailedList: checksList
+            });
+        }
+
+        var resultEl = document.getElementById('checkUploadOcrResult');
+        if (resultEl) resultEl.innerHTML = '<div style="font-size:13px;color:#059669;text-align:center;font-weight:600;">✓ פרטי השיקים נשמרו ברשומה</div>';
+
+        renderSalesView();
+    } catch (err) {
+        console.error('Save OCR results error:', err);
+        alert('שגיאה בשמירה: ' + (err.message || ''));
+    }
 }
 
 // ========== מחיקת רשומת מכירה (מנהל ראשי בלבד) ==========

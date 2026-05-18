@@ -547,6 +547,16 @@ function updateSaleRow(data) {
     'הערות': data.notes
   };
 
+  // פרטי צ'קים (אם הגיעו עם רשימה מפורטת ב-OCR)
+  if (data.checksDetailedList && Array.isArray(data.checksDetailedList) && data.checksDetailedList.length > 0) {
+    var checksInfoStr = data.checksDetailedList.map(function(c, idx) {
+      var d = c.date ? formatDate(c.date) : '';
+      var a = c.amount ? '₪' + Number(c.amount).toLocaleString('he-IL') : '';
+      return 'שיק ' + (idx + 1) + ': ' + d + ' | ' + a;
+    }).join('\n');
+    updateMap["פרטי צ'קים"] = checksInfoStr;
+  }
+
   // עדכון כל תא בנפרד
   var updatedFields = 0;
   for (var key in updateMap) {
@@ -558,6 +568,18 @@ function updateSaleRow(data) {
         sheet.getRange(targetRow, colIndex + 1).setValue(updateMap[key]);
         updatedFields++;
       }
+    }
+  }
+
+  // עדכון תמונת צ'ק כ-HYPERLINK (כמו ב-addRowToSheet)
+  if (data.checksPhotoURL && String(data.checksPhotoURL).trim() !== '') {
+    var checkPhotoColIndex = headers.findIndex(function(h) {
+      return h.toString().trim() === "תמונת צ'ק";
+    });
+    if (checkPhotoColIndex >= 0) {
+      var checkPhotoCell = sheet.getRange(targetRow, checkPhotoColIndex + 1);
+      checkPhotoCell.setFormula('=HYPERLINK("' + data.checksPhotoURL + '", "📸 צפה בתמונה")');
+      updatedFields++;
     }
   }
 
