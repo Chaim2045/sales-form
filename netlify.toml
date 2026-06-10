@@ -5,6 +5,28 @@
 [functions]
   directory = "netlify/functions"
 
+# Block config/rules/script files from public web access (publish='.' exposes the whole repo)
+[[redirects]]
+  from = "/*.rules"
+  to = "/index.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/firebase.json"
+  to = "/index.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/.firebaserc"
+  to = "/index.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/build.sh"
+  to = "/index.html"
+  status = 404
+  force = true
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
