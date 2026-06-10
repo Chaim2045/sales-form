@@ -7,7 +7,12 @@
 
 # Block config/rules/script files from public web access (publish='.' exposes the whole repo)
 [[redirects]]
-  from = "/*.rules"
+  from = "/firestore.rules"
+  to = "/index.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/firestore.yf.rules"
   to = "/index.html"
   status = 404
   force = true
