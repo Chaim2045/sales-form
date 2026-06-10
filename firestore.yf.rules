@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ⛔ YF Dashboards — מסד נתונים מבודד (yf-dashboards), נפרד לחלוטין מ-(default)/טופס מכר.
+    // גישה owner-only לפי email (גיא + חיים) — לא תלוי ב-role. ראה .claude/SHARED-CONTEXT.md §9.
+    // (grants זמניים — שלב 5, collection yf_access)
+    function isYfOwner() {
+      return request.auth != null
+        && request.auth.token.email in ['guy@ghlawoffice.co.il', 'haim@ghlawoffice.co.il'];
+    }
+
+    // שעות: per-user doc {uid}. owner קורא את כל ה-docs (תצוגת הנהלה) וכותב ל-doc שלו.
+    match /yf_hours/{userId} {
+      allow read: if isYfOwner();
+      allow write: if isYfOwner() && request.auth.uid == userId;
+    }
+
+    // תזרים: doc יחיד 'office' (גלובלי-משרדי). owner-only read/write.
+    match /yf_cashflow/{docId} {
+      allow read, write: if isYfOwner();
+    }
+
+    // הכל השאר במסד הזה — חסום
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

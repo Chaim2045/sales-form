@@ -1,5 +1,12 @@
 {
-  "firestore": {
-    "rules": "firestore.rules"
-  }
+  "firestore": [
+    {
+      "database": "(default)",
+      "rules": "firestore.rules"
+    },
+    {
+      "database": "yf-dashboards",
+      "rules": "firestore.yf.rules"
+    }
+  ]
 }

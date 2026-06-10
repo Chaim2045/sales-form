@@ -8,6 +8,10 @@
 **Backend:** Firebase (Firestore, Auth, Storage)  
 **Technologies:** Vanilla JavaScript, HTML5, CSS3, Firebase, Netlify Functions (Node.js)
 
+> 🔗 **לפני שינוי שנוגע ב-Firestore collection / Firebase project / Claude API / bot integration** — חובה לקרוא קודם את `.claude/SHARED-CONTEXT.md` (מפת הצמתים המשותפים בין 3 פרויקטי המשרד).
+>
+> ⛔ **מודול YF Dashboards (תזרים + שעות) — אי מבודד לחלוטין.** DB נפרד (`yf_*`), גישת owner-only (גיא + חיים; אחרים דרך grant זמני שגיא מעניק). **אסור לערבב** עם ה-CRM (`sales_records`/`clients`/`leads`/`recurring_billing`) או עם מערכת ניהול המשימות. ראה `.claude/SHARED-CONTEXT.md §9` + ה-header בקבצי `js/dashboard-*.js`.
+
 ---
 
 ## 1. PROJECT OVERVIEW
@@ -1371,7 +1375,7 @@ For technical issues, contact the development team.
 3. **Firebase JWT Token in .claude/settings.json** — Line 17 contains a full JWT (user: haim@ghlawoffice.co.il). Even if expired, the pattern is dangerous.
    - **Fix:** Remove token, add `.claude/` to `.gitignore`.
 
-4. **Password Exposed in .claude/settings.json** — Line 9: `firebase auth:update ... --password "Office9668!"` reveals password pattern.
+4. **Credential Exposed in .claude/settings.json** — Line 9 hardcoded a Firebase auth secret inline in plaintext (a `firebase auth:update` command with an inline credential) — must be removed.
    - **Fix:** Remove from settings, rotate password.
 
 5. **Firebase Credentials in README.md** — Lines 63-70 contain API keys and Spreadsheet ID.

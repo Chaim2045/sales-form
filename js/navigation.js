@@ -1,6 +1,6 @@
 // ========== Bottom Navigation ==========
 
-var _overflowNavIds = ['navLeadsMgmtBtn', 'navActivityLogBtn', 'navUserMgmtBtn'];
+var _overflowNavIds = ['navLeadsMgmtBtn', 'navActivityLogBtn', 'navUserMgmtBtn', 'navYfCashflowBtn', 'navYfHoursBtn'];
 
 function setActiveNav(id) {
     document.querySelectorAll('.bottom-nav-item').forEach(function(btn) {
@@ -23,6 +23,8 @@ function navHome() {
     hideActivityLog();
     hideUserManagement();
     hideLeadsManagement();
+    hideYfCashflow();
+    hideYfHours();
     document.getElementById('mainContainer').style.display = '';
     document.getElementById('mainForm').classList.remove('hidden');
     document.getElementById('successScreen').classList.remove('show');
@@ -41,6 +43,8 @@ function navBillingMgmt() {
     hideActivityLog();
     hideUserManagement();
     hideLeadsManagement();
+    hideYfCashflow();
+    hideYfHours();
     showBillingManagement();
     setActiveNav('navBillingMgmtBtn');
     logAuditEvent('nav_billing_mgmt');
@@ -51,6 +55,8 @@ function navSalesMgmt() {
     hideActivityLog();
     hideUserManagement();
     hideLeadsManagement();
+    hideYfCashflow();
+    hideYfHours();
     showSalesManagement();
     setActiveNav('navSalesMgmtBtn');
     logAuditEvent('nav_sales_mgmt');
@@ -61,6 +67,8 @@ function navLeadsMgmt() {
     hideSalesManagement();
     hideActivityLog();
     hideUserManagement();
+    hideYfCashflow();
+    hideYfHours();
     showLeadsManagement();
     setActiveNav('navLeadsMgmtBtn');
     logAuditEvent('nav_leads_mgmt');
@@ -71,6 +79,8 @@ function navActivityLog() {
     hideSalesManagement();
     hideUserManagement();
     hideLeadsManagement();
+    hideYfCashflow();
+    hideYfHours();
     showActivityLog();
     setActiveNav('navActivityLogBtn');
     logAuditEvent('nav_activity_log');
@@ -81,9 +91,36 @@ function navUserMgmt() {
     hideSalesManagement();
     hideActivityLog();
     hideLeadsManagement();
+    hideYfCashflow();
+    hideYfHours();
     showUserManagement();
     setActiveNav('navUserMgmtBtn');
     logAuditEvent('nav_user_mgmt');
+}
+
+// ===== ⛔ YF Dashboards (מודול מבודד, owner-only) — ראה SHARED-CONTEXT §9 =====
+function navYfCashflow() {
+    hideBillingManagement();
+    hideSalesManagement();
+    hideActivityLog();
+    hideUserManagement();
+    hideLeadsManagement();
+    hideYfHours();
+    showYfCashflow();
+    setActiveNav('navYfCashflowBtn');
+    logAuditEvent('nav_yf_cashflow');
+}
+
+function navYfHours() {
+    hideBillingManagement();
+    hideSalesManagement();
+    hideActivityLog();
+    hideUserManagement();
+    hideLeadsManagement();
+    hideYfCashflow();
+    showYfHours();
+    setActiveNav('navYfHoursBtn');
+    logAuditEvent('nav_yf_hours');
 }
 
 function navLogout() {
@@ -140,6 +177,15 @@ function updateNavVisibility() {
     var usersBtn = document.getElementById('navUserMgmtBtn');
     if (usersBtn) usersBtn.style.display = perms.userManagement ? '' : 'none';
 
+    // ⛔ YF Dashboards (owner-only) — גיא/חיים בלבד (לפי email, לא role!). אחרים → grant זמני (יושלם בשלב 5)
+    var _yfOwners = ['guy@ghlawoffice.co.il', 'haim@ghlawoffice.co.il'];
+    var yfCanAccess = !!(authUser && authUser.email && _yfOwners.indexOf(authUser.email) !== -1);
+    // TODO(stage5): || hasActiveYfGrant(authUser.uid) — בדיקת grant פעיל ב-collection yf_access
+    var yfCfBtn = document.getElementById('navYfCashflowBtn');
+    if (yfCfBtn) yfCfBtn.style.display = yfCanAccess ? '' : 'none';
+    var yfHrBtn = document.getElementById('navYfHoursBtn');
+    if (yfHrBtn) yfHrBtn.style.display = yfCanAccess ? '' : 'none';
+
     // Also update overflow menu items (mobile "More" menu)
     var overflowLeads = document.getElementById('navOverflowLeads');
     if (overflowLeads) overflowLeads.style.display = (perms.leadsManagement || perms.salesManagement || currentUserRole === 'master') ? '' : 'none';
@@ -149,6 +195,12 @@ function updateNavVisibility() {
 
     var overflowUsers = document.getElementById('navOverflowUsers');
     if (overflowUsers) overflowUsers.style.display = perms.userManagement ? '' : 'none';
+
+    // ⛔ YF Dashboards overflow (owner-only)
+    var overflowYfCf = document.getElementById('navOverflowYfCashflow');
+    if (overflowYfCf) overflowYfCf.style.display = yfCanAccess ? '' : 'none';
+    var overflowYfHr = document.getElementById('navOverflowYfHours');
+    if (overflowYfHr) overflowYfHr.style.display = yfCanAccess ? '' : 'none';
 
     // Navigate to first available page if salesForm not available
     if (!perms.salesForm) {

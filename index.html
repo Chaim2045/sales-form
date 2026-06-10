@@ -48,6 +48,7 @@
     <link rel="stylesheet" href="css/billing.css">
     <link rel="stylesheet" href="css/modals.css">
     <link rel="stylesheet" href="css/leads.css">
+    <link rel="stylesheet" href="css/dashboards.css">
     <link rel="stylesheet" href="css/mobile.css">
 </head>
 <body>
@@ -2006,7 +2007,18 @@
     <script src="js/activity-log.js"></script>
     <script src="js/leads.js"></script>
     <script src="js/user-management.js"></script>
+    <!-- ⛔ YF Dashboards (מודול מבודד) — ראה SHARED-CONTEXT §9 -->
+    <script src="js/dashboard-cashflow.js"></script>
+    <script src="js/dashboard-hours.js"></script>
     <script src="js/navigation.js"></script>
+
+    <!-- ⛔ YF Dashboards (מודול מבודד) — תזרים + שעות. ראה SHARED-CONTEXT §9 -->
+    <div id="yfCashflowView" class="yf-view">
+        <div class="yf-loading">טוען דשבורד תזרים…</div>
+    </div>
+    <div id="yfHoursView" class="yf-view">
+        <div class="yf-loading">טוען דשבורד שעות…</div>
+    </div>
 
     <!-- Sidebar toggle button (fixed, outside nav to avoid overflow clip) -->
     <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="כווץ/הרחב תפריט">
@@ -2050,6 +2062,15 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span class="bottom-nav-label">משתמשים</span>
         </button>
+        <!-- ⛔ YF Dashboards (מודול מבודד, owner-only) -->
+        <button class="bottom-nav-item" id="navYfCashflowBtn" onclick="navYfCashflow()" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            <span class="bottom-nav-label">תזרים</span>
+        </button>
+        <button class="bottom-nav-item" id="navYfHoursBtn" onclick="navYfHours()" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="bottom-nav-label">שעות</span>
+        </button>
 
         <!-- Desktop: Greeting (pushed to left in RTL via margin-left:auto, hidden on mobile via CSS) -->
         <div class="top-nav-greeting" id="topNavGreeting">
@@ -2084,6 +2105,15 @@
         <button class="nav-overflow-item" id="navOverflowUsers" onclick="navUserMgmt(); closeNavOverflow();" style="display:none;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span>ניהול משתמשים</span>
+        </button>
+        <!-- ⛔ YF Dashboards (מודול מבודד, owner-only) -->
+        <button class="nav-overflow-item" id="navOverflowYfCashflow" onclick="navYfCashflow(); closeNavOverflow();" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            <span>תזרים</span>
+        </button>
+        <button class="nav-overflow-item" id="navOverflowYfHours" onclick="navYfHours(); closeNavOverflow();" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>שעות</span>
         </button>
         <hr class="nav-overflow-divider">
         <button class="nav-overflow-item nav-overflow-danger" onclick="navLogout(); closeNavOverflow();">

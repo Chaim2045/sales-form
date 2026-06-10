@@ -74,6 +74,13 @@ function handleLogout() {
     if (document.getElementById('userManagement')) {
         document.getElementById('userManagement').classList.remove('active');
     }
+    // ⛔ YF Dashboards — הסתרה ביציאה (אחרת נשארים active מתחת ל-loginScreen → גלילה)
+    if (document.getElementById('yfCashflowView')) {
+        document.getElementById('yfCashflowView').classList.remove('active');
+    }
+    if (document.getElementById('yfHoursView')) {
+        document.getElementById('yfHoursView').classList.remove('active');
+    }
     // Reset login form
     document.getElementById('loginEmail').value = '';
     document.getElementById('loginPassword').value = '';
