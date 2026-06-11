@@ -1,0 +1,283 @@
+/* ============================================================================
+   Login — Canva-style collage + floating card (RTL Hebrew, premium LegalTech)
+   ----------------------------------------------------------------------------
+   נטען אחרי layout.css → דורס את #loginScreen / .login-card / .login-btn הישנים.
+   ה-IDs (loginEmail/loginPassword/loginBtn/quickLoginBtn/loginRemember/loginError)
+   נשמרים 1:1 → אפס שינוי ב-JS.
+   אינטראקציות לפי עקרונות Emil Kowalski: transform+opacity בלבד, ease-out מותאם,
+   <300ms, hover מגודר ל-pointer אמיתי, כיבוד prefers-reduced-motion.
+   ============================================================================ */
+
+:root {
+  --lg-navy:   #16223d;
+  --lg-navy-2: #0f1a30;
+  --lg-gold:   #c4a368;
+  --lg-bg:     #f4f6f9;
+  --lg-ease:   cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* ===== Shell ===== */
+#loginScreen {
+  position: fixed;
+  inset: 0;
+  max-width: none;          /* override old 380px */
+  margin: 0;
+  padding: 0;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  background: var(--lg-bg);
+  z-index: 1000;
+  overflow: auto;           /* safety scroll on very short viewports */
+}
+
+/* ===== Collage background — masonry puzzle of portrait dashboard thumbnails ===== */
+.lg-collage {
+  position: absolute; inset: 0;
+  overflow: hidden;
+  z-index: 0;
+  background: linear-gradient(158deg, #1f3d70 0%, #16223d 56%, #0e1729 100%);
+  display: flex;
+  gap: 9px;
+  padding: 11px;
+  align-items: flex-start;
+}
+/* Drift tracks — each column scrolls slowly, alternating down/up. The content of every
+   track is duplicated in the HTML, so translateY(-50%) loops perfectly (seamless).
+   blur() acts as depth-of-field: the thumbnail wall reads as "pushed back" behind the card. */
+.lg-track {
+  flex: 1;
+  display: flex; flex-direction: column; gap: 9px;
+  /* thumbnails are pre-blurred + downscaled at the asset level → no runtime filter;
+     the translateY drift is then pure compositor work → holds 60fps even on weak iGPUs */
+}
+.lg-track:nth-child(odd)  { animation: lgDriftDown 140s linear infinite; }
+.lg-track:nth-child(even) { animation: lgDriftUp   150s linear infinite; }
+.lg-track:nth-child(3) { animation-duration: 128s; }
+.lg-track:nth-child(4) { animation-duration: 166s; }
+.lg-track:nth-child(5) { animation-duration: 172s; }
+.lg-track:nth-child(6) { animation-duration: 134s; }
+.lg-track:nth-child(7) { animation-duration: 152s; }
+@keyframes lgDriftDown { from { transform: translateY(-50%); } to { transform: translateY(0); } }
+@keyframes lgDriftUp   { from { transform: translateY(0); }    to { transform: translateY(-50%); } }
+.lg-col {
+  width: 100%;
+  display: block;
+  break-inside: avoid;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow: 0 5px 14px rgba(0,0,0,0.30);
+}
+/* varied portrait ratios → puzzle look */
+.lg-col:nth-child(4n)   { aspect-ratio: 3 / 4; }
+.lg-col:nth-child(4n+1) { aspect-ratio: 2 / 3; }
+.lg-col:nth-child(4n+2) { aspect-ratio: 5 / 7; }
+.lg-col:nth-child(4n+3) { aspect-ratio: 4 / 5; }
+
+/* Darkening veil over the collage (also keeps real client data unreadable) */
+.lg-collage-veil {
+  position: absolute; inset: 0; z-index: 2;
+  background: radial-gradient(ellipse 66% 80% at 50% 46%, rgba(11,18,34,0.48) 0%, rgba(7,12,24,0.86) 100%);
+  pointer-events: none;
+}
+
+/* ===== Stage — centers the card over the collage ===== */
+.lg-stage {
+  position: relative; z-index: 5;
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 28px;
+  min-height: 0;
+}
+
+/* ===== Card ===== */
+.login-card {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.05);
+  border-radius: 20px;
+  padding: 30px 28px;
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+  /* Dark halo so the white card separates from the (partly white) collage behind it */
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.07),
+    0 2px 6px rgba(0,0,0,0.22),
+    0 14px 30px rgba(0,0,0,0.34),
+    0 34px 64px rgba(0,0,0,0.44),
+    0 60px 100px rgba(0,0,0,0.40);
+  animation: lgCardIn 540ms var(--lg-ease) both;
+}
+@keyframes lgCardIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.lg-logo { height: 44px; width: auto; margin-bottom: 15px; object-fit: contain; }
+.login-card h2 { font-size: 24px; font-weight: 600; color: var(--lg-navy); margin: 0 0 7px; }
+.login-card p  { font-size: 14px; font-weight: 400; color: rgba(0,0,0,0.46); margin: 0 0 24px; }
+
+/* ===== Form ===== */
+.login-card .form-group { text-align: right; margin-bottom: 15px; }
+.login-card .form-group label { display: block; font-size: 12.5px; font-weight: 500; color: rgba(0,0,0,0.5); margin-bottom: 7px; }
+.login-card input[type=email],
+.login-card input[type=password],
+.login-card input[type=text] {
+  width: 100%; padding: 13px 16px;
+  border: 1px solid rgba(0,0,0,0.12); border-radius: 12px;
+  font-family: 'Heebo', sans-serif; font-size: 14px;
+  transition: border-color 180ms var(--lg-ease), box-shadow 180ms var(--lg-ease), background-color 180ms var(--lg-ease);
+}
+.login-card input:focus {
+  outline: none; border-color: var(--lg-navy);
+  box-shadow: 0 0 0 3px rgba(22,34,61,0.08);
+}
+
+/* ===== Row: remember + forgot ===== */
+.lg-row { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 18px; }
+/* scoped to .login-card so it beats the .login-card label rules (which would force display:block) */
+.login-card .lg-remember { display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(0,0,0,0.6); cursor: pointer; user-select: none; margin: 0; }
+.lg-remember input {
+  appearance: none; -webkit-appearance: none;
+  box-sizing: border-box;
+  width: 17px; height: 17px; min-width: 17px; padding: 0; margin: 0; flex-shrink: 0;
+  border: 1.5px solid rgba(0,0,0,0.22); border-radius: 5px;
+  background: #fff; cursor: pointer; position: relative;
+  transition: background-color 0.15s var(--lg-ease), border-color 0.15s var(--lg-ease);
+}
+.lg-remember input:checked { background-color: var(--lg-navy); border-color: var(--lg-navy); }
+.lg-remember input:checked::after {
+  content: ''; position: absolute; left: 5px; top: 2px;
+  width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.lg-forgot {
+  font-size: 13px; color: var(--lg-navy);
+  cursor: pointer; text-decoration: none;
+  background: none; border: none; font-family: inherit;
+  padding: 6px 2px; margin: -6px -2px;   /* reach ~40px touch target without shifting layout */
+  transition: color 150ms ease;
+}
+
+/* ===== Buttons ===== */
+.login-btn {
+  width: 100%; padding: 14px;
+  background: var(--lg-navy); color: #fff;
+  border: none; border-radius: 12px;
+  font-family: 'Heebo', sans-serif; font-size: 15px; font-weight: 600;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow:
+    0 1px 2px rgba(15,26,48,0.12),
+    0 3px 6px rgba(15,26,48,0.10),
+    0 8px 18px rgba(15,26,48,0.16);
+  transition: background-color 200ms var(--lg-ease), transform 140ms var(--lg-ease), box-shadow 200ms var(--lg-ease);
+}
+.login-btn:active { transform: scale(0.985); box-shadow: 0 1px 4px rgba(15,26,48,0.16); }
+.login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.lg-quick { background: #fff; color: var(--lg-navy); border: 1.5px solid var(--lg-navy); box-shadow: none; margin-top: 10px; }
+.lg-quick svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
+.quick-login-name { display: block; font-size: 12px; font-weight: 400; opacity: 0.7; width: 100%; }
+
+.login-error { color: var(--error); font-size: 13px; margin-top: 12px; min-height: 18px; text-align: center; }
+
+/* Keyboard focus — visible ring on every interactive control (custom styling hides the UA default) */
+.login-btn:focus-visible,
+.lg-quick:focus-visible,
+.lg-forgot:focus-visible,
+.lg-support:focus-visible,
+.lg-remember input:focus-visible {
+  outline: 2px solid var(--lg-gold);
+  outline-offset: 2px;
+}
+
+/* ===== Marketing strip — "what the system manages" (over the veil, above the foot) ===== */
+.lg-features-bar {
+  position: relative; z-index: 6;
+  display: flex; flex-wrap: wrap;
+  justify-content: center; gap: 12px 30px;
+  padding: 4px 24px 14px;
+}
+.lg-fbar {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.84);
+}
+.lg-fbar svg { width: 17px; height: 17px; stroke: var(--lg-gold); fill: none; stroke-width: 1.8; flex-shrink: 0; }
+
+/* ===== Foot ===== */
+.lg-foot {
+  position: relative; z-index: 10;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 14px; font-size: 12px; color: rgba(255,255,255,0.62);
+}
+.lg-foot svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+/* ===== Support button — bottom corner (logic wired separately) ===== */
+.lg-support {
+  position: fixed; bottom: 20px; left: 20px; z-index: 20;
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--lg-navy); border: 1px solid rgba(255,255,255,0.14);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.32);
+  transition: transform 0.15s var(--lg-ease), background-color 0.15s var(--lg-ease);
+}
+.lg-support svg { width: 22px; height: 22px; stroke: var(--lg-gold); fill: none; stroke-width: 1.8; }
+
+/* ============================================================================
+   Hover — gated to real pointers (no false-positive on touch)
+   ============================================================================ */
+@media (hover: hover) and (pointer: fine) {
+  .login-card input[type=email]:hover,
+  .login-card input[type=password]:hover,
+  .login-card input[type=text]:hover { border-color: rgba(0,0,0,0.22); }
+  .login-btn:hover { background-color: var(--lg-navy-2); transform: translateY(-1px); box-shadow: 0 6px 18px rgba(15,26,48,0.24); }
+  .lg-quick:hover  { background-color: rgba(22,34,61,0.05); border-color: var(--lg-navy-2); transform: translateY(-1px); box-shadow: none; }
+  .lg-forgot:hover { color: var(--lg-navy); text-decoration: underline; }
+  .lg-support:hover { background: var(--lg-navy-2); transform: translateY(-2px); }
+}
+
+/* ============================================================================
+   Responsive
+   ============================================================================ */
+/* Tablet / small laptop — fewer collage columns, tighter stage */
+@media (max-width: 900px) {
+  .lg-track:nth-child(n+6) { display: none; }   /* 5 tracks */
+  .lg-stage { padding: 22px; }
+}
+/* Phone — 3 columns, full-width card */
+@media (max-width: 640px) {
+  .lg-track:nth-child(n+4) { display: none; }   /* 3 tracks */
+  .lg-collage { gap: 6px; padding: 8px; }
+  .lg-stage { padding: 16px; }
+  .login-card { max-width: 100%; padding: 26px 22px; border-radius: 18px; }
+  .lg-features-bar { gap: 8px 16px; font-size: 11.5px; padding-bottom: 10px; }
+  .lg-fbar svg { width: 15px; height: 15px; }
+  .lg-support { width: 42px; height: 42px; bottom: 14px; left: 14px; }
+}
+/* Short viewport (laptop) — compact card so it never clips against the top */
+@media (max-height: 760px) {
+  .lg-stage { padding: 14px; }
+  .login-card { padding: 22px 24px; }
+  .lg-logo { height: 38px; margin-bottom: 11px; }
+  .login-card h2 { font-size: 22px; }
+  .login-card p { margin-bottom: 18px; font-size: 13px; }
+  .login-card .form-group { margin-bottom: 12px; }
+  .lg-row { margin: 2px 0 14px; }
+  .lg-features-bar { padding: 0 24px 8px; }
+}
+/* Landscape phones — too short for the floating FAB without it overlapping the features bar */
+@media (max-height: 560px) {
+  .lg-support { display: none; }
+}
+
+/* ============================================================================
+   Respect reduced-motion — keep opacity, drop movement
+   ============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .login-card, .lg-track { animation: none; }
+  .login-btn:hover, .lg-quick:hover, .lg-support:hover { transform: none; }
+}

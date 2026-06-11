@@ -24,8 +24,9 @@ async function handleLogin() {
 
     try {
         await auth.signInWithEmailAndPassword(email, password);
-        // Save credentials for quick login (biometric)
-        storeCredentials(email, password);
+        // Save credentials for quick login (biometric) — only if "remember me" is checked
+        var _rm = document.getElementById('loginRemember');
+        if (!_rm || _rm.checked) storeCredentials(email, password);
         // onAuthStateChanged in firebase-init.js will handle the rest
     } catch (error) {
         var messages = {
@@ -41,7 +42,30 @@ async function handleLogin() {
     }
 
     btn.disabled = false;
-    btn.textContent = 'כניסה';
+    btn.textContent = 'התחבר';
+}
+
+// Forgot password — Firebase reset email
+function handleForgotPassword() {
+    var email = (document.getElementById('loginEmail').value || '').trim();
+    var errorEl = document.getElementById('loginError');
+    if (!email) {
+        errorEl.style.color = '';
+        errorEl.textContent = 'הזן את האימייל שלך, ואז לחץ "שכחתי סיסמה"';
+        return;
+    }
+    auth.sendPasswordResetEmail(email).then(function() {
+        errorEl.style.color = 'var(--success)';
+        errorEl.textContent = 'נשלח אליך אימייל לאיפוס סיסמה ✓';
+    }).catch(function(e) {
+        errorEl.style.color = '';
+        var messages = {
+            'auth/user-not-found': 'לא נמצא משתמש עם אימייל זה',
+            'auth/invalid-email': 'כתובת אימייל לא תקינה',
+            'auth/too-many-requests': 'יותר מדי ניסיונות, נסה מאוחר יותר'
+        };
+        errorEl.textContent = messages[e.code] || 'שגיאה בשליחת אימייל איפוס';
+    });
 }
 
 // Enter key handlers
@@ -166,7 +190,7 @@ async function handleQuickLogin() {
     }
 
     btn.disabled = false;
-    btn.querySelector('.quick-login-text').textContent = 'כניסה מהירה';
+    btn.querySelector('.quick-login-text').textContent = 'כניסה מהירה ובטוחה';
 }
 
 // Check on page load if quick login is available

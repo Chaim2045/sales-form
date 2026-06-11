@@ -919,10 +919,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
         font-size: 22px;
     }
 
-    /* Login screen */
-    #loginScreen {
-        margin: 40px auto;
-    }
+    /* Login screen responsive lives in css/login.css */
 
     /* Progress bar — compact */
     .progress-container {
@@ -1135,11 +1132,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
         min-width: 90px;
         font-size: 12px;
         padding: 6px 8px;
-    }
-
-    /* Login */
-    .login-card {
-        padding: 24px 16px;
     }
 
     /* Step indicators — keep tappable */
