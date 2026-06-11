@@ -48,6 +48,10 @@ firebase-debug.log
 # Netlify
 .netlify/
 
+# Claude Code config — entire .claude/ dir is local/internal, never tracked
+# (history held a Firebase JWT + inline credential; see CLAUDE.md §22.3)
+.claude/
+
 # Design source files
 assets/*.psd
 assets/*.ai
