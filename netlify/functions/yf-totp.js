@@ -112,7 +112,7 @@ exports.handler = async (event) => {
       const secret = b32encode(crypto.randomBytes(20));
       const ok = await writeAccessDoc(accessToken, me.uid, {
         totpSecret: { stringValue: secret }, totpConfirmed: { booleanValue: false },
-        email: { stringValue: me.email }, failedAttempts: { integerValue: 0 }, lockedUntil: { integerValue: 0 },
+        email: { stringValue: me.email }, failedAttempts: { integerValue: '0' }, lockedUntil: { integerValue: '0' },
         totpEnrolledAt: { timestampValue: new Date().toISOString() }
       });
       if (!ok) throw new Error('save failed');
@@ -128,12 +128,12 @@ exports.handler = async (event) => {
       }
       if (!totpVerify(doc.secret, code)) {
         const fails = doc.fails + 1;
-        const upd = { failedAttempts: { integerValue: fails } };
-        if (fails >= MAX_FAILS) upd.lockedUntil = { integerValue: now + LOCK_MS };
+        const upd = { failedAttempts: { integerValue: String(fails) } };
+        if (fails >= MAX_FAILS) upd.lockedUntil = { integerValue: String(now + LOCK_MS) };
         await writeAccessDoc(accessToken, me.uid, upd);
         return { statusCode: 200, headers: H, body: JSON.stringify({ success: false, attemptsLeft: Math.max(0, MAX_FAILS - fails) }) };
       }
-      await writeAccessDoc(accessToken, me.uid, { totpConfirmed: { booleanValue: true }, failedAttempts: { integerValue: 0 }, lockedUntil: { integerValue: 0 } });
+      await writeAccessDoc(accessToken, me.uid, { totpConfirmed: { booleanValue: true }, failedAttempts: { integerValue: '0' }, lockedUntil: { integerValue: '0' } });
       await stampToken(accessToken, me.uid, me.customAttributes);
       return { statusCode: 200, headers: H, body: JSON.stringify({ success: true }) };
     }

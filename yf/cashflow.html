@@ -1676,8 +1676,9 @@ function yfSubmitCode(u, inp, btn, errEl, resolve){
 function yfCheckTotp(u){
   return yfTotpApi(u, {action:'begin'}).then(function(res){
     if(res.status===403){ throw {code:'permission-denied'}; }
-    if(!res.body){ throw new Error('totp begin failed'); }
+    if(!res.body || res.body.error){ throw new Error('שגיאת שרת ('+((res.body&&res.body.error)||res.status)+')'); }
     if(res.body.enrolled){ return yfTotpVerifyFlow(u); }
+    if(!res.body.uri){ throw new Error('השרת לא החזיר QR'); }
     return yfTotpEnrollFlow(u, res.body.uri);
   });
 }
