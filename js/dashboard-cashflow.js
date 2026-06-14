@@ -33,5 +33,9 @@ function showYfCashflow() {
 
 function hideYfCashflow() {
     var el = document.getElementById('yfCashflowView');
-    if (el) el.classList.remove('active');   // ה-iframe נשאר ב-DOM לפתיחה חוזרת מהירה
+    if (el) {
+        el.classList.remove('active');
+        el.innerHTML = '';   // מוחק את ה-iframe → כל חזרה לתזרים דורשת אימות TOTP מחדש (אבטחה)
+    }
+    yfCfLoaded = false;      // הפתיחה הבאה תבנה iframe חדש ותציג שוב את שער ה-TOTP
 }

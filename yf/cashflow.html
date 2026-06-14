@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Yoram Fishman - ניהול תזרים</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- QR לרישום ב-Authenticator (האימות עצמו נעשה בשרת /api/yf-totp — אין יותר otpauth ב-client) -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" integrity="sha384-HGmnkDZJy7mRkoARekrrj0VjEFSh9a0Z8qxGri/kTTAJkgR8hqD1lHsYSh3JdzRi" crossorigin="anonymous"></script>
 <!--
   ⛔ YF Dashboards — תזרים (מודול מבודד, נטען ב-iframe מתוך ה-CRM)
   מסד נתונים עצמאי 'yf-dashboards' (named DB), doc yf_cashflow/office (גלובלי-משרדי).
@@ -152,6 +154,24 @@ body{font-family:'Heebo',sans-serif;background:#ffffff;color:#202124;min-height:
     <input id="yfPass" type="password" placeholder="סיסמה" autocomplete="current-password" style="width:100%;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:12px;font-size:14px;font-family:Heebo,sans-serif">
     <button id="yfLoginBtn" style="width:100%;padding:11px;background:#1a6fc4;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:Heebo,sans-serif">כניסה</button>
     <div id="yfErr" style="color:#d93025;font-size:12px;min-height:16px;margin-top:8px"></div>
+  </div>
+  <!-- TOTP enrollment (פעם ראשונה) -->
+  <div id="yfTotpEnroll" style="display:none;background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:28px;width:100%;max-width:340px;box-shadow:0 4px 20px rgba(0,0,0,.06)">
+    <h3 style="font-size:15px;font-weight:500;margin-bottom:4px;color:#202124">הגדרת אימות דו-שלבי</h3>
+    <p style="font-size:12px;color:#5f6368;margin-bottom:14px">סרוק עם Google Authenticator ואז הזן את הקוד שמופיע</p>
+    <canvas id="yfQr" style="width:180px;height:180px;margin:0 auto 12px;display:block"></canvas>
+    <p style="font-size:11px;color:#80868b;margin-bottom:14px;line-height:1.6">או הזן מפתח ידנית:<br><code id="yfSecretTxt" style="font-family:monospace;font-size:11px;direction:ltr;display:inline-block;word-break:break-all;color:#1a6fc4"></code></p>
+    <input id="yfEnrollCode" inputmode="numeric" maxlength="6" placeholder="קוד בן 6 ספרות" style="width:100%;padding:10px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px;text-align:center;font-size:18px;letter-spacing:4px;direction:ltr;font-family:monospace">
+    <button id="yfEnrollBtn" style="width:100%;padding:11px;background:#1a6fc4;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:Heebo,sans-serif">אישור והפעלה</button>
+    <div id="yfEnrollErr" style="color:#d93025;font-size:12px;min-height:16px;margin-top:8px"></div>
+  </div>
+  <!-- TOTP verification (כל כניסה) -->
+  <div id="yfTotpVerify" style="display:none;background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:28px;width:100%;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.06)">
+    <h3 style="font-size:15px;font-weight:500;margin-bottom:4px;color:#202124">אימות דו-שלבי</h3>
+    <p style="font-size:12px;color:#5f6368;margin-bottom:14px">הזן את הקוד מ-Google Authenticator</p>
+    <input id="yfVerifyCode" inputmode="numeric" maxlength="6" placeholder="------" style="width:100%;padding:10px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:12px;text-align:center;font-size:20px;letter-spacing:6px;direction:ltr;font-family:monospace">
+    <button id="yfVerifyBtn" style="width:100%;padding:11px;background:#1a6fc4;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:Heebo,sans-serif">כניסה</button>
+    <div id="yfVerifyErr" style="color:#d93025;font-size:12px;min-height:16px;margin-top:8px"></div>
   </div>
 </div>
 
@@ -1242,12 +1262,15 @@ function expPDF(){
 function expJSON(){
   dl(JSON.stringify(S,null,2),'application/json','תזרים-גיבוי-'+new Date().toISOString().split('T')[0]+'.json');
 }
+// סינון HTML — מונע XSS מקבצי ייבוא זדוניים (deep-escape של כל מחרוזת מיובאת)
+function yfEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function yfDeepEsc(o){ if(typeof o==='string')return yfEsc(o); if(Array.isArray(o))return o.map(yfDeepEsc); if(o&&typeof o==='object'){var r={};for(var k in o)r[k]=yfDeepEsc(o[k]);return r;} return o; }
 function impJSON(inp){
   var reader=new FileReader();
   reader.onload=function(e){
     try{
       var d=JSON.parse(e.target.result);
-      ['uname','vatR','advR','entries','cats','subcats','budgets','plans','recurring','contacts','invoices','banks','nid'].forEach(function(k){if(d[k]!==undefined)S[k]=d[k];});
+      ['uname','vatR','advR','entries','cats','subcats','budgets','plans','recurring','contacts','invoices','banks','nid'].forEach(function(k){if(d[k]!==undefined)S[k]=yfDeepEsc(d[k]);});
       save();render();
       var un=document.getElementById('uname');if(un)un.textContent=S.uname;
       toast('שוחזר בהצלחה!');
@@ -1607,6 +1630,83 @@ function yfDoLogin(){
     btn.disabled=false;btn.textContent='כניסה';
   });
 }
+
+// ===== TOTP (2FA) — אטום server-side. השרת (/api/yf-totp) מאמת את הקוד מול ה-secret =====
+// (שנשאר רק אצלו) ומחתים claim 'yfTotpVerified' על הטוקן. חוקי המסד דורשים את החותמת →
+// לא ניתן לעקוף מהקונסול, וה-secret לעולם לא נחשף לדפדפן.
+function yfHideGates(){
+  ['yfLoadMsg','yfLogin','yfTotpEnroll','yfTotpVerify'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.style.display='none';
+  });
+}
+function yfShowGate(id){
+  yfHideGates();
+  var el=document.getElementById(id); if(el) el.style.display='block';
+  document.getElementById('LO').style.display='flex';
+  document.getElementById('APP').style.display='none';
+}
+// קריאה לשרת ה-TOTP עם idToken בכותרת
+function yfTotpApi(u, payload){
+  return u.getIdToken().then(function(idToken){
+    return fetch('/api/yf-totp', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+idToken},
+      body:JSON.stringify(payload)
+    }).then(function(r){ return r.json().then(function(j){ return {status:r.status, body:j}; }); });
+  });
+}
+// שולח קוד לאימות בשרת; בהצלחה מרענן את הטוקן (כדי לקבל את החותמת) ופותר את ה-gate.
+function yfSubmitCode(u, inp, btn, errEl, resolve){
+  var code=(inp.value||'').replace(/\D/g,'');
+  if(code.length!==6){ errEl.textContent='הזן קוד בן 6 ספרות'; return; }
+  btn.disabled=true; btn.textContent='בודק…'; errEl.textContent='';
+  yfTotpApi(u, {action:'verify', code:code}).then(function(res){
+    if(res.body && res.body.success){
+      u.getIdToken(true).then(function(){ resolve(); });   // force-refresh → claim בטוקן
+      return;
+    }
+    errEl.textContent='קוד שגוי — נסה שוב'; inp.value=''; inp.focus();
+    btn.disabled=false; btn.textContent=(btn.dataset.label||'כניסה');
+  }).catch(function(e){
+    console.error('totp verify',e); errEl.textContent='שגיאת תקשורת — נסה שוב';
+    btn.disabled=false; btn.textContent=(btn.dataset.label||'כניסה');
+  });
+}
+// begin בשרת: enrolled → אימות; אחרת → רישום (QR מה-uri שהשרת יצר).
+function yfCheckTotp(u){
+  return yfTotpApi(u, {action:'begin'}).then(function(res){
+    if(res.status===403){ throw {code:'permission-denied'}; }
+    if(!res.body){ throw new Error('totp begin failed'); }
+    if(res.body.enrolled){ return yfTotpVerifyFlow(u); }
+    return yfTotpEnrollFlow(u, res.body.uri);
+  });
+}
+function yfTotpEnrollFlow(u, uri){
+  return new Promise(function(resolve){
+    yfShowGate('yfTotpEnroll');
+    var st=document.getElementById('yfSecretTxt');
+    try {
+      QRCode.toCanvas(document.getElementById('yfQr'), uri, {width:180,margin:1}, function(e){ if(e) console.error('QR',e); });
+      var m=/[?&]secret=([^&]+)/.exec(uri||''); if(st) st.textContent = m ? decodeURIComponent(m[1]) : '';
+    } catch(e){ console.error('QR',e); }
+    var errEl=document.getElementById('yfEnrollErr');
+    var btn=document.getElementById('yfEnrollBtn'); btn.dataset.label='אישור והפעלה';
+    var inp=document.getElementById('yfEnrollCode');
+    btn.onclick=function(){ yfSubmitCode(u, inp, btn, errEl, resolve); };
+    inp.value=''; inp.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); btn.onclick(); } };
+  });
+}
+function yfTotpVerifyFlow(u){
+  return new Promise(function(resolve){
+    yfShowGate('yfTotpVerify');
+    var errEl=document.getElementById('yfVerifyErr');
+    var btn=document.getElementById('yfVerifyBtn'); btn.dataset.label='כניסה';
+    var inp=document.getElementById('yfVerifyCode');
+    inp.value=''; setTimeout(function(){ inp.focus(); }, 50);
+    btn.onclick=function(){ yfSubmitCode(u, inp, btn, errEl, resolve); };
+    inp.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); btn.onclick(); } };
+  });
+}
 function yfInit(){
   var Y=window.YF;
   Y.setPersistence(Y.auth, Y.browserLocalPersistence).catch(function(){});
@@ -1617,18 +1717,24 @@ function yfInit(){
     var app=document.getElementById('APP');
     if(!u){ yfShowLogin(); return; }
     Y.uid=u.uid;
-    document.getElementById('yfLogin').style.display='none';
-    var lm=document.getElementById('yfLoadMsg');if(lm){lm.style.display='block';lm.textContent='טוען…';}
-    if(lo)lo.style.display='flex';
-    // TODO(שלב ב): כאן תיכנס בדיקת TOTP לפני load()
-    load().then(function(){
+    // שלב ב: שער TOTP לפני load() — נפתר רק כשהקוד אומת (או הרישום הושלם)
+    yfShowGate('yfLoadMsg');
+    document.getElementById('yfLoadMsg').textContent='בודק הרשאה…';
+    yfCheckTotp(u).then(function(){
+      yfShowGate('yfLoadMsg');
+      document.getElementById('yfLoadMsg').textContent='טוען…';
+      return load();
+    }).then(function(){
       if(lo)lo.style.display='none';
       app.style.display='flex';
       render();
       updateInvBtn();
     }).catch(function(e){
-      console.error('yf_cashflow load failed',e);
-      var lm2=document.getElementById('yfLoadMsg');if(lm2)lm2.textContent=(e&&e.code==='permission-denied')?'אין לך הרשאה לדשבורד זה':'שגיאה בטעינת הנתונים';
+      console.error('yf_cashflow gate/load failed',e);
+      yfHideGates();
+      var lm2=document.getElementById('yfLoadMsg');
+      if(lm2){lm2.style.display='block';lm2.textContent=(e&&e.code==='permission-denied')?'אין לך הרשאה לדשבורד זה':'שגיאה בטעינה';}
+      if(lo)lo.style.display='flex';
     });
   });
 }

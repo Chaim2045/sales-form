@@ -2,23 +2,31 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ⛔ YF Dashboards — מסד נתונים מבודד (yf-dashboards), נפרד לחלוטין מ-(default)/טופס מכר.
-    // גישה owner-only לפי email (גיא + חיים) — לא תלוי ב-role. ראה .claude/SHARED-CONTEXT.md §9.
-    // (grants זמניים — שלב 5, collection yf_access)
+    // ⛔ YF Dashboards — מסד מבודד (yf-dashboards), נפרד לחלוטין מ-(default)/טופס מכר. ראה SHARED-CONTEXT §9.
+    // owner-only לפי email מאומת (גיא + חיים), נאכף בצד-שרת.
     function isYfOwner() {
       return request.auth != null
         && request.auth.token.email in ['guy@ghlawoffice.co.il', 'haim@ghlawoffice.co.il'];
     }
 
-    // שעות: per-user doc {uid}. owner קורא את כל ה-docs (תצוגת הנהלה) וכותב ל-doc שלו.
-    match /yf_hours/{userId} {
-      allow read: if isYfOwner();
-      allow write: if isYfOwner() && request.auth.uid == userId;
+    // חותמת TOTP טרייה (< 8 שעות). מונפקת אך ורק ע"י פונקציית השרת yf-totp לאחר אימות הקוד בשרת.
+    // הדפדפן לא יכול לזייף custom claim → זה הופך את ה-TOTP ל-2FA אטום (server-enforced),
+    // שלא ניתן לעקוף מהקונסול.
+    function totpFresh() {
+      return ('yfTotpVerified' in request.auth.token)
+        && request.auth.token.yfTotpVerified is int
+        && request.time.toMillis() < (request.auth.token.yfTotpVerified * 1000) + (8 * 60 * 60 * 1000);
     }
 
-    // תזרים: doc יחיד 'office' (גלובלי-משרדי). owner-only read/write.
+    // תזרים: owner + חותמת TOTP טרייה. בלי אימות-קוד-בשרת → המסד דוחה, גם מהקונסול.
     match /yf_cashflow/{docId} {
-      allow read, write: if isYfOwner();
+      allow read, write: if isYfOwner() && totpFresh();
+    }
+
+    // yf_access (secret + מצב enrollment) — SERVER-ONLY. נכתב/נקרא אך ורק ע"י ה-Function
+    // (Admin access token שעוקף את ה-rules). ה-client חסום לחלוטין → ה-secret לעולם לא נחשף לדפדפן.
+    match /yf_access/{userId} {
+      allow read, write: if false;
     }
 
     // הכל השאר במסד הזה — חסום
