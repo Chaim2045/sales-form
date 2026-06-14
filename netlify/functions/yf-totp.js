@@ -23,13 +23,25 @@ function httpRequest(options, data) {
     req.end();
   });
 }
+function b64urlJson(obj) {
+  return Buffer.from(JSON.stringify(obj)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+// access token דרך Service Account (JWT חתום RS256) — env FIREBASE_SERVICE_ACCOUNT = JSON (client_email + private_key)
 async function getAccessToken() {
-  const clientId = process.env.GOOGLE_CLIENT_ID || '563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com';
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientSecret) throw new Error('Server configuration error');
-  const postData = `grant_type=refresh_token&refresh_token=${encodeURIComponent(process.env.FIREBASE_REFRESH_TOKEN)}&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`;
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!raw) throw new Error('Server configuration error (no FIREBASE_SERVICE_ACCOUNT)');
+  let sa; try { sa = JSON.parse(raw); } catch (e) { throw new Error('Server configuration error (bad SA json)'); }
+  if (!sa.client_email || !sa.private_key) throw new Error('Server configuration error (SA missing fields)');
+  const key = sa.private_key.replace(/\\n/g, '\n'); // תיקון newlines אם נשמרו כ-\\n ב-env
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const claims = { iss: sa.client_email, scope: 'https://www.googleapis.com/auth/cloud-platform', aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 };
+  const signingInput = b64urlJson(header) + '.' + b64urlJson(claims);
+  const signature = crypto.createSign('RSA-SHA256').update(signingInput).sign(key).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const jwt = signingInput + '.' + signature;
+  const postData = `grant_type=${encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer')}&assertion=${encodeURIComponent(jwt)}`;
   const res = await httpRequest({ hostname: 'oauth2.googleapis.com', path: '/token', method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(postData) } }, postData);
-  if (res.status !== 200) throw new Error('Token exchange failed');
+  if (res.status !== 200) throw new Error('Token exchange failed (' + res.status + ')');
   return res.data.access_token;
 }
 
