@@ -94,6 +94,11 @@ function renderUsersTable() {
             html += '<input type="checkbox" ' + checked + ' onchange="toggleUserPermission(\'' + u._uid + '\', \'' + perm + '\', this.checked)">';
             html += '<span class="um-toggle-slider"></span>';
             html += '</label>';
+            // תזרים: שדה "עד תאריך" לגישה זמנית (ריק = קבוע). ה-owner קבוע — לא רלוונטי.
+            if (perm === 'yfCashflow') {
+                var _exp = u.yfCashflowExpiresAt ? new Date(u.yfCashflowExpiresAt).toISOString().split('T')[0] : '';
+                html += '<br><input type="date" value="' + _exp + '" title="גישה עד תאריך (ריק = קבועה)" onchange="setYfExpiry(\'' + u._uid + '\', this.value)" style="font-size:10px;margin-top:5px;padding:2px 4px;border:1px solid #ddd;border-radius:4px;width:118px">';
+            }
             html += '</td>';
         });
 
@@ -174,6 +179,23 @@ async function toggleUserPermission(uid, perm, value) {
     } catch (err) {
         console.error('Error updating permission:', err);
         alert('שגיאה בעדכון הרשאה');
+        loadUsersForManagement();
+    }
+}
+
+// ─── תאריך תפוגה לגישת תזרים (grant זמני; ריק = קבועה). נאכף בשרת (yf-totp / isAuthorized) ───
+async function setYfExpiry(uid, dateStr) {
+    try {
+        var ms = dateStr ? new Date(dateStr + 'T23:59:59').getTime() : null;
+        await db.collection('users').doc(uid).update({
+            yfCashflowExpiresAt: ms === null ? firebase.firestore.FieldValue.delete() : ms
+        });
+        var u = umUsers.find(function(x) { return x._uid === uid; });
+        if (u) u.yfCashflowExpiresAt = ms;
+        logAuditEvent('yf_expiry_changed', { targetUser: u ? u.displayName : uid, expiresAt: dateStr || 'קבועה' });
+    } catch (err) {
+        console.error('Error setting yf expiry:', err);
+        alert('שגיאה בעדכון תאריך תפוגה');
         loadUsersForManagement();
     }
 }

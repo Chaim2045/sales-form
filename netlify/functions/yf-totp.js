@@ -56,7 +56,11 @@ async function isAuthorized(token, uid, email) {
   const active = f.isActive && f.isActive.booleanValue === true;
   const perms = (f.permissions && f.permissions.mapValue && f.permissions.mapValue.fields) || {};
   const yf = perms.yfCashflow && perms.yfCashflow.booleanValue === true;
-  return active && yf;
+  if (!(active && yf)) return false;
+  // הרשאה זמנית: אם הוגדר תאריך תפוגה ועבר — הגישה פגה (server-enforced)
+  const exp = parseInt((f.yfCashflowExpiresAt && f.yfCashflowExpiresAt.integerValue) || '0', 10);
+  if (exp && Date.now() > exp) return false;
+  return true;
 }
 
 // ---------- Firestore REST (מסד yf-dashboards) ----------
