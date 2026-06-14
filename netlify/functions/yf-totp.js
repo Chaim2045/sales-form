@@ -42,8 +42,13 @@ function totpVerify(b32, code) { code = String(code || '').replace(/\D/g, ''); i
 
 // ---------- אימות הטוקן (בלי שער-אימייל — ההרשאה נבדקת בנפרד) ----------
 async function verifyToken(idToken) {
-  const r = await httpRequest({ hostname: 'identitytoolkit.googleapis.com', path: `/v1/accounts:lookup?key=${process.env.FIREBASE_API_KEY}`, method: 'POST', headers: { 'Content-Type': 'application/json' } }, JSON.stringify({ idToken }));
-  if (r.status !== 200 || !r.data.users || !r.data.users[0]) throw new Error('Invalid token');
+  const payload = JSON.stringify({ idToken });
+  const r = await httpRequest({ hostname: 'identitytoolkit.googleapis.com', path: `/v1/accounts:lookup?key=${process.env.FIREBASE_API_KEY}`, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } }, payload);
+  if (r.status !== 200 || !r.data.users || !r.data.users[0]) {
+    var detail = (r.data && r.data.error && r.data.error.message) || ('HTTP ' + r.status);
+    if (!process.env.FIREBASE_API_KEY) detail += ' [NO_API_KEY env]';
+    throw new Error('auth ' + detail);
+  }
   const u = r.data.users[0];
   return { uid: u.localId, email: (u.email || '').toLowerCase(), customAttributes: u.customAttributes };
 }
