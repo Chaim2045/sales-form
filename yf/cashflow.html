@@ -1739,6 +1739,8 @@ function yfInit(){
   });
 }
 window.yfInit=yfInit;
+// אות פעילות ל-CRM (idle-timeout) — כדי שעבודה בתזרים לא תנותק בטעות. throttled ל-20ש'.
+(function(){var last=0;function ping(){var n=Date.now();if(n-last>20000){last=n;try{window.parent.postMessage('yf-activity',window.location.origin);}catch(e){}}}['mousemove','keydown','click','scroll','touchstart'].forEach(function(ev){document.addEventListener(ev,ping,{passive:true});});})();
 </script>
 
 <!-- Firebase (modular) — מסד נפרד 'yf-dashboards' + app name נפרד 'yfDash' (לא מתנגש ב-CRM auth) -->
