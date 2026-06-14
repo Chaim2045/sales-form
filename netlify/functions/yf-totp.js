@@ -41,16 +41,37 @@ function totpAt(secret, counter) { const buf = Buffer.alloc(8); buf.writeBigUInt
 function totpVerify(b32, code) { code = String(code || '').replace(/\D/g, ''); if (code.length !== DIGITS) return false; const secret = b32decode(b32); const counter = Math.floor(Date.now() / 1000 / PERIOD); for (let w = -WINDOW; w <= WINDOW; w++) { const cand = totpAt(secret, counter + w); if (crypto.timingSafeEqual(Buffer.from(cand), Buffer.from(code))) return true; } return false; }
 
 // ---------- אימות הטוקן (בלי שער-אימייל — ההרשאה נבדקת בנפרד) ----------
+// אימות idToken מקומית (חתימת JWT מול מפתחות Firebase הציבוריים) — לא תלוי ב-API key
+let _fbKeys = null, _fbKeysExp = 0;
+function httpsGetJson(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, function (res) { var b = ''; res.on('data', function (c) { b += c; }); res.on('end', function () { try { resolve(JSON.parse(b)); } catch (e) { reject(e); } }); }).on('error', reject);
+  });
+}
+async function getFbKeys() {
+  if (_fbKeys && Date.now() < _fbKeysExp) return _fbKeys;
+  _fbKeys = await httpsGetJson('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com');
+  _fbKeysExp = Date.now() + 3600000;
+  return _fbKeys;
+}
+function b64url(s) { return Buffer.from(String(s).replace(/-/g, '+').replace(/_/g, '/'), 'base64'); }
 async function verifyToken(idToken) {
-  const payload = JSON.stringify({ idToken });
-  const r = await httpRequest({ hostname: 'identitytoolkit.googleapis.com', path: `/v1/accounts:lookup?key=${process.env.FIREBASE_API_KEY}`, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } }, payload);
-  if (r.status !== 200 || !r.data.users || !r.data.users[0]) {
-    var detail = (r.data && r.data.error && r.data.error.message) || ('HTTP ' + r.status);
-    if (!process.env.FIREBASE_API_KEY) detail += ' [NO_API_KEY env]';
-    throw new Error('auth ' + detail);
-  }
-  const u = r.data.users[0];
-  return { uid: u.localId, email: (u.email || '').toLowerCase(), customAttributes: u.customAttributes };
+  const p = String(idToken || '').split('.');
+  if (p.length !== 3) throw new Error('auth bad-format');
+  const head = JSON.parse(b64url(p[0]).toString());
+  const body = JSON.parse(b64url(p[1]).toString());
+  const keys = await getFbKeys();
+  const cert = keys[head.kid];
+  if (!cert) throw new Error('auth unknown-kid');
+  const v = crypto.createVerify('RSA-SHA256');
+  v.update(p[0] + '.' + p[1]);
+  if (!v.verify(cert, b64url(p[2]))) throw new Error('auth bad-signature');
+  const now = Math.floor(Date.now() / 1000);
+  if (body.exp <= now) throw new Error('auth expired');
+  if (body.aud !== PROJECT_ID) throw new Error('auth wrong-project');
+  if (body.iss !== 'https://securetoken.google.com/' + PROJECT_ID) throw new Error('auth wrong-issuer');
+  if (!body.sub) throw new Error('auth no-uid');
+  return { uid: body.sub, email: (body.email || '').toLowerCase(), customAttributes: null };
 }
 // בדיקת הרשאה: owner קבוע, או isActive + permissions.yfCashflow מ-(default)/users
 async function isAuthorized(token, uid, email) {
@@ -91,7 +112,8 @@ async function stampToken(token, uid, existingAttrs) {
   let attrs = {}; try { attrs = existingAttrs ? JSON.parse(existingAttrs) : {}; } catch (e) {}
   attrs.yfTotpVerified = Math.floor(Date.now() / 1000);
   const body = JSON.stringify({ localId: uid, customAttributes: JSON.stringify(attrs) });
-  const r = await httpRequest({ hostname: 'identitytoolkit.googleapis.com', path: `/v1/projects/${PROJECT_ID}/accounts:update?key=${process.env.FIREBASE_API_KEY}`, method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, body);
+  const r = await httpRequest({ hostname: 'identitytoolkit.googleapis.com', path: `/v1/projects/${PROJECT_ID}/accounts:update`, method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, body);
+  if (r.status !== 200) { console.error('stampToken failed', r.status, JSON.stringify(r.data).slice(0,150)); }
   return r.status === 200;
 }
 function cors(event) { const o = event.headers.origin || event.headers.Origin || ''; return (o.endsWith('.netlify.app') || o.startsWith('http://localhost')) ? o : ''; }
