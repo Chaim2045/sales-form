@@ -161,7 +161,9 @@ function updateNavVisibility() {
     // ⛔ YF Dashboards — גישה: גיא/חיים (תמיד) או הרשאת yfCashflow מניהול המשתמשים.
     // הסתרת הכפתור ויזואלית בלבד; הגישה לנתונים נאכפת בשרת (TOTP claim + isAuthorized בפונקציה).
     var _yfOwners = ['guy@ghlawoffice.co.il', 'haim@ghlawoffice.co.il'];
-    var yfCanAccess = !!(authUser && authUser.email && (_yfOwners.indexOf(authUser.email) !== -1 || perms.yfCashflow));
+    // עובד: הרשאה דלוקה + (אם הוגדר תאריך) לא פג. גיא/חיים תמיד. הכפתור נעלם כשה-grant פג.
+    var _yfPermActive = perms.yfCashflow && (!perms._yfCashflowExp || Date.now() < perms._yfCashflowExp);
+    var yfCanAccess = !!(authUser && authUser.email && (_yfOwners.indexOf(authUser.email) !== -1 || _yfPermActive));
     var yfCfBtn = document.getElementById('navYfCashflowBtn');
     if (yfCfBtn) yfCfBtn.style.display = yfCanAccess ? '' : 'none';
 

@@ -121,6 +121,8 @@ auth.onAuthStateChanged(async function(user) {
             currentUser = userData.displayName || '';
             currentUserPermissions = userData.permissions || {};
             currentUserRole = userData.role || '';
+            // תאריך תפוגת גישת תזרים — לצורך הסתרת הכפתור גם כשה-grant פג (לא רק כשמכבים מתג)
+            if (userData.yfCashflowExpiresAt) currentUserPermissions._yfCashflowExp = userData.yfCashflowExpiresAt;
 
             // Save to sessionStorage for page reloads
             sessionStorage.setItem('currentUser', currentUser);
