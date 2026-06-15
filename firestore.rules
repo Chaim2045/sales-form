@@ -85,9 +85,13 @@ service cloud.firestore {
 
     // ─── Clients (central client identity) ───
     match /clients/{docId} {
-      allow read: if isActive();
-      allow create: if isActive();
-      allow update: if isActive();
+      // אבטחה (F5): read/create/update מצומצמים להרשאות שנוגעות בלקוחות (היה isActive = כל עובד פעיל).
+      // קוראים: autocomplete בטופס (salesForm) + getOrCreateClient מטופס/בילינג (salesForm/billingManagement).
+      // כותבים: getOrCreateClient (salesForm/billingManagement/salesManagement), עריכת בילינג (billing.js:1609),
+      // עריכת מכירה (sales-records.js:750). הבוט כותב clients דרך Admin SDK → עוקף rules → לא מושפע.
+      allow read: if hasPermission('salesForm') || hasPermission('salesManagement') || hasPermission('billingManagement') || isMaster();
+      allow create: if hasPermission('salesForm') || hasPermission('salesManagement') || hasPermission('billingManagement') || isMaster();
+      allow update: if hasPermission('salesForm') || hasPermission('salesManagement') || hasPermission('billingManagement') || isMaster();
       allow delete: if isMaster();
     }
 
