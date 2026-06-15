@@ -54,16 +54,12 @@ async function searchClientsLegacy(searchTerm) {
     var searchLower = searchTerm.toLowerCase();
     var clientsMap = new Map();
 
-    var [salesSnapshot, billingSnapshot] = await Promise.all([
-        db.collection('sales_records')
-            .orderBy('timestamp', 'desc')
-            .limit(500)
-            .get(),
-        db.collection('recurring_billing')
-            .orderBy('createdAt', 'desc')
-            .limit(500)
-            .get()
-    ]);
+    // אבטחה (F1): הוסר חיפוש ב-recurring_billing — הוא חשף נתוני חיוב לכל עובד פעיל.
+    // מכירות (sales_records) מספיק לזיהוי לקוח ב-fallback הישן (לפני מיגרציה ל-clients).
+    var salesSnapshot = await db.collection('sales_records')
+        .orderBy('timestamp', 'desc')
+        .limit(500)
+        .get();
 
     salesSnapshot.forEach(function(doc) {
         var data = doc.data();
@@ -74,23 +70,6 @@ async function searchClientsLegacy(searchTerm) {
                 phone: data.phone,
                 email: data.email,
                 idNumber: data.idNumber,
-                address: data.address || '',
-                attorney: data.attorney || '',
-                branch: data.branch || '',
-                caseNumber: data.caseNumber || ''
-            });
-        }
-    });
-
-    billingSnapshot.forEach(function(doc) {
-        var data = doc.data();
-        var clientName = data.clientName || '';
-        if (clientName.toLowerCase().includes(searchLower) && !clientsMap.has(clientName)) {
-            clientsMap.set(clientName, {
-                clientName: data.clientName,
-                phone: data.phone || '',
-                email: data.email || '',
-                idNumber: data.idNumber || '',
                 address: data.address || '',
                 attorney: data.attorney || '',
                 branch: data.branch || '',

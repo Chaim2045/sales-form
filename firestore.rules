@@ -45,13 +45,13 @@ service cloud.firestore {
 
     // ─── Recurring Billing ───
     match /recurring_billing/{docId} {
-      allow read: if isActive();
+      allow read: if hasPermission('billingManagement') || isMaster();
       allow create: if hasPermission('billingManagement');
       allow update: if hasPermission('billingManagement');
       allow delete: if isMaster();
 
       match /payments/{paymentId} {
-        allow read: if isActive();
+        allow read: if hasPermission('billingManagement') || isMaster();
         allow create: if hasPermission('billingManagement');
         allow update: if hasPermission('billingManagement');
         allow delete: if hasPermission('billingManagement');
