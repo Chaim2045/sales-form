@@ -13,14 +13,17 @@ service cloud.firestore {
     // הדפדפן לא יכול לזייף custom claim → זה הופך את ה-TOTP ל-2FA אטום (server-enforced),
     // שלא ניתן לעקוף מהקונסול.
     function totpFresh() {
-      return ('yfTotpVerified' in request.auth.token)
+      return request.auth != null
+        && ('yfTotpVerified' in request.auth.token)
         && request.auth.token.yfTotpVerified is int
         && request.time.toMillis() < (request.auth.token.yfTotpVerified * 1000) + (8 * 60 * 60 * 1000);
     }
 
-    // תזרים: owner + חותמת TOTP טרייה. בלי אימות-קוד-בשרת → המסד דוחה, גם מהקונסול.
+    // תזרים: חותמת TOTP טרייה בלבד. החותמת מונפקת ע"י השרת (yf-totp) רק לאחר בדיקת הרשאה
+    // (owner-email או permission yfCashflow לא-פגה) ואימות הקוד — לכן היא-עצמה הוכחת ההרשאה.
+    // לא בודקים isYfOwner כאן, אחרת משתמשי-הרשאה (grant זמני) היו נחסמים למרות שהשרת אישר.
     match /yf_cashflow/{docId} {
-      allow read, write: if isYfOwner() && totpFresh();
+      allow read, write: if totpFresh();
     }
 
     // yf_access (secret + מצב enrollment) — SERVER-ONLY. נכתב/נקרא אך ורק ע"י ה-Function
