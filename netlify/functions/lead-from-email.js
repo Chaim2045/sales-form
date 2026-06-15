@@ -2,6 +2,7 @@
 // Parses email content with Claude AI, saves to Firestore, notifies WhatsApp bot
 
 const https = require('https');
+const crypto = require('crypto');
 
 function getLast7(phone) {
     if (!phone) return '';
@@ -23,6 +24,29 @@ function httpRequest(options, data) {
         if (data) req.write(typeof data === 'string' ? data : JSON.stringify(data));
         req.end();
     });
+}
+
+// access token דרך Service Account (JWT RS256) — env FIREBASE_SERVICE_ACCOUNT (client_email + private_key).
+// כתיבה עם token זה מאומתת כ-service account → עוקפת Firestore rules (כמו Admin SDK). מוכח ב-yf-totp.js.
+function b64urlJson(obj) {
+    return Buffer.from(JSON.stringify(obj)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+async function getAccessToken() {
+    const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (!raw) throw new Error('Server configuration error (no FIREBASE_SERVICE_ACCOUNT)');
+    let sa; try { sa = JSON.parse(raw); } catch (e) { throw new Error('Server configuration error (bad SA json)'); }
+    if (!sa.client_email || !sa.private_key) throw new Error('Server configuration error (SA missing fields)');
+    const key = sa.private_key.replace(/\\n/g, '\n');
+    const now = Math.floor(Date.now() / 1000);
+    const header = { alg: 'RS256', typ: 'JWT' };
+    const claims = { iss: sa.client_email, scope: 'https://www.googleapis.com/auth/cloud-platform', aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 };
+    const signingInput = b64urlJson(header) + '.' + b64urlJson(claims);
+    const signature = crypto.createSign('RSA-SHA256').update(signingInput).sign(key).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const jwt = signingInput + '.' + signature;
+    const postData = 'grant_type=' + encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer') + '&assertion=' + encodeURIComponent(jwt);
+    const res = await httpRequest({ hostname: 'oauth2.googleapis.com', path: '/token', method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(postData) } }, postData);
+    if (res.status !== 200) throw new Error('Token exchange failed (' + res.status + ')');
+    return res.data.access_token;
 }
 
 // Parse email with Claude to extract lead details
@@ -100,7 +124,9 @@ async function parseEmailWithClaude(emailBody, emailSubject, emailFrom) {
 // Save lead to Firestore via Firebase Admin REST API
 async function saveLeadToFirestore(leadData) {
     var projectId = process.env.FIREBASE_PROJECT_ID || 'law-office-sales-form';
-    var apiKey = process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY;
+    // אבטחה (F3): כתיבה דרך service-account access token (Admin) — עוקף Firestore rules,
+    // כדי לאפשר סגירת leads create:if true (world-writable) בלי לשבור את קליטת לידי-המייל.
+    var accessToken = await getAccessToken();
     var firestoreDoc = {
         fields: {
             name: { stringValue: leadData.name || '' },
@@ -147,9 +173,9 @@ async function saveLeadToFirestore(leadData) {
             });
             var checkRes = await httpRequest({
                 hostname: 'firestore.googleapis.com',
-                path: '/v1/projects/' + projectId + '/databases/(default)/documents:runQuery?key=' + apiKey,
+                path: '/v1/projects/' + projectId + '/databases/(default)/documents:runQuery',
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(queryBody) }
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + accessToken, 'Content-Length': Buffer.byteLength(queryBody) }
             }, queryBody);
 
             if (checkRes.status === 200 && Array.isArray(checkRes.data) && checkRes.data[0] && checkRes.data[0].document) {
@@ -164,10 +190,11 @@ async function saveLeadToFirestore(leadData) {
     var postData = JSON.stringify(firestoreDoc);
     var res = await httpRequest({
         hostname: 'firestore.googleapis.com',
-        path: '/v1/projects/' + projectId + '/databases/(default)/documents/leads?key=' + apiKey,
+        path: '/v1/projects/' + projectId + '/databases/(default)/documents/leads',
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + accessToken,
             'Content-Length': Buffer.byteLength(postData)
         }
     }, postData);
