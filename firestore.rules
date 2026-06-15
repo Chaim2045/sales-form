@@ -37,8 +37,13 @@ service cloud.firestore {
 
     // ─── Sales Records ───
     match /sales_records/{docId} {
-      allow read: if isActive();
-      allow create: if hasPermission('salesForm');
+      // אבטחה (F4): קריאה מצומצמת להרשאות תפעוליות (היה isActive = כל עובד פעיל).
+      // כל הקוראים מכוסים: מכירות (salesManagement), בילינג+גבייה (billingManagement),
+      // העשרת ליד (leadsManagement), השלמה-אוטומטית בטופס (salesForm). הגשר ל-law-office-system
+      // קורא דרך Admin SDK (service account) → עוקף rules → לא מושפע.
+      allow read: if hasPermission('salesManagement') || hasPermission('billingManagement') || hasPermission('leadsManagement') || hasPermission('salesForm') || isMaster();
+      // הנה"ח (billingManagement, ללא salesForm) יוצר רשומת-מכר בסימון תשלום (payments.js:460/861) — היה נדחה ונבלע בשקט.
+      allow create: if hasPermission('salesForm') || hasPermission('billingManagement');
       allow update: if hasPermission('salesForm');
       allow delete: if isMaster();
     }
@@ -67,9 +72,12 @@ service cloud.firestore {
     }
 
     // ─── Leads CRM ───
-    // create is open (webhook + bot write without auth, protected by secret)
+    // create is open (webhook + bot write without auth) — F3 יטופל בנפרד (הסבת ה-webhook ל-Admin SDK ואז create:if false)
     match /leads/{docId} {
-      allow read: if isActive();
+      // אבטחה (F2): קריאה מצומצמת ל-leadsManagement/salesManagement (היה isActive = כל עובד פעיל).
+      // תואם לכפתור הניווט (navigation.js:156 — leadsManagement || salesManagement || master),
+      // כך שאף תפקיד שמגיע למסך הלידים לא נשבר (כולל הנה"ח שמחזיק salesManagement).
+      allow read: if hasPermission('leadsManagement') || hasPermission('salesManagement') || isMaster();
       allow create: if true;
       allow update: if isActive();
       allow delete: if isMaster();
