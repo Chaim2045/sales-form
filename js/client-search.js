@@ -136,7 +136,9 @@ function showAutoFillFeedback() {
 async function searchCompanies(searchTerm) {
     if (!searchTerm || searchTerm.length < 3) return [];
     try {
-        var response = await fetch('/api/company-lookup?name=' + encodeURIComponent(searchTerm));
+        var idToken = (typeof firebase !== 'undefined' && firebase.auth().currentUser) ? await firebase.auth().currentUser.getIdToken() : null;
+        if (!idToken) return [];
+        var response = await fetch('/api/company-lookup?name=' + encodeURIComponent(searchTerm), { headers: { 'Authorization': 'Bearer ' + idToken } });
         if (!response.ok) return [];
         var data = await response.json();
         return data.results || [];

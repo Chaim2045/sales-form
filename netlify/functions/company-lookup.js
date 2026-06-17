@@ -2,6 +2,37 @@
 // Proxies requests to data.gov.il API (no CORS support on their end)
 
 const https = require('https');
+const crypto = require('crypto');
+
+// ── אבטחה (U4): אימות Firebase ID token — verify מקומי מול מפתחות Google הציבוריים (בלי round-trip/עלות) ──
+const PROJECT_ID = 'law-office-sales-form';
+let _fbKeys = null, _fbKeysExp = 0;
+function b64url(s) { return Buffer.from(String(s).replace(/-/g, '+').replace(/_/g, '/'), 'base64'); }
+async function getFbKeys() {
+    if (_fbKeys && Date.now() < _fbKeysExp) return _fbKeys;
+    var r = await httpsGet('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com');
+    _fbKeys = r.data; _fbKeysExp = Date.now() + 3600000;
+    return _fbKeys;
+}
+async function verifyToken(idToken) {
+    var p = String(idToken || '').split('.');
+    if (p.length !== 3) throw new Error('auth bad-format');
+    var head = JSON.parse(b64url(p[0]).toString());
+    var body = JSON.parse(b64url(p[1]).toString());
+    if (head.alg !== 'RS256') throw new Error('auth bad-alg');
+    var keys = await getFbKeys();
+    var cert = keys[head.kid];
+    if (!cert) throw new Error('auth unknown-kid');
+    var v = crypto.createVerify('RSA-SHA256');
+    v.update(p[0] + '.' + p[1]);
+    if (!v.verify(cert, b64url(p[2]))) throw new Error('auth bad-signature');
+    var now = Math.floor(Date.now() / 1000);
+    if (body.exp <= now) throw new Error('auth expired');
+    if (body.aud !== PROJECT_ID) throw new Error('auth wrong-project');
+    if (body.iss !== 'https://securetoken.google.com/' + PROJECT_ID) throw new Error('auth wrong-issuer');
+    if (!body.sub) throw new Error('auth no-uid');
+    return { uid: body.sub };
+}
 
 function httpsGet(url) {
     return new Promise((resolve, reject) => {
@@ -60,7 +91,7 @@ exports.handler = async (event) => {
             statusCode: 200,
             headers: {
                 'Access-Control-Allow-Origin': allowedOrigin,
-                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
                 'Access-Control-Allow-Methods': 'GET'
             }
         };
@@ -74,6 +105,17 @@ exports.handler = async (event) => {
         'Access-Control-Allow-Origin': allowedOrigin,
         'Content-Type': 'application/json'
     };
+
+    // אבטחה (U4): דרישת אימות — בלי token תקין של משתמש מחובר → 401 (סוגר את ה-proxy האנונימי)
+    var authHeader = event.headers.authorization || event.headers.Authorization || '';
+    if (authHeader.indexOf('Bearer ') !== 0) {
+        return { statusCode: 401, headers: corsHeaders, body: JSON.stringify({ error: 'Missing token' }) };
+    }
+    try {
+        await verifyToken(authHeader.substring(7));
+    } catch (e) {
+        return { statusCode: 401, headers: corsHeaders, body: JSON.stringify({ error: 'Invalid token' }) };
+    }
 
     try {
         var params = event.queryStringParameters || {};

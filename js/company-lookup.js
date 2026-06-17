@@ -26,7 +26,9 @@ async function lookupCompany(companyNumber, targetFields) {
     }
 
     try {
-        var response = await fetch('/api/company-lookup?q=' + encodeURIComponent(digits));
+        var idToken = (typeof firebase !== 'undefined' && firebase.auth().currentUser) ? await firebase.auth().currentUser.getIdToken() : null;
+        if (!idToken) return null;
+        var response = await fetch('/api/company-lookup?q=' + encodeURIComponent(digits), { headers: { 'Authorization': 'Bearer ' + idToken } });
         if (!response.ok) return null;
 
         var data = await response.json();
