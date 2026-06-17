@@ -72,13 +72,14 @@ service cloud.firestore {
     }
 
     // ─── Leads CRM ───
-    // create is open (webhook + bot write without auth) — F3 יטופל בנפרד (הסבת ה-webhook ל-Admin SDK ואז create:if false)
+    // F3 סגור (2026-06-17): יצירת לידים = Admin SDK / service-account בלבד (עוקף rules) —
+    // netlify/functions/lead-intake.js (קמפיינים) + lead-from-email.js (מייל) + בוט WhatsApp. הקליינט אינו יוצר לידים.
     match /leads/{docId} {
       // אבטחה (F2): קריאה מצומצמת ל-leadsManagement/salesManagement (היה isActive = כל עובד פעיל).
       // תואם לכפתור הניווט (navigation.js:156 — leadsManagement || salesManagement || master),
       // כך שאף תפקיד שמגיע למסך הלידים לא נשבר (כולל הנה"ח שמחזיק salesManagement).
       allow read: if hasPermission('leadsManagement') || hasPermission('salesManagement') || isMaster();
-      allow create: if true;
+      allow create: if false;  // F3: world-writable נסגר — רק Admin SDK יוצר (עוקף rules)
       allow update: if isActive();
       allow delete: if isMaster();
     }
