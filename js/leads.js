@@ -787,7 +787,7 @@ function renderLeadsTableView(records, startIdx) {
     tbody.innerHTML = records.map(function(r, idx) {
         var rowNum = (startIdx || 0) + idx + 1;
         var dateStr = formatLeadDate(r.createdAt);
-        var statusHtml = '<span class="ld-status ld-status-' + (r.status || 'new') + '">' + (LEAD_STATUS_LABELS[r.status] || r.status || 'חדש') + '</span>';
+        var statusHtml = '<span class="ld-status ld-status-' + safeStatusClass(r.status) + '">' + (LEAD_STATUS_LABELS[r.status] || escapeHTML(r.status) || 'חדש') + '</span>';
         var scoreHtml = renderScoreBadge(r.aiScore);
         var dupBadge = leadsDuplicateMap[r.id] ? '<span class="ld-dup-badge">כפול</span>' : '';
         var sourceLabel = LEAD_SOURCE_LABELS[r.source] || r.source || '';
@@ -824,7 +824,7 @@ function renderLeadsTableView(records, startIdx) {
 function renderLeadsCardsView(records) {
     var container = document.getElementById('ldCardsContainer');
     container.innerHTML = records.map(function(r) {
-        var statusHtml = '<span class="ld-status ld-status-' + (r.status || 'new') + '">' + (LEAD_STATUS_LABELS[r.status] || 'חדש') + '</span>';
+        var statusHtml = '<span class="ld-status ld-status-' + safeStatusClass(r.status) + '">' + (LEAD_STATUS_LABELS[r.status] || 'חדש') + '</span>';
         var scoreHtml = renderScoreBadge(r.aiScore);
         var dupBadge = leadsDuplicateMap[r.id] ? '<span class="ld-dup-badge">כפול</span>' : '';
 
@@ -1302,7 +1302,12 @@ function renderScoreBadge(score) {
 
 function escapeHTML(str) {
     if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// סטטוס בטוח ל-class attribute: רק ערך מתוך הרשימה המוכרת (LEAD_STATUS_LABELS), אחרת 'new' — מונע הזרקת קוד דרך ה-class
+function safeStatusClass(status) {
+    return (status && LEAD_STATUS_LABELS.hasOwnProperty(status)) ? status : 'new';
 }
 
 // ==================== Delete Lead ====================
