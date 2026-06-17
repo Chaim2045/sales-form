@@ -12,6 +12,16 @@
 >
 > ⛔ **מודול YF Dashboards (תזרים + שעות) — אי מבודד לחלוטין.** DB נפרד (`yf_*`), גישת owner-only (גיא + חיים; אחרים דרך grant זמני שגיא מעניק). **אסור לערבב** עם ה-CRM (`sales_records`/`clients`/`leads`/`recurring_billing`) או עם מערכת ניהול המשימות. ראה `.claude/SHARED-CONTEXT.md §9` + ה-header בקבצי `js/dashboard-*.js`.
 
+> 🔒 **כלל ברזל — בסיס הלידים (`leads` + endpoint `netlify/functions/lead-intake.js`) הוא חוזה יציב. אסור לסוכן/מפתח לשנותו על דעת עצמו** — שינוי = אישור מפורש של חיים + תוכנית מתועדת. שדרוגים עתידיים (RAG, העשרת-AI, מקורות לידים נוספים, אנליטיקה) חייבים להיות **אדיטיביים ומבודדים**:
+> 1. **שדה חדש = optional עם default.** אסור לשנות שם / למחוק / להחליף משמעות של שדה קיים (`name`,`phone`,`phoneLast7`,`email`,`subject`,`source`,`status`,`assignedTo`,`aiScore`,`createdAt`,`history`,`schemaVersion`...).
+> 2. **מפתחות-צירוף יציבים:** `phoneLast7` (dedup), `phone`, `email`, doc-`id` — פורמט ומשמעות קבועים; כל העשרה/RAG מתבססת עליהם.
+> 3. **בידוד אחסון:** embeddings/אינדקסים/נתונים כבדים של RAG → **collection נפרד** (למשל `lead_embeddings`) מקושר ב-doc-id — **לא** בתוך doc הליד (מגבלת 1MB + נקיון הבסיס).
+> 4. **חוזה קליטה תולרנטי:** `lead-intake` מתעלם משדות לא-מוכרים (לא נשבר כששולח מוסיף שדות) ולעולם לא דורש שדה חדש ששובר שולחים קיימים.
+> 5. **אבטחה נשמרת:** קריאה = מוגבלת-הרשאה; יצירה = Admin בלבד (`create:if false` אחרי F3). RAG/העשרה קוראים דרך **Admin SDK** (עוקף rules) — אסור להרפות rules בשביל פיצ'ר.
+> 6. **בלי מיגרציות הרסניות:** אסור סקריפט שמוחק/משכתב לידים קיימים. backfill אדיטיבי בלבד, dry-run קודם.
+>
+> `leads` הוא **צומת משותף** (SHARED-CONTEXT §4 #3 — tofes + bot + bot-platform) → כל שינוי חוצה-פרויקטים. (חיים, 2026-06-15)
+
 ---
 
 ## 1. PROJECT OVERVIEW
