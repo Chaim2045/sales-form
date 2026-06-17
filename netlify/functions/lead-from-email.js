@@ -4,6 +4,13 @@
 const https = require('https');
 const crypto = require('crypto');
 
+// השוואת-סוד timing-safe (מונע timing attacks)
+function safeEqual(a, b) {
+    a = String(a == null ? '' : a); b = String(b == null ? '' : b);
+    if (a.length !== b.length || a.length === 0) return false;
+    try { return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b)); } catch (e) { return false; }
+}
+
 function getLast7(phone) {
     if (!phone) return '';
     var digits = (phone || '').replace(/\D/g, '');
@@ -226,10 +233,14 @@ exports.handler = async (event) => {
     try {
         var body = JSON.parse(event.body);
 
-        // Verify webhook secret
-        var secret = process.env.WEBHOOK_SECRET || '';
-        if (secret && body.secret !== secret) {
-            return { statusCode: 401, headers: corsHeaders, body: JSON.stringify({ error: 'Invalid secret' }) };
+        // Verify webhook secret — fail-CLOSED (אם לא הוגדר secret בשרת → דחה; השוואה timing-safe)
+        var expectedSecret = process.env.WEBHOOK_SECRET || '';
+        if (!expectedSecret) {
+            console.error('[Email Lead] WEBHOOK_SECRET not configured — rejecting (fail-closed)');
+            return { statusCode: 503, headers: corsHeaders, body: JSON.stringify({ error: 'Service not configured' }) };
+        }
+        if (!safeEqual(body.secret || '', expectedSecret)) {
+            return { statusCode: 401, headers: corsHeaders, body: JSON.stringify({ error: 'Invalid or missing secret' }) };
         }
 
         var emailBody = body.body || body.content || '';
