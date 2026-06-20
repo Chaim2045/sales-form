@@ -113,6 +113,46 @@ service cloud.firestore {
       }
     }
 
+    // ─── Bot Platform (Chaim2045/bot-platform) — Dashboard auth/roles ───
+    // הקבצים האלה משרתים את bot-platform (פרויקט נפרד שחולק את אותו Firebase project).
+    // הוסר בטעות ב-deploy של F3 (17.6) → bot-platform login נשבר → השוחזר 2026-06-21.
+    // הפרדה מ-tofes-mecher: dashboard_users זה collection נפרד מ-users; isDashMaster()
+    // בודק רק dashboard_users — לא משפיע על הרשאות tofes-mecher (sales_records/leads/clients).
+    function isDashMaster() {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.role == 'master';
+    }
+    function hasDashPerm(perm) {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.permissions[perm] == true;
+    }
+
+    match /dashboard_users/{uid} {
+      // user reads OWN doc (לזיהוי role+permissions); master קורא הכל
+      allow read: if isAuth() && (request.auth.uid == uid || isDashMaster());
+      allow create, update, delete: if isDashMaster();
+    }
+
+    match /bot_config/{docId} {
+      allow read: if isAuth() && (hasDashPerm('viewSettings') || isDashMaster());
+      allow write: if isDashMaster() || hasDashPerm('editSettings');
+    }
+    match /bot_flows/{flowId} {
+      allow read: if isAuth() && (hasDashPerm('viewFlows') || isDashMaster());
+      allow write: if isDashMaster() || hasDashPerm('editFlows');
+    }
+    match /bot_staff/{staffId} {
+      allow read: if isAuth() && (hasDashPerm('viewStaff') || isDashMaster());
+      allow write: if isDashMaster() || hasDashPerm('editStaff');
+    }
+    match /conversations_live/{chatId} {
+      // read בלבד מ-dashboard, write רק מהבוט (Admin SDK עוקף rules)
+      allow read: if isAuth() && (hasDashPerm('viewConversations') || isDashMaster());
+      allow write: if false;
+    }
+
     // ─── Deny everything else (including deprecated public_users) ───
     match /{document=**} {
       allow read, write: if false;
