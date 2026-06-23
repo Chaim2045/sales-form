@@ -13,12 +13,15 @@ const os = require('os');
 const PROJECT_ID = 'law-office-sales-form';
 const API_KEY = 'AIzaSyAkRGg1HUaJhimwIhRir7wQ0vrZRUuqIy8';
 
-// Users to create/update
+// Users to create/update.
+// ⚠️ אבטחה: סיסמאות לא נשמרות בקוד (ריפו ציבורי). מסופקות דרך env בזמן הרצה:
+//   SETUP_PW_HAIM, SETUP_PW_GUY, SETUP_PW_MIRI, SETUP_PW_ROI, SETUP_PW_ORI
+// (סקריפט חד-פעמי; אם צריך להריץ שוב — הגדר את ה-env למעלה ל-session בלבד.)
 const USERS = [
     {
         displayName: 'חיים',
         email: 'haim@ghlawoffice.co.il',
-        password: 'Haim2024!',
+        password: process.env.SETUP_PW_HAIM,
         role: 'master',
         permissions: {
             salesForm: true,
@@ -31,7 +34,7 @@ const USERS = [
     {
         displayName: 'גיא הרשקוביץ',
         email: 'guy@ghlawoffice.co.il',
-        password: 'Guy2024!',
+        password: process.env.SETUP_PW_GUY,
         role: 'office_manager',
         permissions: {
             salesForm: true,
@@ -44,7 +47,7 @@ const USERS = [
     {
         displayName: 'מירי טל',
         email: 'miri@ghlawoffice.co.il',
-        password: 'Miri2024!',
+        password: process.env.SETUP_PW_MIRI,
         role: 'office_manager',
         permissions: {
             salesForm: true,
@@ -57,7 +60,7 @@ const USERS = [
     {
         displayName: 'רועי הרשקוביץ',
         email: 'roi@ghlawoffice.co.il',
-        password: 'Roi2024!',
+        password: process.env.SETUP_PW_ROI,
         role: 'salesperson',
         permissions: {
             salesForm: true,
@@ -70,7 +73,7 @@ const USERS = [
     {
         displayName: 'אורי שטיינברג',
         email: 'ori@ghlawoffice.co.il',
-        password: 'Ori2024!',
+        password: process.env.SETUP_PW_ORI,
         role: 'salesperson',
         permissions: {
             salesForm: true,
