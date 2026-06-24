@@ -11,10 +11,10 @@ var ROLE_LABELS = {
 };
 
 var DEFAULT_PERMISSIONS = {
-    master: { salesForm: true, billingManagement: true, salesManagement: true, activityLog: true, userManagement: true, leadsManagement: true, yfCashflow: false },
-    office_manager: { salesForm: true, billingManagement: true, salesManagement: true, activityLog: false, userManagement: false, leadsManagement: true, yfCashflow: false },
-    salesperson: { salesForm: true, billingManagement: false, salesManagement: true, activityLog: false, userManagement: false, leadsManagement: true, yfCashflow: false },
-    accountant: { salesForm: false, billingManagement: true, salesManagement: true, activityLog: false, userManagement: false, leadsManagement: false, yfCashflow: false }
+    master: { salesForm: true, billingManagement: true, salesManagement: true, activityLog: true, userManagement: true, leadsManagement: true, yfCashflow: false, invoiceSettings: true },
+    office_manager: { salesForm: true, billingManagement: true, salesManagement: true, activityLog: false, userManagement: false, leadsManagement: true, yfCashflow: false, invoiceSettings: false },
+    salesperson: { salesForm: true, billingManagement: false, salesManagement: true, activityLog: false, userManagement: false, leadsManagement: true, yfCashflow: false, invoiceSettings: false },
+    accountant: { salesForm: false, billingManagement: true, salesManagement: true, activityLog: false, userManagement: false, leadsManagement: false, yfCashflow: false, invoiceSettings: false }
 };
 
 function showUserManagement() {

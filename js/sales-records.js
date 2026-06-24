@@ -321,6 +321,121 @@ function filterSalesView() {
     renderSalesView();
 }
 
+// ─── מצב חשבונית (7 מצבים) — קורא invoiceStatus עם fallback ל-invoiceIssued הישן ───
+// מחזיר { code, label, tint, readonly } כאשר tint=true → רקע אדום (דורש פעולה), readonly=true → תצוגה לא כפתור
+function invoiceState(r) {
+    var status = r.invoiceStatus || '';
+    // legacy fallback: רשומות ישנות בלי invoiceStatus אבל עם invoiceIssued=true
+    if (r.invoiceIssued || status === 'issued') {
+        return { code: 'issued', label: 'יצאה', tint: false, readonly: true };
+    }
+    if (status === 'processing') {
+        return { code: 'processing', label: 'בתהליך', tint: false, readonly: true };
+    }
+    if (status === 'pending_collection') {
+        return { code: 'pending_collection', label: 'ממתין לגבייה', tint: false, readonly: true };
+    }
+    if (status === 'issued_unrecorded') {
+        return { code: 'issued_unrecorded', label: 'הופקה — לא נרשמה', tint: true, readonly: true };
+    }
+    if (status === 'error_check') {
+        return { code: 'error_check', label: 'בדיקה ידנית', tint: true, readonly: true };
+    }
+    if (status === 'error') {
+        return { code: 'error', label: 'שגיאה', tint: true, readonly: true };
+    }
+    if (status === 'awaiting_approval') {
+        // ממתין לאישור master → כפתור "אשר והפק" (master בלבד); אחרים → תצוגה בלבד
+        return { code: 'awaiting_approval', label: 'ממתין לאישור', tint: true, readonly: true };
+    }
+    // ברירת-מחדל: טרם הופקה → כפתור סימון ידני (ה-fallback הקיים נשמר)
+    return { code: 'not_issued', label: 'לא יצאה', tint: true, readonly: false };
+}
+
+// SVG checkmark (issued) — ירוק
+var IS_BADGE_CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-left:3px;"><polyline points="20 6 9 17 4 12"/></svg>';
+
+// ─── HTML לבאדג'/כפתור חשבונית. card=true → ניסוח כרטיסים. XSS-safe (escapeHTML מכסה "/') ───
+function invoiceBadgeHTML(r, state, card) {
+    if (!state.readonly) {
+        // לא הופקה → כפתור סימון ידני (התנהגות קיימת)
+        var notLabel = card ? 'לא יצאה חשבונית' : 'לא יצאה';
+        return '<button class="sm-invoice-btn" onclick="event.stopPropagation();openInvoicePopup(\'' + escapeHTML(r.id) + '\')"' +
+            (card ? '' : ' title="סמן שיצאה חשבונית"') + '>' + notLabel + '</button>';
+    }
+
+    // הופקה / מצב-ביניים → תצוגה לקריאה (לא כפתור)
+    var num = r.invoiceNumber || r.invoiceReceiptNumber || '';
+    var date = r.invoiceDate || '';
+    var err = r.invoiceError || '';
+    var title;
+    if (state.code === 'issued') {
+        title = 'חשבונית #' + (num || '') + (date ? ' | ' + date : '');
+    } else if (state.tint && err) {
+        title = state.label + ': ' + err;
+    } else {
+        title = state.label;
+    }
+
+    var labelText = card && state.code === 'issued' ? 'חשבונית יצאה' : state.label;
+    // אייקון V רק ל-issued; שאר המצבים — טקסט בלבד
+    var icon = (state.code === 'issued') ? IS_BADGE_CHECK_SVG : '';
+
+    var badge = '<span class="sm-invoice-badge ' + escapeHTML(state.code) + '" title="' + escapeHTML(title) + '">' + icon + escapeHTML(labelText) + '</span>';
+
+    // כשהופקה ויש קישור תקין (https בלבד) — הוסף קישור לצפייה ליד הבאדג'
+    if (state.code === 'issued' || state.code === 'issued_unrecorded') {
+        var url = r.invoiceUrl || '';
+        if (typeof url === 'string' && url.indexOf('https://') === 0) {
+            badge += ' <a href="' + escapeHTML(url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="font-size:11px;color:#2563eb;text-decoration:none;font-weight:600;">צפה</a>';
+        }
+        if (num) {
+            badge += ' <span style="font-size:11px;color:#64748b;">#' + escapeHTML(String(num)) + '</span>';
+        }
+    }
+
+    // ממתין לאישור → כפתור "אשר והפק" ל-master בלבד (האכיפה האמיתית בשרת; כאן UI בלבד)
+    if (state.code === 'awaiting_approval' && currentUserRole === 'master') {
+        badge += ' <button class="sm-invoice-btn" onclick="event.stopPropagation();approveAndIssueInvoice(\'' + escapeHTML(r.id) + '\')" title="אשר והפק חשבונית">אשר והפק</button>';
+    }
+
+    return badge;
+}
+
+// ─── אישור והפקה (master בלבד) — confirm-modal → issueInvoiceForSale(approve:true) → רענון ───
+// האכיפה האמיתית בשרת (issue-invoice.js מאמת master); כאן UI/UX בלבד.
+async function approveAndIssueInvoice(saleId) {
+    if (currentUserRole !== 'master') { showToast('פעולה זו זמינה ל-master בלבד', '#ef4444'); return; }
+    if (typeof issueInvoiceForSale !== 'function') { showToast('שירות החשבוניות לא זמין', '#ef4444'); return; }
+
+    var ok = await tofesConfirm('לאשר ולהפיק חשבונית עבור עסקה זו? פעולה זו תפיק מסמך ב-Green Invoice.', {
+        title: 'אישור והפקת חשבונית',
+        okText: 'אשר והפק',
+        cancelText: 'ביטול',
+        danger: false
+    });
+    if (!ok) return;
+
+    showToast('מפיק חשבונית…', '#3b82f6');
+    var res = await issueInvoiceForSale(saleId, { approve: true });
+
+    if (res && res.success && res.issued) {
+        showToast('החשבונית הופקה' + (res.invoiceNumber ? ' (#' + res.invoiceNumber + ')' : ''));
+    } else if (res && res.needsApproval) {
+        // לא אמור לקרות אחרי approve:true — אבל מטופל בעדינות
+        showToast('עדיין ממתין לאישור', '#f59e0b');
+    } else if (res && res.deferred) {
+        showToast('ההפקה נדחתה: ' + (res.reason || 'ממתין לגבייה'), '#f59e0b');
+    } else if (res && res.inProgress) {
+        showToast('ההפקה כבר בתהליך', '#f59e0b');
+    } else {
+        showToast('ההפקה נכשלה: ' + ((res && res.error) || 'שגיאה'), '#ef4444');
+    }
+
+    // רענון תמיד — משקף את הסטטוס המעודכן (issued / awaiting / error)
+    loadSalesData();
+}
+
 // --- טבלה ---
 function renderSalesTableView(records, startIdx) {
     var tbody = document.getElementById('smTableBody');
@@ -344,15 +459,11 @@ function renderSalesTableView(records, startIdx) {
         }
         var fileTdStyle = (!r.checksPhotoURL && needsCheckFile(r)) ? 'text-align:center;background:rgba(239,68,68,0.07);' : 'text-align:center;';
 
-        // Invoice status — red only on this cell
-        var invoiceCell = '';
+        // Invoice status — 7 מצבים (issued/processing/pending_collection/error/issued_unrecorded/error_check/legacy)
+        var invState = invoiceState(r);
+        var invoiceCell = invoiceBadgeHTML(r, invState, false);
         var invoiceTdStyle = 'text-align:center;';
-        if (r.invoiceIssued) {
-            invoiceCell = '<span class="sm-invoice-badge issued" title="קבלה #' + escapeHTML(r.invoiceReceiptNumber || '') + ' | ' + escapeHTML(r.invoiceDate || '') + '"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" style="vertical-align:-2px;margin-left:3px;"><polyline points="20 6 9 17 4 12"/></svg>יצאה</span>';
-        } else {
-            invoiceTdStyle += 'background:rgba(239,68,68,0.07);';
-            invoiceCell = '<button class="sm-invoice-btn" onclick="event.stopPropagation();openInvoicePopup(\'' + escapeHTML(r.id) + '\')" title="סמן שיצאה חשבונית">לא יצאה</button>';
-        }
+        if (invState.tint) invoiceTdStyle += 'background:rgba(239,68,68,0.07);';
 
         return '<tr onclick="openSaleDetailModal(\'' + escapeHTML(r.id) + '\')" style="cursor:pointer;">' +
             '<td style="font-size:12px;color:#94a3b8;font-weight:500;text-align:center;">' + rowNum + '</td>' +
@@ -389,14 +500,9 @@ function renderSalesCardsView(records, startIdx) {
             fileBadge = '';
         }
 
-        var invoiceHtml = '';
-        var invoiceBg = '';
-        if (r.invoiceIssued) {
-            invoiceHtml = '<span class="sm-invoice-badge issued"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" style="vertical-align:-2px;margin-left:3px;"><polyline points="20 6 9 17 4 12"/></svg>חשבונית יצאה</span>';
-        } else {
-            invoiceBg = 'background:rgba(239,68,68,0.06);';
-            invoiceHtml = '<button class="sm-invoice-btn" onclick="event.stopPropagation();openInvoicePopup(\'' + escapeHTML(r.id) + '\')">לא יצאה חשבונית</button>';
-        }
+        var invStateC = invoiceState(r);
+        var invoiceHtml = invoiceBadgeHTML(r, invStateC, true);
+        var invoiceBg = invStateC.tint ? 'background:rgba(239,68,68,0.06);' : '';
 
         return '<div class="bm-card" onclick="openSaleDetailModal(\'' + escapeHTML(r.id) + '\')" style="cursor:pointer;">' +
             '<div class="bm-card-top">' +
@@ -831,6 +937,7 @@ function openInvoicePopup(saleId) {
                 '<label style="display:block;font-size:13px;color:#475569;margin-bottom:4px;font-weight:500;">מספר קבלה / חשבונית</label>' +
                 '<input type="text" id="invoicePopupReceipt" placeholder="הזן מספר קבלה..." style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;font-family:Heebo,sans-serif;box-sizing:border-box;">' +
             '</div>' +
+            '<div id="invoicePopupError" style="display:none;color:#dc2626;font-size:13px;margin-bottom:12px;text-align:center;"></div>' +
             '<div style="display:flex;gap:8px;">' +
                 '<button onclick="saveInvoice(\'' + escapeHTML(saleId) + '\')" style="flex:1;padding:10px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;">שמור</button>' +
                 '<button onclick="closeInvoicePopup()" style="flex:1;padding:10px;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-size:14px;font-weight:500;font-family:Heebo,sans-serif;cursor:pointer;">ביטול</button>' +
@@ -854,30 +961,55 @@ function closeDetailAndOpenInvoice(saleId) {
     openInvoicePopup(saleId);
 }
 
+function _showInvoicePopupError(msg) {
+    var el = document.getElementById('invoicePopupError');
+    if (el) { el.textContent = msg; el.style.display = ''; }
+}
+
 async function saveInvoice(saleId) {
     var invoiceDate = document.getElementById('invoicePopupDate').value;
     var receiptNumber = document.getElementById('invoicePopupReceipt').value.trim();
 
-    if (!invoiceDate) {
-        alert('יש להזין תאריך חשבונית');
-        return;
+    // ולידציה — הודעה inline (ללא alert, לפי אילוצי הסוכן)
+    if (!invoiceDate) { _showInvoicePopupError('יש להזין תאריך חשבונית'); return; }
+    if (!receiptNumber) { _showInvoicePopupError('יש להזין מספר קבלה'); return; }
+
+    // ─── guard דריסה: קרא את המצב הנוכחי לפני דריסה ───
+    var alreadyIssued = false;
+    try {
+        var snap = await db.collection('sales_records').doc(saleId).get();
+        if (snap.exists) {
+            var d = snap.data();
+            alreadyIssued = (d.invoiceIssued === true) || (d.invoiceStatus === 'issued');
+        }
+    } catch (e) {
+        console.warn('saveInvoice: could not read current state, proceeding cautiously:', e && e.message);
     }
-    if (!receiptNumber) {
-        alert('יש להזין מספר קבלה');
+
+    if (alreadyIssued) {
+        // כבר הופקה → modal-אזהרה (לא alert); ברירת-המחדל = חסום (כפתור הביטול הוא הראשי)
+        openInvoiceOverwriteWarning(saleId, invoiceDate, receiptNumber);
         return;
     }
 
+    _performSaveInvoice(saleId, invoiceDate, receiptNumber);
+}
+
+// ─── ביצוע השמירה בפועל (אדיטיבי: שומר על השדות הקיימים + מוסיף invoiceSource:'manual') ───
+async function _performSaveInvoice(saleId, invoiceDate, receiptNumber) {
     try {
         await db.collection('sales_records').doc(saleId).update({
             invoiceIssued: true,
             invoiceDate: invoiceDate,
             invoiceReceiptNumber: receiptNumber,
+            invoiceSource: 'manual',
             invoiceUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             invoiceUpdatedBy: authUser ? authUser.email : 'unknown'
         });
 
-        logAuditEvent('invoice_marked', { saleId: saleId, receiptNumber: receiptNumber });
+        logAuditEvent('invoice_marked', { saleId: saleId, receiptNumber: receiptNumber, source: 'manual' });
 
+        closeInvoiceOverwriteWarning();
         closeInvoicePopup();
         loadSalesData();
 
@@ -889,8 +1021,53 @@ async function saveInvoice(saleId) {
 
     } catch (error) {
         console.error('Error saving invoice:', error);
-        alert('שגיאה בשמירה: ' + error.message);
+        _showInvoicePopupError('שגיאה בשמירה: ' + (error && error.message ? error.message : ''));
     }
+}
+
+// ─── modal-אזהרה לדריסת חשבונית קיימת (custom, לא alert; ברירת-מחדל חסום) ───
+function openInvoiceOverwriteWarning(saleId, invoiceDate, receiptNumber) {
+    var existing = document.getElementById('invoiceOverwriteOverlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'invoiceOverwriteOverlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10002;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML =
+        '<div style="background:white;border-radius:16px;padding:24px;max-width:380px;width:90%;font-family:Heebo,sans-serif;direction:rtl;box-shadow:0 20px 60px rgba(0,0,0,0.2);">' +
+            '<h3 style="margin:0 0 12px;font-size:17px;color:#b91c1c;text-align:center;">כבר הופקה חשבונית</h3>' +
+            '<p style="margin:0 0 18px;font-size:14px;color:#475569;text-align:center;line-height:1.5;">לעסקה זו כבר קיים סימון חשבונית. לדרוס את הפרטים הקיימים?</p>' +
+            '<div style="display:flex;gap:8px;">' +
+                // ברירת-המחדל היא הביטול (כפתור ראשי כחול), הדריסה משנית/אדומה
+                '<button id="invoiceOverwriteCancel" onclick="closeInvoiceOverwriteWarning()" style="flex:1;padding:10px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;">ביטול</button>' +
+                '<button onclick="confirmInvoiceOverwrite(\'' + escapeHTML(saleId) + '\')" style="flex:1;padding:10px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:8px;font-size:14px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;">דרוס בכל זאת</button>' +
+            '</div>' +
+        '</div>';
+
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeInvoiceOverwriteWarning();
+    });
+
+    // שמירת הערכים לדריסה (לאחר אישור) — לא ב-DOM כדי לא לאבד אם ה-popup מאחור ייסגר
+    overlay._invoiceDate = invoiceDate;
+    overlay._receiptNumber = receiptNumber;
+
+    document.body.appendChild(overlay);
+    var cancelBtn = document.getElementById('invoiceOverwriteCancel');
+    if (cancelBtn) cancelBtn.focus(); // ברירת-המחדל על הביטול
+}
+
+function closeInvoiceOverwriteWarning() {
+    var el = document.getElementById('invoiceOverwriteOverlay');
+    if (el) el.remove();
+}
+
+function confirmInvoiceOverwrite(saleId) {
+    var overlay = document.getElementById('invoiceOverwriteOverlay');
+    if (!overlay) return;
+    var invoiceDate = overlay._invoiceDate;
+    var receiptNumber = overlay._receiptNumber;
+    _performSaveInvoice(saleId, invoiceDate, receiptNumber);
 }
 
 // ========== העתקת פרטים לחשבונית ==========

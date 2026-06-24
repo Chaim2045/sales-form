@@ -1,6 +1,6 @@
 // ========== Bottom Navigation ==========
 
-var _overflowNavIds = ['navLeadsMgmtBtn', 'navActivityLogBtn', 'navUserMgmtBtn', 'navYfCashflowBtn'];
+var _overflowNavIds = ['navLeadsMgmtBtn', 'navActivityLogBtn', 'navUserMgmtBtn', 'navInvoiceSettingsBtn', 'navYfCashflowBtn'];
 
 function setActiveNav(id) {
     document.querySelectorAll('.bottom-nav-item').forEach(function(btn) {
@@ -23,6 +23,7 @@ function navHome() {
     hideActivityLog();
     hideUserManagement();
     hideLeadsManagement();
+    hideInvoiceSettings();
     hideYfCashflow();
     document.getElementById('mainContainer').style.display = '';
     document.getElementById('mainForm').classList.remove('hidden');
@@ -42,6 +43,7 @@ function navBillingMgmt() {
     hideActivityLog();
     hideUserManagement();
     hideLeadsManagement();
+    hideInvoiceSettings();
     hideYfCashflow();
     showBillingManagement();
     setActiveNav('navBillingMgmtBtn');
@@ -53,6 +55,7 @@ function navSalesMgmt() {
     hideActivityLog();
     hideUserManagement();
     hideLeadsManagement();
+    hideInvoiceSettings();
     hideYfCashflow();
     showSalesManagement();
     setActiveNav('navSalesMgmtBtn');
@@ -64,6 +67,7 @@ function navLeadsMgmt() {
     hideSalesManagement();
     hideActivityLog();
     hideUserManagement();
+    hideInvoiceSettings();
     hideYfCashflow();
     showLeadsManagement();
     setActiveNav('navLeadsMgmtBtn');
@@ -75,6 +79,7 @@ function navActivityLog() {
     hideSalesManagement();
     hideUserManagement();
     hideLeadsManagement();
+    hideInvoiceSettings();
     hideYfCashflow();
     showActivityLog();
     setActiveNav('navActivityLogBtn');
@@ -86,10 +91,24 @@ function navUserMgmt() {
     hideSalesManagement();
     hideActivityLog();
     hideLeadsManagement();
+    hideInvoiceSettings();
     hideYfCashflow();
     showUserManagement();
     setActiveNav('navUserMgmtBtn');
     logAuditEvent('nav_user_mgmt');
+}
+
+// ===== הגדרות חשבוניות (פאנל שליטה ל-invoice_config — שלב D) =====
+function navInvoiceSettings() {
+    hideBillingManagement();
+    hideSalesManagement();
+    hideActivityLog();
+    hideUserManagement();
+    hideLeadsManagement();
+    hideYfCashflow();
+    showInvoiceSettings();
+    setActiveNav('navInvoiceSettingsBtn');
+    logAuditEvent('nav_invoice_settings');
 }
 
 // ===== ⛔ YF Dashboards (מודול מבודד, owner-only) — ראה SHARED-CONTEXT §9 =====
@@ -99,6 +118,7 @@ function navYfCashflow() {
     hideActivityLog();
     hideUserManagement();
     hideLeadsManagement();
+    hideInvoiceSettings();
     showYfCashflow();
     setActiveNav('navYfCashflowBtn');
     logAuditEvent('nav_yf_cashflow');
@@ -158,6 +178,11 @@ function updateNavVisibility() {
     var usersBtn = document.getElementById('navUserMgmtBtn');
     if (usersBtn) usersBtn.style.display = perms.userManagement ? '' : 'none';
 
+    // הגדרות חשבוניות — gated על invoiceSettings permission || master (תואם firestore.rules invoice_config)
+    var invSettingsVisible = !!(perms.invoiceSettings || currentUserRole === 'master');
+    var invSettingsBtn = document.getElementById('navInvoiceSettingsBtn');
+    if (invSettingsBtn) invSettingsBtn.style.display = invSettingsVisible ? '' : 'none';
+
     // ⛔ YF Dashboards — גישה: גיא/חיים (תמיד) או הרשאת yfCashflow מניהול המשתמשים.
     // הסתרת הכפתור ויזואלית בלבד; הגישה לנתונים נאכפת בשרת (TOTP claim + isAuthorized בפונקציה).
     var _yfOwners = ['guy@ghlawoffice.co.il', 'haim@ghlawoffice.co.il'];
@@ -176,6 +201,9 @@ function updateNavVisibility() {
 
     var overflowUsers = document.getElementById('navOverflowUsers');
     if (overflowUsers) overflowUsers.style.display = perms.userManagement ? '' : 'none';
+
+    var overflowInvSettings = document.getElementById('navOverflowInvoiceSettings');
+    if (overflowInvSettings) overflowInvSettings.style.display = invSettingsVisible ? '' : 'none';
 
     // ⛔ YF Dashboards overflow (owner-only)
     var overflowYfCf = document.getElementById('navOverflowYfCashflow');

@@ -44,7 +44,17 @@ service cloud.firestore {
       allow read: if hasPermission('salesManagement') || hasPermission('billingManagement') || hasPermission('leadsManagement') || hasPermission('salesForm') || isMaster();
       // הנה"ח (billingManagement, ללא salesForm) יוצר רשומת-מכר בסימון תשלום (payments.js:460/861) — היה נדחה ונבלע בשקט.
       allow create: if hasPermission('salesForm') || hasPermission('billingManagement');
-      allow update: if hasPermission('salesForm');
+      // אבטחה (security audit 2026-06-21): שדות-חשבונית מנוהלים ע"י issue-invoice (service-account, עוקף rules).
+      // non-master חסום מלכתוב אותם ישירות מהקליינט — מונע עקיפת gate-האישור (invoiceApproved) ו-DoS על הסטטוס.
+      // הסימון-הידני (saveInvoice) כותב רק invoiceIssued/Date/ReceiptNumber/Source/Updated* — נשאר מותר ל-salesForm.
+      allow update: if hasPermission('salesForm') && (
+        isMaster() ||
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'invoiceApproved', 'invoiceApprovedBy', 'invoiceStatus', 'invoiceLockAt',
+          'invoiceDocId', 'invoiceNumber', 'invoiceUrl', 'invoiceType', 'invoiceEnv',
+          'invoiceIssuedAt', 'invoiceError'
+        ])
+      );
       allow delete: if isMaster();
     }
 
@@ -152,6 +162,23 @@ service cloud.firestore {
       allow read: if isAuth() && (hasDashPerm('viewConversations') || isDashMaster());
       allow write: if false;
     }
+
+    // ─── Invoice Config (אינטגרציית חשבוניות — פאנל הגדרות master/invoiceSettings בלבד) ───
+    // issue-invoice.js קורא דרך service-account (עוקף rules); כאן רק הקליינט (פאנל ההגדרות).
+    // תוכן: docTypeMap/requireApproval/defaultChannels — אין סוד (לא GI keys, לא base URL).
+    // אכיפת-מקור-יחיד: גם read וגם write דרך invoiceSettings/master (תואם ה-UI gating).
+    match /invoice_config/{docId} {
+      allow read: if hasPermission('invoiceSettings') || isMaster();
+      // R6: enabled (מתג-העצירה) + requireApproval (מדיניות-האישור) = master בלבד.
+      // שאר השדות (docTypeMap/defaultChannels/updated*) — invoiceSettings יכול לערוך כל עוד אינו נוגע בשניים האלה
+      // (diff.affectedKeys מסמן רק שדות ששונו בפועל — שמירה שלא משנה אותם תעבור).
+      allow write: if isMaster() || (
+        hasPermission('invoiceSettings') &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['enabled', 'requireApproval'])
+      );
+    }
+
+    // invoice_outbox: אין rule מפורש → deny-all (נכתב/נקרא רק ע"י service-account/בוט) — מכוון.
 
     // ─── Deny everything else (including deprecated public_users) ───
     match /{document=**} {

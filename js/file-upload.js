@@ -306,6 +306,12 @@ document.getElementById('salesForm').addEventListener('submit', async function(e
         var docRef = await db.collection('sales_records').add(formData);
         logAuditEvent('sale_submitted', { clientName: formData.clientName, amount: formData.amountBeforeVat, type: formData.transactionType });
 
+        // הפקת חשבונית (אוטומציה) — לא-חוסם: הטופס מצליח כרגיל גם אם ההפקה נכשלת.
+        // השרת מחליט אם להפיק/לדחות/להמתין-לאישור (issue-invoice.js, fail-closed).
+        if (typeof issueInvoiceForSale === 'function') {
+            issueInvoiceForSale(docRef.id).catch(function(e) { console.error('auto-invoice (form) failed:', e && e.message); });
+        }
+
         // Sync to Google Sheets (include Firebase doc ID for future updates)
         formData.firebaseDocId = docRef.id;
         syncToSheets(formData);

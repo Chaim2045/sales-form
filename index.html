@@ -1910,6 +1910,25 @@
         </div>
     </div>
 
+    <!-- Invoice Settings (Master / invoiceSettings permission) — שלב D -->
+    <div id="invoiceSettings">
+        <div class="bm-header">
+            <h2 class="bm-title">הגדרות חשבוניות</h2>
+            <div style="display:flex;gap:8px;">
+                <button class="bm-back-btn" onclick="navHome()">חזרה</button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="isLoading" style="text-align:center;padding:40px;">
+            <div class="bm-spinner"></div>
+            <p style="margin-top:12px;color:#94a3b8;">טוען הגדרות...</p>
+        </div>
+
+        <!-- Body — נבנה ע"י js/invoice-settings.js -->
+        <div id="isBody" style="display:none;"></div>
+    </div>
+
     <!-- Add User Modal -->
     <div class="billing-modal-overlay" id="addUserModal">
         <div class="billing-modal" style="max-width:440px;">
@@ -2036,6 +2055,7 @@
     <script src="js/activity-log.js"></script>
     <script src="js/leads.js"></script>
     <script src="js/user-management.js"></script>
+    <script src="js/invoice-settings.js"></script>
     <!-- ⛔ YF Dashboards (מודול מבודד) — ראה SHARED-CONTEXT §9 -->
     <script src="js/dashboard-cashflow.js"></script>
     <script src="js/navigation.js"></script>
@@ -2088,6 +2108,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span class="bottom-nav-label">משתמשים</span>
         </button>
+        <button class="bottom-nav-item" id="navInvoiceSettingsBtn" onclick="navInvoiceSettings()" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span class="bottom-nav-label">חשבוניות</span>
+        </button>
         <!-- ⛔ YF Dashboards (מודול מבודד, owner-only) -->
         <button class="bottom-nav-item" id="navYfCashflowBtn" onclick="navYfCashflow()" style="display:none;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
@@ -2127,6 +2151,10 @@
         <button class="nav-overflow-item" id="navOverflowUsers" onclick="navUserMgmt(); closeNavOverflow();" style="display:none;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span>ניהול משתמשים</span>
+        </button>
+        <button class="nav-overflow-item" id="navOverflowInvoiceSettings" onclick="navInvoiceSettings(); closeNavOverflow();" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span>הגדרות חשבוניות</span>
         </button>
         <!-- ⛔ YF Dashboards (מודול מבודד, owner-only) -->
         <button class="nav-overflow-item" id="navOverflowYfCashflow" onclick="navYfCashflow(); closeNavOverflow();" style="display:none;">

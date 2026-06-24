@@ -457,7 +457,12 @@ async function markSinglePayment(clientDocId, paymentDocId) {
             });
             // Inherit clientId from billing record
             if (clientData.clientId) saleRecord.clientId = clientData.clientId;
-            await db.collection('sales_records').add(saleRecord);
+            var saleDocRef = await db.collection('sales_records').add(saleRecord);
+
+            // הפקת חשבונית (אוטומציה) — לא-חוסם: סימון התשלום מצליח כרגיל גם אם ההפקה נכשלת.
+            if (typeof issueInvoiceForSale === 'function') {
+                issueInvoiceForSale(saleDocRef.id).catch(function(e) { console.error('auto-invoice (payment) failed:', e && e.message); });
+            }
 
             // סנכרון לגיליון שיטס (fire-and-forget)
             syncToSheets(sheetData);
@@ -858,7 +863,12 @@ async function markAllDuePayments() {
                 });
                 // Inherit clientId from billing record
                 if (clientData.clientId) saleRecord.clientId = clientData.clientId;
-                await db.collection('sales_records').add(saleRecord);
+                var saleDocRefBatch = await db.collection('sales_records').add(saleRecord);
+
+                // הפקת חשבונית (אוטומציה) — לא-חוסם: הסימון הקבוצתי מצליח כרגיל גם אם ההפקה נכשלת.
+                if (typeof issueInvoiceForSale === 'function') {
+                    issueInvoiceForSale(saleDocRefBatch.id).catch(function(e) { console.error('auto-invoice (batch payment) failed:', e && e.message); });
+                }
 
                 syncToSheets(sheetData);
             }

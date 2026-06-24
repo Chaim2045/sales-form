@@ -1077,6 +1077,32 @@
     color: #059669;
     border: 1px solid #a7f3d0;
 }
+/* מצב-ביניים: הפקה בתהליך — כחול רגוע */
+.sm-invoice-badge.processing {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+}
+/* ממתין לגבייה — אפור/ענבר רך */
+.sm-invoice-badge.pending_collection {
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+/* שגיאה — אדום */
+.sm-invoice-badge.error,
+.sm-invoice-badge.error_check {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+/* הופקה אך לא נרשמה / דורש בדיקה ידנית — כתום אזהרה */
+.sm-invoice-badge.issued_unrecorded,
+.sm-invoice-badge.unrecorded {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+}
 .sm-invoice-btn {
     padding: 3px 10px;
     border-radius: 6px;
@@ -1475,4 +1501,105 @@
     .um-toggle-slider::before { width: 13px; height: 13px; }
     .um-toggle input:checked + .um-toggle-slider::before { transform: translateX(13px); }
     .um-role-select { font-size: 11px; padding: 3px 6px; padding-left: 18px; }
+}
+
+/* ===== Invoice Settings (שלב D) — מירור #userManagement ===== */
+#invoiceSettings {
+    display: none;
+    padding: 20px 16px 100px;
+    max-width: 760px;
+    margin: 0 auto;
+    direction: rtl;
+}
+#invoiceSettings.active { display: block; }
+#invoiceSettings .bm-header { margin-bottom: 16px; }
+
+.is-section {
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-default, rgba(0,0,0,0.06));
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.04));
+}
+.is-section-title {
+    margin: 0 0 6px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary, #0f172a);
+}
+.is-section-hint {
+    margin: 0 0 14px;
+    font-size: 12px;
+    color: var(--text-secondary, #64748b);
+    line-height: 1.5;
+}
+.is-table th {
+    font-size: 12px;
+    white-space: nowrap;
+}
+.is-table td { vertical-align: middle; }
+.is-table .um-role-select { width: 100%; min-width: 150px; }
+
+.is-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+}
+.is-toggle-row + .is-toggle-row {
+    border-top: 1px solid var(--border-default, rgba(0,0,0,0.06));
+}
+.is-toggle-label {
+    font-size: 13px;
+    color: var(--text-primary, #0f172a);
+    line-height: 1.4;
+}
+
+.is-env-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.is-env-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+.is-env-badge.is-env-prod {
+    background: #ecfdf5;
+    color: #059669;
+    border-color: #a7f3d0;
+}
+.is-env-badge.is-env-sandbox {
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fde68a;
+}
+.is-env-badge.is-env-unknown {
+    background: #f1f5f9;
+    color: #94a3b8;
+    border-color: #e2e8f0;
+}
+.is-env-note {
+    font-size: 12px;
+    color: var(--text-secondary, #64748b);
+    line-height: 1.5;
+    flex: 1;
+    min-width: 200px;
+}
+
+@media (max-width: 768px) {
+    #invoiceSettings { padding: 16px 12px 100px; }
+    #invoiceSettings .bm-header { flex-direction: column; gap: 10px; align-items: stretch; }
+    .is-section { padding: 14px 16px; }
+    .is-table { font-size: 12px; }
+    .is-table .um-role-select { min-width: 120px; }
 }
