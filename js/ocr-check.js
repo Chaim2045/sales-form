@@ -307,6 +307,23 @@ function showOcrConfirmationModal(checks) {
         amountGroup.innerHTML = '<label>סכום</label><input type="number" class="ocr-check-amount" value="' + (checks[i].amount || '') + '" step="any" min="0">';
         row.appendChild(amountGroup);
 
+        // פרטי-בנק (best-effort מ-OCR; ריק = להשלים ידנית לפני הפקת הקבלה). createElement → ללא סיכון הזרקה.
+        [['bankName', 'בנק', 'שם/קוד בנק'], ['bankBranch', 'סניף', '000'], ['bankAccount', 'חשבון', 'מס׳ חשבון'], ['chequeNum', 'מס׳ שיק', 'מס׳ שיק']].forEach(function(f) {
+            var g = document.createElement('div');
+            g.className = 'ocr-field-group';
+            var lb = document.createElement('label');
+            lb.textContent = f[1];
+            g.appendChild(lb);
+            var inp = document.createElement('input');
+            inp.type = 'text';
+            inp.className = 'ocr-check-' + f[0];
+            if (f[0] !== 'bankName') inp.setAttribute('inputmode', 'numeric');
+            inp.placeholder = f[2];
+            inp.value = checks[i][f[0]] || '';
+            g.appendChild(inp);
+            row.appendChild(g);
+        });
+
         checkDiv.appendChild(row);
         fieldsContainer.appendChild(checkDiv);
     }
@@ -349,12 +366,20 @@ function showOcrConfirmationModal(checks) {
 function collectOcrModalData() {
     var dates = document.querySelectorAll('.ocr-check-date');
     var amounts = document.querySelectorAll('.ocr-check-amount');
+    var banks = document.querySelectorAll('.ocr-check-bankName');
+    var branches = document.querySelectorAll('.ocr-check-bankBranch');
+    var accounts = document.querySelectorAll('.ocr-check-bankAccount');
+    var chequeNums = document.querySelectorAll('.ocr-check-chequeNum');
     var checks = [];
 
     for (var i = 0; i < dates.length; i++) {
         checks.push({
             date: dates[i].value || '',
-            amount: parseFloat(amounts[i].value) || 0
+            amount: parseFloat(amounts[i].value) || 0,
+            bankName: (banks[i] ? banks[i].value : '').trim(),
+            bankBranch: (branches[i] ? branches[i].value : '').trim(),
+            bankAccount: (accounts[i] ? accounts[i].value : '').trim(),
+            chequeNum: (chequeNums[i] ? chequeNums[i].value : '').trim()
         });
     }
     return checks;
@@ -390,6 +415,16 @@ function applyOcrDataToForm(checks) {
                 totalAmount += checks[i].amount;
                 setTimeout(function(el) { el.classList.remove('ocr-filled'); }, 2000, amountInput);
             }
+
+            // פרטי-בנק (אם נקראו ב-OCR) — אחרת נשארים ריקים להשלמה ידנית
+            var bankInput = document.getElementById('check_bank_' + (i + 1));
+            var branchInput = document.getElementById('check_branch_' + (i + 1));
+            var accountInput = document.getElementById('check_account_' + (i + 1));
+            var chequeNumInput = document.getElementById('check_chequenum_' + (i + 1));
+            if (bankInput && checks[i].bankName) { bankInput.value = checks[i].bankName; bankInput.classList.add('ocr-filled'); setTimeout(function(el) { el.classList.remove('ocr-filled'); }, 2000, bankInput); }
+            if (branchInput && checks[i].bankBranch) { branchInput.value = checks[i].bankBranch; }
+            if (accountInput && checks[i].bankAccount) { accountInput.value = checks[i].bankAccount; }
+            if (chequeNumInput && checks[i].chequeNum) { chequeNumInput.value = checks[i].chequeNum; }
         }
 
         // Set total amount

@@ -537,7 +537,12 @@ function collectChecksDetails() {
             checks.push({
                 checkNumber: i,
                 date: dateInput.value,
-                amount: parseAmount(amountInput.value)
+                amount: parseAmount(amountInput.value),
+                // פרטי-בנק לקבלה (400) — אופציונלי בטופס; אימות/חסימה בעת ההפקה (GI errorCode 2443)
+                bankName: (document.getElementById(`check_bank_${i}`)?.value || '').trim(),
+                bankBranch: (document.getElementById(`check_branch_${i}`)?.value || '').trim(),
+                bankAccount: (document.getElementById(`check_account_${i}`)?.value || '').trim(),
+                chequeNum: (document.getElementById(`check_chequenum_${i}`)?.value || '').trim()
             });
         }
     }
@@ -570,6 +575,22 @@ document.getElementById('checksCount').addEventListener('input', function() {
                 <div class="form-group" style="flex: 1;">
                     <label>שיק ${i} - סכום <span class="required">*</span></label>
                     <input type="number" id="check_amount_${i}" class="check-amount" placeholder="0" min="0" step="any" required>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>בנק</label>
+                    <input type="text" id="check_bank_${i}" class="check-bank" placeholder="שם/קוד בנק">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>סניף</label>
+                    <input type="text" id="check_branch_${i}" class="check-branch" inputmode="numeric" placeholder="000">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>חשבון</label>
+                    <input type="text" id="check_account_${i}" class="check-account" inputmode="numeric" placeholder="מס׳ חשבון">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>מס׳ שיק</label>
+                    <input type="text" id="check_chequenum_${i}" class="check-chequenum" inputmode="numeric" placeholder="מס׳ שיק">
                 </div>
             `;
             container.appendChild(checkRow);

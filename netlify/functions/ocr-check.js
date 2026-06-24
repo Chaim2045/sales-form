@@ -63,24 +63,32 @@ async function parseChecksWithClaude(ocrText) {
 
     var prompt = 'You are parsing OCR output from scanned Israeli bank checks (שיקים). ' +
         'The text contains ' + pageCount + ' check(s). Each check is on a separate page, ' +
-        'separated by "--- עמוד X ---". Extract the date and amount from EACH check.\n\n' +
+        'separated by "--- עמוד X ---". Extract these fields from EACH check.\n\n' +
         'CRITICAL RULES:\n' +
-        '1. DATE: Located near "DATE" or "תאריך" at the bottom of each check. ' +
+        '1. DATE (primary, required): Located near "DATE" or "תאריך" at the bottom of each check. ' +
         'Format is DAY/MONTH/YEAR (Israeli). Year is 2-digit (26 = 2026). ' +
         'OCR smashes digits: "304 26"=30/4/26, "30626"=30/6/26, "3826"=30/8/26, "726"=30/7/26, ' +
         '"5.26" near "30"=30/5/26. Look BEFORE the word DATE/תאריך.\n' +
-        '2. AMOUNT: Near ₪ or N.I.S. Format: X,XXX. ' +
+        '2. AMOUNT (primary, required): Near ₪ or N.I.S. Format: X,XXX. ' +
         'OCR adds leading "1" (18,850→8,850) or "$". Cross-reference with Hebrew words. ' +
         'Dot can replace comma (8.850=8,850).\n' +
-        '3. IGNORE: account/branch/phone/check/ID numbers.\n\n' +
-        'Respond with ONLY a JSON array, one object per check, no other text:\n' +
-        '[{"date":"YYYY-MM-DD","amount":8850},{"date":"YYYY-MM-DD","amount":8850},...]\n\n' +
+        '3. BANK DETAILS (best-effort, may be blank): Each cheque carries bank, branch, account and cheque number — ' +
+        'printed on the cheque FACE (bank name + סניף + מספר חשבון; cheque number near the top) and in the MICR codeline ' +
+        'at the very bottom (digits with the symbols ⑆ ⑇ ⑈; pattern: chequeNumber ⑆ bankCode[2 digits]-branch[3 digits] ⑆ account ⑇).\n' +
+        '   - bankName: the printed Hebrew bank name (e.g. הפועלים, לאומי, מזרחי טפחות, דיסקונט, הבינלאומי). ' +
+        'If only a 2-digit code is visible map: 12=הפועלים, 10=לאומי, 20=מזרחי טפחות, 11=דיסקונט, 31=הבינלאומי, 04=יהב, 14=אוצר החייל, 17=מרכנתיל, 46=מסד. Otherwise "".\n' +
+        '   - bankBranch: 3-digit branch (סניף). bankAccount: account number, digits only, KEEP leading zeros. chequeNum: the cheque serial number.\n' +
+        '   - PREFER the printed face; use the MICR codeline only to confirm. Do NOT merge the 2-digit bank code into the branch.\n' +
+        '4. ANTI-HALLUCINATION (mandatory): NEVER invent or complete digits. If a field is unreadable or ambiguous, return an EMPTY STRING "" for it. ' +
+        'A blank is correct; a guessed bank/account/cheque number is a serious error. Date and amount stay the priority.\n\n' +
+        'Respond with ONLY a JSON array, one object per check, no other text. Each object MUST have all six keys (use "" for unreadable string fields):\n' +
+        '[{"date":"YYYY-MM-DD","amount":8850,"bankName":"","bankBranch":"","bankAccount":"","chequeNum":""}]\n\n' +
         'Return exactly ' + pageCount + ' objects in the array.\n\n' +
         'OCR Text:\n' + ocrText;
 
     var requestBody = JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1000,
+        max_tokens: 1500, // הורחב: 6 שדות פר-שיק (תאריך+סכום+4 פרטי-בנק) × עד 10 שיקים
         messages: [{ role: 'user', content: prompt }]
     });
 
@@ -221,7 +229,16 @@ exports.handler = async (event) => {
         // Parse all checks with Claude in one call
         var parsedChecks = await parseChecksWithClaude(fullText);
         var checks = parsedChecks.map(function(c, i) {
-            return { date: c.date || '', amount: parseFloat(c.amount) || 0, index: i + 1 };
+            return {
+                date: c.date || '',
+                amount: parseFloat(c.amount) || 0,
+                // פרטי-בנק (best-effort; מחרוזות לשמירת אפסים מובילים; ריק = לא נקרא, להשלמה ידנית)
+                bankName: (c.bankName || '').toString().trim(),
+                bankBranch: (c.bankBranch || '').toString().trim(),
+                bankAccount: (c.bankAccount || '').toString().trim(),
+                chequeNum: (c.chequeNum || '').toString().trim(),
+                index: i + 1
+            };
         });
 
         return {
