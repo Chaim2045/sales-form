@@ -63,7 +63,7 @@ async function parseChecksWithClaude(ocrText) {
 
     var prompt = 'You are parsing OCR output from scanned Israeli bank checks (שיקים). ' +
         'The text contains ' + pageCount + ' check(s). Each check is on a separate page, ' +
-        'separated by "--- עמוד X ---". Extract these fields from EACH check.\n\n' +
+        'separated by "--- עמוד X ---". A page may contain MORE THAN ONE check — extract EVERY distinct check found across all pages.\n\n' +
         'CRITICAL RULES:\n' +
         '1. DATE (primary, required): Located near "DATE" or "תאריך" at the bottom of each check. ' +
         'Format is DAY/MONTH/YEAR (Israeli). Year is 2-digit (26 = 2026). ' +
@@ -81,14 +81,14 @@ async function parseChecksWithClaude(ocrText) {
         '   - PREFER the printed face; use the MICR codeline only to confirm. Do NOT merge the 2-digit bank code into the branch.\n' +
         '4. ANTI-HALLUCINATION (mandatory): NEVER invent or complete digits. If a field is unreadable or ambiguous, return an EMPTY STRING "" for it. ' +
         'A blank is correct; a guessed bank/account/cheque number is a serious error. Date and amount stay the priority.\n\n' +
-        'Respond with ONLY a JSON array, one object per check, no other text. Each object MUST have all six keys (use "" for unreadable string fields):\n' +
+        'Respond with ONLY a JSON array, one object PER CHECK (not per page), no other text. Each object MUST have all six keys (use "" for unreadable string fields):\n' +
         '[{"date":"YYYY-MM-DD","amount":8850,"bankName":"","bankBranch":"","bankAccount":"","chequeNum":""}]\n\n' +
-        'Return exactly ' + pageCount + ' objects in the array.\n\n' +
+        'Return one object for EVERY distinct check found — there may be more than ' + pageCount + ' if some pages hold multiple checks. Do not pad or drop to match the page count.\n\n' +
         'OCR Text:\n' + ocrText;
 
     var requestBody = JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1500, // הורחב: 6 שדות פר-שיק (תאריך+סכום+4 פרטי-בנק) × עד 10 שיקים
+        model: 'claude-opus-4-8', // שדרוג דיוק לפענוח-שיקים (עלות זניחה, שימוש נדיר; אותם פרמטרים — model+max_tokens+messages)
+        max_tokens: 4000, // 6 שדות × עד ~50 שיקים
         messages: [{ role: 'user', content: prompt }]
     });
 

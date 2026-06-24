@@ -40,8 +40,12 @@ async function pdfPagesToImages(file) {
     var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     var images = [];
 
-    // Max 10 pages to avoid excessive API calls
-    var pageCount = Math.min(pdf.numPages, 10);
+    // עד 50 עמודים (עלות אינה מגבלה; שימוש נדיר). אזהרה אם חורג — אף שיק לא נעלם בשקט.
+    var MAX_PAGES = 50;
+    if (pdf.numPages > MAX_PAGES) {
+        showOcrStatus('⚠️ ה-PDF מכיל ' + pdf.numPages + ' עמודים — רק ' + MAX_PAGES + ' הראשונים ייקלטו. העלה את השאר בנפרד.', 'error');
+    }
+    var pageCount = Math.min(pdf.numPages, MAX_PAGES);
 
     for (var p = 1; p <= pageCount; p++) {
         var page = await pdf.getPage(p);
