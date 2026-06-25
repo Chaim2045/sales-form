@@ -354,10 +354,11 @@ async function saveInvoiceConfig(changeSummary) {
 // ----------------------------------------------------------------------------
 // המקום היחיד בקליינט שקורא ל-netlify/functions/issue-invoice.js (החוזה הקבוע).
 // POST /.netlify/functions/issue-invoice  · Authorization: Bearer <Firebase ID token>
-//   body: { saleId, approve }
+//   body: { saleId, approve, checkId?, action? }
 //   - בלי approve  → הפקה רגילה (requireApproval פעיל ולא מאושר → {needsApproval:true})
 //   - approve:true → אישור master (השרת מאמת master ומפיק)
-// תשובה: { success, issued, invoiceNumber, invoiceUrl, needsApproval?, deferred?, inProgress?, error? }
+//   - checkId      → מסלול פר-שיק (Phase 4): 305 בפירעון; action:'bounce' → סימון שיק שחזר (master, ללא GI)
+// תשובה: { success, issued, invoiceNumber, invoiceUrl, needsApproval?, deferred?, inProgress?, bounced?, error? }
 //
 // עמיד-לשגיאה: לעולם לא זורק (כדי לא לשבור את הקורא — טופס/גבייה לא-חוסמים).
 // כשל → מחזיר { success:false, error } במקום throw.
@@ -369,10 +370,14 @@ async function issueInvoiceForSale(saleId, opts) {
             return { success: false, error: 'not authenticated' };
         }
         var idToken = await authUser.getIdToken();
+        var payload = { saleId: String(saleId), approve: !!(opts && opts.approve) };
+        // מסלול פר-שיק (Phase 4): checkId → 305 בפירעון; action:'bounce' → סימון שחזר (אדיטיבי; ללא checkId נשלח בדיוק כמקודם)
+        if (opts && opts.checkId) payload.checkId = String(opts.checkId);
+        if (opts && opts.action) payload.action = String(opts.action);
         var res = await fetch('/.netlify/functions/issue-invoice', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-            body: JSON.stringify({ saleId: String(saleId), approve: !!(opts && opts.approve) })
+            body: JSON.stringify(payload)
         });
         var json = null;
         try { json = await res.json(); } catch (e) { json = null; }

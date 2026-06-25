@@ -440,6 +440,69 @@ exports.handler = async (event) => {
             if (!/^[A-Za-z0-9_-]{1,128}$/.test(checkId)) return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'invalid checkId' }) }; // path-injection guard
             const checksPath = 'sales_records/' + saleId + '/checks';
 
+            // ════════════════════════════════════════════════════════════════════
+            // Phase 4c: סימון שיק שחזר (bounce) — פעולת-master ב-CRM בלבד, ללא מסמך GI.
+            // מוקדם בענף-השיק (אחרי regex, לפני approval/idempotency/GI): bounce אינו מפיק
+            // מסמך-מס ולכן אינו עובר ב-gate האישור/הנעילה/GI הרגיל. כותב רק לרשומת-השיק.
+            // ════════════════════════════════════════════════════════════════════
+            if (body.action === 'bounce') {
+                // 1. דרישת master — מירור wantApprove: רק מסלול CRM (source==='tofes') ו-master מאומת בשרת (לא דגל קליינט; הבוט לא מסמן חזרה)
+                let bounceByMaster = false;
+                if (source === 'tofes' && callerUid) {
+                    try {
+                        const uRes = await fsGet(projectId, accessToken, 'users', callerUid);
+                        const uf = (uRes.status === 200 && uRes.data && uRes.data.fields) ? uRes.data.fields : null;
+                        bounceByMaster = !!uf && fval(uf.role) === 'master' && fval(uf.isActive) === true;
+                    } catch (e) { bounceByMaster = false; }
+                }
+                if (!bounceByMaster) {
+                    return { statusCode: 403, headers: corsHeaders, body: JSON.stringify({ error: 'bounce requires master' }) };
+                }
+
+                // 2. קריאת רשומת-השיק (מקור-אמת פר-שיק)
+                const bRes = await fsGet(projectId, accessToken, checksPath, checkId);
+                if (bRes.status === 404 || bRes.status !== 200 || !bRes.data || !bRes.data.fields) {
+                    return { statusCode: 404, headers: corsHeaders, body: JSON.stringify({ error: 'check not found' }) };
+                }
+                const BF = bRes.data.fields;
+
+                // 3. שער: שיק שכבר נפרע (305 הופק → invoiceDocId קיים) → אסור לסמן כחזר
+                if (fval(BF.invoiceDocId)) {
+                    return { statusCode: 409, headers: corsHeaders, body: JSON.stringify({ error: 'already_cleared', message: 'cannot bounce a cleared cheque' }) };
+                }
+
+                // 4. כתיבה אדיטיבית — סימון 'bounced' (אין צורך בנעילה אופטימית: כתיבת-סטטוס יחידה, השער-cleared מונע את המקרה המסוכן)
+                const nowIso = new Date().toISOString();
+                const bFields = {
+                    status: { stringValue: 'bounced' },
+                    bouncedAt: { timestampValue: nowIso },
+                    bouncedBy: { stringValue: String(actor || '') },
+                    invoiceError: { stringValue: '' }
+                };
+                const bPatch = await fsPatch(projectId, accessToken, checksPath, checkId, bFields, Object.keys(bFields));
+                if (bPatch.status !== 200) {
+                    console.error('[issue-invoice] cheque bounce writeback failed ' + bPatch.status);
+                    return { statusCode: 502, headers: corsHeaders, body: JSON.stringify({ error: 'bounce write failed' }) };
+                }
+
+                // 5. audit_log — לא-חוסם
+                try {
+                    await fsCreate(projectId, accessToken, 'audit_log', {
+                        action: { stringValue: 'cheque_bounced' },
+                        source: { stringValue: source },
+                        performedBy: { stringValue: String(actor || '') },
+                        timestamp: { timestampValue: nowIso },
+                        details: { mapValue: { fields: {
+                            saleId: { stringValue: saleId },
+                            checkId: { stringValue: checkId }
+                        } } }
+                    });
+                } catch (e) { /* best-effort */ }
+
+                // 6. הצלחה
+                return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ success: true, bounced: true }) };
+            }
+
             // ─── אישור-הפקה: כמו ברמת-העסקה — master מאומת בשרת (לא דגל קליינט). הבוט לא מאשר. ───
             // פירעון שיק = פעולת-master (כפתור "נפרע" ב-CRM שולח approve:true) → אין שדה invoiceApproved נפרד לשיק.
             let approvedByMaster = false;

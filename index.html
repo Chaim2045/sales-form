@@ -1929,6 +1929,84 @@
         <div id="isBody" style="display:none;"></div>
     </div>
 
+    <!-- ניהול שיקים (Phase 4c — מעקב שיקים-דחויים) — gated salesManagement/master -->
+    <div id="checksManagement">
+        <div class="bm-header">
+            <h2 class="bm-title">שיקים</h2>
+            <div style="display:flex;gap:8px;">
+                <button class="bm-back-btn" onclick="navHome()">חזרה</button>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="bm-summary">
+            <div class="bm-stat blue">
+                <div class="bm-stat-value" id="cmStatCount">0</div>
+                <div class="bm-stat-label">שיקים</div>
+            </div>
+            <div class="bm-stat green">
+                <div class="bm-stat-value" id="cmStatAmount">₪0</div>
+                <div class="bm-stat-label">סכום כולל</div>
+            </div>
+            <div class="bm-stat">
+                <div class="bm-stat-value" id="cmStatOverdue">0</div>
+                <div class="bm-stat-label">באיחור</div>
+            </div>
+        </div>
+
+        <!-- Status filter -->
+        <div class="bm-toolbar">
+            <div class="bm-filters">
+                <button class="bm-filter-btn active" id="cmFilter_pending" onclick="setChecksFilter('pending')">ממתינים</button>
+                <button class="bm-filter-btn" id="cmFilter_cleared" onclick="setChecksFilter('cleared')">נפרעו</button>
+                <button class="bm-filter-btn" id="cmFilter_bounced" onclick="setChecksFilter('bounced')">חזרו</button>
+            </div>
+        </div>
+
+        <!-- Error (e.g. missing composite index) -->
+        <div id="cmError" class="bm-empty" style="display:none;color:#dc2626;"></div>
+
+        <!-- Table View -->
+        <div id="cmTableView" style="display:none;">
+            <div class="bm-table-wrap">
+                <table class="bm-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>לקוח</th>
+                            <th>תאריך פירעון</th>
+                            <th>סכום</th>
+                            <th>בנק</th>
+                            <th>סניף</th>
+                            <th>חשבון</th>
+                            <th>מס׳ שיק</th>
+                            <th>סטטוס</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="cmTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="cmLoading" class="bm-loading" style="display:none;">
+            <div class="bm-loading-spinner"></div>
+            טוען שיקים...
+        </div>
+
+        <!-- Empty State -->
+        <div id="cmEmpty" class="bm-empty" style="display:none;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            <p>אין שיקים בסטטוס זה</p>
+        </div>
+
+        <!-- Footer -->
+        <div class="bm-footer">
+            <p>נבנה על ידי חיים פרץ | כל הזכויות שמורות למשרד עו"ד גיא הרשקוביץ &copy; 2026</p>
+        </div>
+    </div>
+
     <!-- Add User Modal -->
     <div class="billing-modal-overlay" id="addUserModal">
         <div class="billing-modal" style="max-width:440px;">
@@ -2056,6 +2134,7 @@
     <script src="js/leads.js"></script>
     <script src="js/user-management.js"></script>
     <script src="js/invoice-settings.js"></script>
+    <script src="js/checks-management.js"></script>
     <!-- ⛔ YF Dashboards (מודול מבודד) — ראה SHARED-CONTEXT §9 -->
     <script src="js/dashboard-cashflow.js"></script>
     <script src="js/navigation.js"></script>
@@ -2112,6 +2191,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             <span class="bottom-nav-label">חשבוניות</span>
         </button>
+        <button class="bottom-nav-item" id="navChecksMgmtBtn" onclick="navChecksManagement()" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
+            <span class="bottom-nav-label">שיקים</span>
+        </button>
         <!-- ⛔ YF Dashboards (מודול מבודד, owner-only) -->
         <button class="bottom-nav-item" id="navYfCashflowBtn" onclick="navYfCashflow()" style="display:none;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
@@ -2155,6 +2238,10 @@
         <button class="nav-overflow-item" id="navOverflowInvoiceSettings" onclick="navInvoiceSettings(); closeNavOverflow();" style="display:none;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             <span>הגדרות חשבוניות</span>
+        </button>
+        <button class="nav-overflow-item" id="navOverflowChecks" onclick="navChecksManagement(); closeNavOverflow();" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
+            <span>שיקים</span>
         </button>
         <!-- ⛔ YF Dashboards (מודול מבודד, owner-only) -->
         <button class="nav-overflow-item" id="navOverflowYfCashflow" onclick="navYfCashflow(); closeNavOverflow();" style="display:none;">

@@ -1603,3 +1603,75 @@
     .is-table { font-size: 12px; }
     .is-table .um-role-select { min-width: 120px; }
 }
+
+/* ===== ניהול שיקים (Phase 4c) — מירור #salesManagement / sm-invoice-badge ===== */
+#checksManagement {
+    display: none;
+    padding: 20px 16px 100px;
+    margin: 0 auto;
+    direction: rtl;
+}
+#checksManagement.active { display: block; }
+#checksManagement .bm-header { margin-bottom: 16px; }
+
+/* status badges — מירור ערכת-הצבעים של .sm-invoice-badge */
+.cm-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'Heebo', sans-serif;
+}
+.cm-status-badge.pending {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+}
+.cm-status-badge.overdue {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+.cm-status-badge.cleared {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+.cm-status-badge.bounced {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+}
+
+/* action buttons — מירור .sm-invoice-btn */
+.cm-action-clear,
+.cm-action-bounce {
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'Heebo', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.cm-action-clear {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+.cm-action-clear:hover:not(:disabled) { background: #d1fae5; }
+.cm-action-bounce {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+.cm-action-bounce:hover:not(:disabled) { background: #fee2e2; }
+.cm-action-clear:disabled,
+.cm-action-bounce:disabled { opacity: 0.5; cursor: default; }
+
+@media (max-width: 768px) {
+    #checksManagement { padding: 16px 12px 100px; }
+    #checksManagement .bm-table { font-size: 12px; }
+}
