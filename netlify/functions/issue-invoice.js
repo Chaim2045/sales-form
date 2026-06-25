@@ -168,7 +168,8 @@ function paymentKey(sale) {
     if (method === 'ביט') return 'ביט';
     if (method === 'העברה בנקאית') return 'העברה בנקאית';
     if (method === 'כרטיס אשראי' && paidFull) return 'כרטיס אשראי_מלא';
-    return null; // טרם נגבה / פיצול → לא מפיקים בדיווח (320 פר-תשלום בגבייה)
+    if (method === 'שיקים דחויים') return 'שיקים דחויים'; // Phase 3: קבלה (400) בקבלת השיקים
+    return null; // טרם נגבה / פיצול → לא מפיקים בדיווח (305 פר-שיק בפירעון)
 }
 
 // ─── ולידציית docTypeMap מ-config: מפה מלאה ותקינה-כולה, או null (→ fallback מלא) ───
@@ -201,6 +202,8 @@ function normalizeConfig(F) {
 function decideDocument(sale, cfg) {
     const key = paymentKey(sale);
     if (!key) return { issue: false, reason: 'ממתין לגבייה (' + (sale.paymentMethod || 'לא ידוע') + ')' };
+    // שיקים דחויים → קבלה (400) במועד הדיווח — מיפוי חוקי קבוע (Phase 0 נעול; לא נשלט ע"י config)
+    if (key === 'שיקים דחויים') return { issue: true, docType: GI_DOC.RECEIPT, payType: GI_PAY.cheque, reason: 'שיקים דחויים' };
     const map = (cfg && cfg.docTypeMap) ? cfg.docTypeMap : DEFAULT_DOC_TYPE_MAP;
     const entry = map[key] || DEFAULT_DOC_TYPE_MAP[key];
     return { issue: true, docType: entry.docType, payType: entry.payType, reason: key };
@@ -238,6 +241,45 @@ function buildGiDocument(sale, decision, amounts, channels, invoiceEnv) {
         remarks: sale.notes || ''
     };
     return doc;
+}
+
+// פירוק checksDetails (string JSON או array) → מערך שיקים
+function parseChecks(v) {
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'string' && v.trim()) { try { const a = JSON.parse(v); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+    return [];
+}
+
+// ─── Phase 3: קבלה (400) לשיקים דחויים — payment[] של שיקים, בלי income. ───
+// אומת sandbox: כל שיק חייב {type:2, price, date(פירעון), currency, bankName, bankBranch, bankAccount, chequeNum} (חסר → errorCode 2443); vatRate=0.
+function buildGiReceipt400(sale, checks, channels, invoiceEnv) {
+    const email = (sale.email || '').trim();
+    return {
+        type: GI_DOC.RECEIPT, // 400
+        date: sale.date || new Date().toISOString().slice(0, 10),
+        lang: 'he',
+        currency: 'ILS',
+        rounding: false,
+        client: {
+            name: sale.clientName || 'לקוח',
+            taxId: isValidIsraeliTaxId(sale.idNumber) ? String(sale.idNumber).replace(/\D/g, '').padStart(9, '0') : undefined,
+            emails: (invoiceEnv === 'prod' && channels && channels.email && email) ? [email] : [], // מייל ללקוח רק בפרודקשן + לפי toggle הערוץ (R2/G1)
+            add: false
+        },
+        payment: checks.map(function (c) {
+            return {
+                type: GI_PAY.cheque, // 2 = שיק
+                price: Number(c.amount) || 0,
+                date: c.date || c.dueDate || sale.date, // תאריך פירעון
+                currency: 'ILS',
+                bankName: String(c.bankName || ''),
+                bankBranch: String(c.bankBranch || ''),
+                bankAccount: String(c.bankAccount || ''),
+                chequeNum: String(c.chequeNum || '')
+            };
+        }),
+        remarks: sale.notes || ''
+    };
 }
 
 // ─── Firestore REST helpers (Bearer = service-account access token) ───
@@ -360,6 +402,7 @@ exports.handler = async (event) => {
             date: fval(F.date), transactionType: fval(F.transactionType), transactionDescription: fval(F.transactionDescription),
             amountBeforeVat: num(fval(F.amountBeforeVat)), vatAmount: num(fval(F.vatAmount)), amountWithVat: num(fval(F.amountWithVat)),
             paymentMethod: fval(F.paymentMethod), creditCardStatus: fval(F.creditCardStatus), notes: fval(F.notes),
+            checksDetails: fval(F.checksDetails), // Phase 3: פירוט שיקים (string JSON או array) לקבלה 400
             invoiceIssued: fval(F.invoiceIssued) === true, invoiceStatus: fval(F.invoiceStatus), invoiceLockAt: fval(F.invoiceLockAt),
             invoiceApproved: fval(F.invoiceApproved) === true
         };
@@ -398,6 +441,27 @@ exports.handler = async (event) => {
                 { invoiceStatus: { stringValue: 'config_invalid' }, invoiceError: { stringValue: 'docType/payType out of allow-list' } },
                 ['invoiceStatus', 'invoiceError']);
             return { statusCode: 422, headers: corsHeaders, body: JSON.stringify({ error: 'config_invalid' }) };
+        }
+
+        // ─── Phase 3: קבלה (400) דורשת פירוט מלא לכל שיק (אחרת GI errorCode 2443). שער-שרת לפני נעילה/GI. ───
+        let saleChecks = [];
+        if (Number(decision.docType) === GI_DOC.RECEIPT) {
+            saleChecks = parseChecks(sale.checksDetails);
+            if (saleChecks.length > 50) { // תקרת-שרת (הבוט עוקף את תקרת-50 של הטופס) — מונע GI ענק + N כתיבות מקבילות
+                await fsPatch(projectId, accessToken, 'sales_records', saleId,
+                    { invoiceStatus: { stringValue: 'checks_incomplete' }, invoiceError: { stringValue: 'too many cheques (>50)' } },
+                    ['invoiceStatus', 'invoiceError']);
+                return { statusCode: 422, headers: corsHeaders, body: JSON.stringify({ error: 'too_many_cheques', message: 'max 50 cheques per receipt' }) };
+            }
+            const bad = saleChecks.length === 0 || saleChecks.some(c =>
+                !(Number(c.amount) > 0) || !(c.date || c.dueDate) ||
+                !c.bankName || !c.bankBranch || !c.bankAccount || !c.chequeNum);
+            if (bad) {
+                await fsPatch(projectId, accessToken, 'sales_records', saleId,
+                    { invoiceStatus: { stringValue: 'checks_incomplete' }, invoiceError: { stringValue: 'missing per-cheque details for receipt 400' } },
+                    ['invoiceStatus', 'invoiceError']);
+                return { statusCode: 422, headers: corsHeaders, body: JSON.stringify({ error: 'checks_incomplete', message: 'each cheque needs amount, due date, bank, branch, account, cheque number' }) };
+            }
         }
 
         // ─── אם ביקשו approve — אימות master בשרת (קריאת users/{uid} דרך service-account; לא סומכים על הקליינט) ───
@@ -448,7 +512,9 @@ exports.handler = async (event) => {
                     { invoiceStatus: { stringValue: 'error' }, invoiceError: { stringValue: 'GI auth failed' } }, ['invoiceStatus', 'invoiceError']);
                 return { statusCode: 502, headers: corsHeaders, body: JSON.stringify({ error: 'GI auth failed' }) };
             }
-            const giDoc = buildGiDocument(sale, decision, amounts, cfg.channels, invoiceEnv);
+            const giDoc = Number(decision.docType) === GI_DOC.RECEIPT
+                ? buildGiReceipt400(sale, saleChecks, cfg.channels, invoiceEnv)   // Phase 3: קבלה לשיקים
+                : buildGiDocument(sale, decision, amounts, cfg.channels, invoiceEnv);
             createAttempted = true; // מכאן ייתכן שמסמך נוצר (גם אם תיזרק exception)
             const createRes = await httpRequest({
                 hostname: base.hostname, path: base.basePath + '/documents', method: 'POST',
@@ -468,8 +534,8 @@ exports.handler = async (event) => {
             giUrl = (gi.url && (gi.url.he || gi.url.origin || gi.url)) || gi.documentUrl || '';
             giCreated = true; // ← קיים מסמך GI בלתי-הפיך; מכאן אסור retry שמפיק מסמך שני
 
-            // guard מע"מ: GI לא מחזיר total ביצירה אך מחזיר vatRate — מאמת תאימות 18%
-            if (gi.vatRate != null && Math.abs(Number(gi.vatRate) - VAT_RATE) > 0.001) {
+            // guard מע"מ: GI לא מחזיר total ביצירה אך מחזיר vatRate — מאמת תאימות 18% (קבלה 400 = vatRate 0, מדלגים)
+            if (Number(decision.docType) !== GI_DOC.RECEIPT && gi.vatRate != null && Math.abs(Number(gi.vatRate) - VAT_RATE) > 0.001) {
                 console.error('[issue-invoice] VAT rate mismatch GI=' + gi.vatRate + ' expected=' + VAT_RATE);
             }
 
@@ -532,6 +598,27 @@ exports.handler = async (event) => {
                     env: { stringValue: invoiceEnv }
                 } } }
             }));
+            // ─── Phase 2: רשומת-שיק לכל שיק (subcollection server-only) — מעקב פירעון פר-שיק → 305 בהמשך ───
+            if (Number(decision.docType) === GI_DOC.RECEIPT) {
+                saleChecks.forEach(function (c, i) {
+                    tasks.push(fsCreate(projectId, accessToken, 'sales_records/' + saleId + '/checks', {
+                        index: { integerValue: String(i + 1) },
+                        amount: { doubleValue: Number(c.amount) || 0 },
+                        dueDate: { stringValue: String(c.date || c.dueDate || '') },
+                        status: { stringValue: 'pending' }, // pending | cleared | bounced
+                        bankName: { stringValue: String(c.bankName || '') },
+                        bankBranch: { stringValue: String(c.bankBranch || '') },
+                        bankAccount: { stringValue: String(c.bankAccount || '') },
+                        chequeNum: { stringValue: String(c.chequeNum || '') },
+                        receiptDocId: { stringValue: giId },     // הקבלה (400) שמכסה את כל השיקים
+                        receiptNumber: { stringValue: giNumber },
+                        invoiceDocId: { stringValue: '' },       // ימולא בפירעון (305 פר-שיק, Phase 4)
+                        invoiceNumber: { stringValue: '' },
+                        invoiceUrl: { stringValue: '' },
+                        createdAt: { timestampValue: nowIso }
+                    }));
+                });
+            }
             await Promise.allSettled(tasks); // כשלים כאן לא-חוסמים (המסמך כבר הופק ונרשם)
 
             return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ success: true, issued: true, docType: decision.docType, invoiceNumber: giNumber, invoiceUrl: giUrl, env: invoiceEnv }) };

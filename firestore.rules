@@ -56,6 +56,13 @@ service cloud.firestore {
         ])
       );
       allow delete: if isMaster();
+
+      // ─── Check records (Phase 2) — server-only: issue-invoice (service-account) כותב; מכיל פרטי-בנק רגישים ───
+      // rules אינם מדורגים אוטומטית ל-subcollection → בלוק מפורש (G2). כתיבה = service-account בלבד (עוקף rules), כמו invoice_outbox.
+      match /checks/{checkId} {
+        allow read: if hasPermission('salesManagement') || hasPermission('billingManagement') || isMaster();
+        allow create, update, delete: if false;
+      }
     }
 
     // ─── Recurring Billing ───
