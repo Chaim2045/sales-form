@@ -282,6 +282,38 @@ function buildGiReceipt400(sale, checks, channels, invoiceEnv) {
     };
 }
 
+// ─── Phase 4: חשבונית-מס (305) פר-שיק שנפרע — income בלבד, ללא payment. ───
+// הקבלה (400) כבר רשמה את המזומן בקבלת השיקים → 305 לא רושמת תשלום (מונע קבלה כפולה).
+// סכום השיק הוא GROSS (כולל-מע"מ); price לפני-מע"מ + vatType 0 → GI מוסיף 18% → total = פני השיק.
+function buildGiTaxInvoice305(saleObj, cheque, channels, invoiceEnv) {
+    const email = (saleObj.email || '').trim();
+    const beforeVat = +((Number(cheque.amount) || 0) / (1 + VAT_RATE)).toFixed(2); // הסכום GROSS → לפני-מע"מ
+    const label = cheque.chequeNum ? (' מס׳ ' + cheque.chequeNum) : (' #' + cheque.index);
+    return {
+        type: GI_DOC.TAX_INVOICE, // 305
+        date: new Date().toISOString().slice(0, 10),
+        lang: 'he',
+        currency: 'ILS',
+        vatType: 0, // price לפני-מע"מ; GI מוסיף 18% (אומת: response.vatRate=0.18)
+        rounding: false,
+        client: {
+            name: saleObj.clientName || 'לקוח',
+            taxId: isValidIsraeliTaxId(saleObj.idNumber) ? String(saleObj.idNumber).replace(/\D/g, '').padStart(9, '0') : undefined,
+            emails: (invoiceEnv === 'prod' && channels && channels.email && email) ? [email] : [], // מייל ללקוח רק בפרודקשן + לפי toggle הערוץ (R2/G1)
+            add: false
+        },
+        income: [{
+            description: (saleObj.transactionDescription || saleObj.transactionType || 'שירות משפטי') + ' — פירעון שיק' + label,
+            quantity: 1,
+            price: beforeVat, // לפני מע"מ
+            currency: 'ILS',
+            vatType: 0
+        }],
+        // אין payment — 305 חשבונית-מס בלבד; המזומן כבר נרשם בקבלה 400
+        remarks: 'פירעון שיק ' + (cheque.chequeNum || ('#' + cheque.index))
+    };
+}
+
 // ─── Firestore REST helpers (Bearer = service-account access token) ───
 async function fsGet(projectId, token, collection, docId) {
     const res = await httpRequest({
@@ -345,6 +377,7 @@ exports.handler = async (event) => {
         }
         const saleId = String(body.saleId || '').trim();
         if (!saleId) return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'saleId required' }) };
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(saleId)) return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'invalid saleId' }) }; // path-injection guard (service-account REST עוקף rules)
 
         // ─── Auth: בוט (secret) או CRM (Firebase ID token) ───
         const botSecret = process.env.INVOICE_INTAKE_SECRET || '';
@@ -395,6 +428,210 @@ exports.handler = async (event) => {
         if (invoiceEnv === 'prod' && process.env.INVOICE_ALLOW_PROD !== 'true') {
             console.error('[issue-invoice] prod issuance blocked — INVOICE_ALLOW_PROD not set');
             return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ success: true, issued: false, prodLocked: true, reason: 'prod issuance requires INVOICE_ALLOW_PROD' }) };
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // Phase 4: חשבונית-מס (305) פר-שיק שנפרע — מסלול נפרד לחלוטין.
+        // body.checkId נוכח → מפיקים 305 לשיק הבודד וחוזרים; חסר → המסלול ברמת-העסקה ממשיך כרגיל.
+        // כותב אך ורק לרשומת-השיק (sales_records/{saleId}/checks/{checkId}), לא לעסקה.
+        // ════════════════════════════════════════════════════════════════════
+        const checkId = String(body.checkId || '').trim();
+        if (checkId) {
+            if (!/^[A-Za-z0-9_-]{1,128}$/.test(checkId)) return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'invalid checkId' }) }; // path-injection guard
+            const checksPath = 'sales_records/' + saleId + '/checks';
+
+            // ─── אישור-הפקה: כמו ברמת-העסקה — master מאומת בשרת (לא דגל קליינט). הבוט לא מאשר. ───
+            // פירעון שיק = פעולת-master (כפתור "נפרע" ב-CRM שולח approve:true) → אין שדה invoiceApproved נפרד לשיק.
+            let approvedByMaster = false;
+            if (wantApprove) {
+                try {
+                    const uRes = await fsGet(projectId, accessToken, 'users', callerUid);
+                    const uf = (uRes.status === 200 && uRes.data && uRes.data.fields) ? uRes.data.fields : null;
+                    approvedByMaster = !!uf && fval(uf.role) === 'master' && fval(uf.isActive) === true;
+                } catch (e) { approvedByMaster = false; }
+                if (!approvedByMaster) {
+                    return { statusCode: 403, headers: corsHeaders, body: JSON.stringify({ error: 'approval requires master' }) };
+                }
+            }
+            if (cfg.requireApproval && !approvedByMaster) {
+                return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ success: true, issued: false, needsApproval: true }) };
+            }
+
+            // ─── קריאת רשומת-השיק (מקור-אמת פר-שיק) ───
+            const chkRes = await fsGet(projectId, accessToken, checksPath, checkId);
+            if (chkRes.status === 404 || chkRes.status !== 200 || !chkRes.data || !chkRes.data.fields) {
+                return { statusCode: 404, headers: corsHeaders, body: JSON.stringify({ error: 'check not found' }) };
+            }
+            const CF = chkRes.data.fields;
+            const chkUpdateTime = chkRes.data.updateTime; // ל-optimistic lock
+            const cheque = {
+                index: num(fval(CF.index)),
+                amount: num(fval(CF.amount)),
+                chequeNum: fval(CF.chequeNum),
+                status: fval(CF.status),
+                invoiceDocId: fval(CF.invoiceDocId),
+                invoiceStatus: fval(CF.invoiceStatus),
+                invoiceLockAt: fval(CF.invoiceLockAt)
+            };
+
+            // ─── guard אידמפוטנטי פר-שיק ───
+            if (cheque.invoiceDocId) {
+                return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ success: true, alreadyIssued: true, invoiceNumber: fval(CF.invoiceNumber) || '', invoiceUrl: fval(CF.invoiceUrl) || '' }) };
+            }
+            // ─── guard נעילה: הפקה בתהליך (TTL 3 דק') ───
+            if (cheque.invoiceStatus === 'processing') {
+                const lockAge = cheque.invoiceLockAt ? (Date.now() - Date.parse(cheque.invoiceLockAt)) : Infinity;
+                if (lockAge < 180000) {
+                    return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ success: true, issued: false, inProgress: true }) };
+                }
+                console.error('[issue-invoice] stale processing lock on cheque (' + Math.round(lockAge / 1000) + 's) — reclaiming');
+            }
+            // ─── guard: מצב שמעיד שמסמך GI אולי נוצר → בדיקה ידנית ───
+            if (cheque.invoiceStatus === 'issued_unrecorded' || cheque.invoiceStatus === 'error_check') {
+                return { statusCode: 409, headers: corsHeaders, body: JSON.stringify({ success: false, needsReconciliation: true, invoiceStatus: cheque.invoiceStatus, message: 'previous attempt may have created a document — manual check required' }) };
+            }
+
+            // ─── שער סכום-שיק תקין (מירור שער-400): 0/שלילי/NaN → לא מפיקים 305 (מסמך-מס בלתי-הפיך) ───
+            if (!(Number(cheque.amount) > 0)) {
+                return { statusCode: 422, headers: corsHeaders, body: JSON.stringify({ error: 'invalid_cheque_amount', message: 'cheque amount must be > 0' }) };
+            }
+
+            // ─── 🔒 נעילה אטומית (optimistic lock) על רשומת-השיק — תופסים לפני GI ───
+            const claimAt = new Date().toISOString();
+            const claim = await fsPatchGuarded(projectId, accessToken, checksPath, checkId,
+                { invoiceStatus: { stringValue: 'processing' }, invoiceError: { stringValue: '' }, invoiceLockAt: { timestampValue: claimAt } },
+                ['invoiceStatus', 'invoiceError', 'invoiceLockAt'], chkUpdateTime);
+            if (claim.status !== 200) {
+                console.error('[issue-invoice] cheque claim not won (' + claim.status + ') — concurrent/blocked, skipping issue');
+                return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ success: true, issued: false, inProgress: true }) };
+            }
+
+            // ─── אובייקט-לקוח מהעסקה (F) — לפרטי הלקוח על ה-305 ───
+            const saleObj = {
+                clientName: fval(F.clientName),
+                email: fval(F.email),
+                idNumber: fval(F.idNumber),
+                transactionDescription: fval(F.transactionDescription),
+                transactionType: fval(F.transactionType),
+                notes: fval(F.notes),
+                phone: fval(F.phone)
+            };
+
+            // ─── GI: token + create + writeback (עטוף ב-try/catch: כשל אחרי התפיסה משחרר/מסמן את נעילת-השיק) ───
+            let created305 = false, attempted305 = false;
+            let giId = '', giNumber = '', giUrl = '';
+            try {
+                const giJwt = await giToken(base);
+                if (!giJwt) {
+                    await fsPatch(projectId, accessToken, checksPath, checkId,
+                        { invoiceStatus: { stringValue: 'error' }, invoiceError: { stringValue: 'GI auth failed' } }, ['invoiceStatus', 'invoiceError']);
+                    return { statusCode: 502, headers: corsHeaders, body: JSON.stringify({ error: 'GI auth failed' }) };
+                }
+                const giDoc = buildGiTaxInvoice305(saleObj, cheque, cfg.channels, invoiceEnv);
+                attempted305 = true; // מכאן ייתכן שמסמך נוצר (גם אם תיזרק exception)
+                const createRes = await httpRequest({
+                    hostname: base.hostname, path: base.basePath + '/documents', method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + giJwt, 'Content-Length': Buffer.byteLength(JSON.stringify(giDoc)) }
+                }, JSON.stringify(giDoc));
+
+                if (createRes.status !== 200 && createRes.status !== 201) {
+                    const errMsg = 'GI create ' + createRes.status; // GI דחה → לא נוצר מסמך → בטוח לשחרר ל-retry
+                    console.error('[issue-invoice] ' + errMsg); // ⚠️ לא ללוגג PII/סוד
+                    await fsPatch(projectId, accessToken, checksPath, checkId,
+                        { invoiceStatus: { stringValue: 'error' }, invoiceError: { stringValue: errMsg } }, ['invoiceStatus', 'invoiceError']);
+                    return { statusCode: 502, headers: corsHeaders, body: JSON.stringify({ error: errMsg }) };
+                }
+                const gi = createRes.data || {};
+                giId = String(gi.id || '');
+                giNumber = String(gi.number || gi.documentNumber || '');
+                giUrl = (gi.url && (gi.url.he || gi.url.origin || gi.url)) || gi.documentUrl || '';
+                created305 = true; // ← קיים מסמך GI בלתי-הפיך; מכאן אסור retry שמפיק מסמך שני
+
+                // guard מע"מ: 305 = vatRate 18% — מאמת תאימות
+                if (gi.vatRate != null && Math.abs(Number(gi.vatRate) - VAT_RATE) > 0.001) {
+                    console.error('[issue-invoice] VAT rate mismatch GI=' + gi.vatRate + ' expected=' + VAT_RATE);
+                }
+
+                // ─── כתיבת מטא-דאטה אדיטיבית חזרה לרשומת-השיק ───
+                const nowIso = new Date().toISOString();
+                const chkFields = {
+                    status: { stringValue: 'cleared' },
+                    clearedAt: { timestampValue: nowIso },
+                    invoiceDocId: { stringValue: giId },
+                    invoiceNumber: { stringValue: giNumber },
+                    invoiceUrl: { stringValue: String(giUrl) },
+                    invoiceType: { stringValue: '305' },
+                    invoiceStatus: { stringValue: 'issued' },
+                    invoiceError: { stringValue: '' }
+                };
+                const patchRes = await fsPatch(projectId, accessToken, checksPath, checkId, chkFields, Object.keys(chkFields));
+                if (patchRes.status !== 200) {
+                    // מסמך GI נוצר אך הרישום נכשל → סטטוס חוסם-retry (מונע מסמך שני) + בדיקה ידנית
+                    console.error('[issue-invoice] cheque writeback failed ' + patchRes.status);
+                    try {
+                        await fsPatch(projectId, accessToken, checksPath, checkId,
+                            { invoiceStatus: { stringValue: 'issued_unrecorded' }, invoiceDocId: { stringValue: giId }, invoiceNumber: { stringValue: giNumber }, invoiceUrl: { stringValue: String(giUrl) }, invoiceError: { stringValue: 'writeback ' + patchRes.status } },
+                            ['invoiceStatus', 'invoiceDocId', 'invoiceNumber', 'invoiceUrl', 'invoiceError']);
+                    } catch (e2) { /* best-effort */ }
+                    return { statusCode: 502, headers: corsHeaders, body: JSON.stringify({ error: 'issued_but_not_recorded', invoiceNumber: giNumber, invoiceUrl: giUrl }) };
+                }
+
+                // ─── outbox (וואטסאפ) + audit_log — לא-חוסם, מקבילי ───
+                const tasks = [];
+                if (cfg.channels.whatsapp && fval(F.phone)) {
+                    tasks.push(fsCreate(projectId, accessToken, 'invoice_outbox', {
+                        saleId: { stringValue: saleId },
+                        checkId: { stringValue: checkId },
+                        phone: { stringValue: String(fval(F.phone)) },
+                        clientName: { stringValue: saleObj.clientName || '' },
+                        invoiceUrl: { stringValue: String(giUrl) },
+                        invoiceNumber: { stringValue: giNumber },
+                        status: { stringValue: 'pending' },
+                        source: { stringValue: source },
+                        env: { stringValue: invoiceEnv }, // R3: הבוט שולח DM ללקוח רק כש-env==='prod' (sandbox → קבוצה בלבד)
+                        emailed: { booleanValue: !!(invoiceEnv === 'prod' && cfg.channels.email && saleObj.email) },
+                        docType: { stringValue: '305' },
+                        createdAt: { timestampValue: nowIso }
+                    }));
+                }
+                tasks.push(fsCreate(projectId, accessToken, 'audit_log', {
+                    action: { stringValue: 'invoice_issued' },
+                    source: { stringValue: source },
+                    performedBy: { stringValue: String(actor || '') },
+                    timestamp: { timestampValue: nowIso },
+                    details: { mapValue: { fields: {
+                        saleId: { stringValue: saleId },
+                        checkId: { stringValue: checkId },
+                        docType: { stringValue: '305' },
+                        invoiceNumber: { stringValue: giNumber },
+                        env: { stringValue: invoiceEnv }
+                    } } }
+                }));
+                await Promise.allSettled(tasks); // כשלים כאן לא-חוסמים (המסמך כבר הופק ונרשם)
+
+                return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ success: true, issued: true, docType: 305, invoiceNumber: giNumber, invoiceUrl: giUrl, env: invoiceEnv }) };
+
+            } catch (postClaimErr) {
+                // exception אחרי התפיסה — חובה לשחרר/לסמן את נעילת-השיק כדי לא להשאיר 'processing' תקוע
+                console.error('[issue-invoice] cheque post-claim failure: ' + postClaimErr.message); // בלי PII/סוד
+                try {
+                    if (created305) {
+                        // מסמך GI קיים → אסור retry אוטומטי (היה מפיק שני) → issued_unrecorded
+                        await fsPatch(projectId, accessToken, checksPath, checkId,
+                            { invoiceStatus: { stringValue: 'issued_unrecorded' }, invoiceDocId: { stringValue: giId }, invoiceNumber: { stringValue: giNumber }, invoiceUrl: { stringValue: String(giUrl) }, invoiceError: { stringValue: 'post-create exception' } },
+                            ['invoiceStatus', 'invoiceDocId', 'invoiceNumber', 'invoiceUrl', 'invoiceError']);
+                    } else if (attempted305) {
+                        // exception תוך-כדי create → דו-משמעי (אולי נוצר) → חוסם auto-retry, בדיקה ידנית
+                        await fsPatch(projectId, accessToken, checksPath, checkId,
+                            { invoiceStatus: { stringValue: 'error_check' }, invoiceError: { stringValue: 'create ambiguous' } }, ['invoiceStatus', 'invoiceError']);
+                    } else {
+                        // נכשל לפני create (token) → לא נוצר מסמך → בטוח ל-retry
+                        await fsPatch(projectId, accessToken, checksPath, checkId,
+                            { invoiceStatus: { stringValue: 'error' }, invoiceError: { stringValue: 'pre-create failure' } }, ['invoiceStatus', 'invoiceError']);
+                    }
+                } catch (e3) { console.error('[issue-invoice] cheque lock release failed (manual check needed)'); }
+                return { statusCode: 502, headers: corsHeaders, body: JSON.stringify({ error: 'issue failed', needsCheck: created305 || attempted305 }) };
+            }
         }
 
         const sale = {
