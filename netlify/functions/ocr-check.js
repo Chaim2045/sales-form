@@ -2,6 +2,7 @@
 // Google Vision API for text extraction + Claude API for intelligent parsing
 
 const https = require('https');
+const { parseChecksDeterministic } = require('./lib/parse-checks'); // פענוח שיקים דטרמיניסטי (regex, בלי AI/טוקן/עלות)
 
 function httpRequest(options, data) {
     return new Promise((resolve, reject) => {
@@ -49,83 +50,8 @@ function getCorsOrigin(event) {
     return '';
 }
 
-// Use Claude API to extract check dates and amounts from OCR text
-// Supports single check or multiple checks (separated by "--- עמוד X ---")
-async function parseChecksWithClaude(ocrText) {
-    var anthropicKey = process.env.ANTHROPIC_API_KEY;
-    if (!anthropicKey) {
-        console.warn('ANTHROPIC_API_KEY not configured');
-        return [];
-    }
-
-    // Count pages
-    var pageCount = (ocrText.match(/--- עמוד/g) || []).length + 1;
-
-    var prompt = 'You are parsing OCR output from scanned Israeli bank checks (שיקים). ' +
-        'The text contains ' + pageCount + ' check(s). Each check is on a separate page, ' +
-        'separated by "--- עמוד X ---". A page may contain MORE THAN ONE check — extract EVERY distinct check found across all pages.\n\n' +
-        'CRITICAL RULES:\n' +
-        '1. DATE (primary, required): Located near "DATE" or "תאריך" at the bottom of each check. ' +
-        'Format is DAY/MONTH/YEAR (Israeli). Year is 2-digit (26 = 2026). ' +
-        'OCR smashes digits: "304 26"=30/4/26, "30626"=30/6/26, "3826"=30/8/26, "726"=30/7/26, ' +
-        '"5.26" near "30"=30/5/26. Look BEFORE the word DATE/תאריך.\n' +
-        '2. AMOUNT (primary, required): Near ₪ or N.I.S. Format: X,XXX. ' +
-        'OCR adds leading "1" (18,850→8,850) or "$". Cross-reference with Hebrew words. ' +
-        'Dot can replace comma (8.850=8,850).\n' +
-        '3. BANK DETAILS (best-effort, may be blank): Each cheque carries bank, branch, account and cheque number — ' +
-        'printed on the cheque FACE (bank name + סניף + מספר חשבון; cheque number near the top) and in the MICR codeline ' +
-        'at the very bottom (digits with the symbols ⑆ ⑇ ⑈; pattern: chequeNumber ⑆ bankCode[2 digits]-branch[3 digits] ⑆ account ⑇).\n' +
-        '   - bankName: the printed Hebrew bank name (e.g. הפועלים, לאומי, מזרחי טפחות, דיסקונט, הבינלאומי). ' +
-        'If only a 2-digit code is visible map: 12=הפועלים, 10=לאומי, 20=מזרחי טפחות, 11=דיסקונט, 31=הבינלאומי, 04=יהב, 14=אוצר החייל, 17=מרכנתיל, 46=מסד. Otherwise "".\n' +
-        '   - bankBranch: 3-digit branch (סניף). bankAccount: account number, digits only, KEEP leading zeros. chequeNum: the cheque serial number.\n' +
-        '   - PREFER the printed face; use the MICR codeline only to confirm. Do NOT merge the 2-digit bank code into the branch.\n' +
-        '4. ANTI-HALLUCINATION (mandatory): NEVER invent or complete digits. If a field is unreadable or ambiguous, return an EMPTY STRING "" for it. ' +
-        'A blank is correct; a guessed bank/account/cheque number is a serious error. Date and amount stay the priority.\n\n' +
-        'Respond with ONLY a JSON array, one object PER CHECK (not per page), no other text. Each object MUST have all six keys (use "" for unreadable string fields):\n' +
-        '[{"date":"YYYY-MM-DD","amount":8850,"bankName":"","bankBranch":"","bankAccount":"","chequeNum":""}]\n\n' +
-        'Return one object for EVERY distinct check found — there may be more than ' + pageCount + ' if some pages hold multiple checks. Do not pad or drop to match the page count.\n\n' +
-        'OCR Text:\n' + ocrText;
-
-    var requestBody = JSON.stringify({
-        model: 'claude-opus-4-8', // שדרוג דיוק לפענוח-שיקים (עלות זניחה, שימוש נדיר; אותם פרמטרים — model+max_tokens+messages)
-        max_tokens: 4000, // 6 שדות × עד ~50 שיקים
-        messages: [{ role: 'user', content: prompt }]
-    });
-
-    var res = await httpRequest({
-        hostname: 'api.anthropic.com',
-        path: '/v1/messages',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': anthropicKey,
-            'anthropic-version': '2023-06-01',
-            'Content-Length': Buffer.byteLength(requestBody)
-        }
-    }, requestBody);
-
-    if (res.status !== 200) {
-        console.error('Claude API error:', res.status, JSON.stringify(res.data).substring(0, 300));
-        return [];
-    }
-
-    try {
-        var responseText = res.data.content[0].text.trim();
-        console.log('Claude response:', responseText);
-        // Extract JSON array from response
-        var jsonMatch = responseText.match(/\[[\s\S]*\]/);
-        if (!jsonMatch) {
-            // Try single object
-            var objMatch = responseText.match(/\{[\s\S]*\}/);
-            if (objMatch) return [JSON.parse(objMatch[0])];
-            return [];
-        }
-        return JSON.parse(jsonMatch[0]);
-    } catch (e) {
-        console.error('Failed to parse Claude response:', e);
-        return [];
-    }
-}
+// פענוח השיקים עבר לקוד דטרמיניסטי (lib/parse-checks.js) — בלי AI/טוקן/עלות.
+// (הוסרה parseChecksWithClaude שהשתמשה ב-ANTHROPIC_API_KEY.)
 
 exports.handler = async (event) => {
     var allowedOrigin = getCorsOrigin(event);
@@ -187,7 +113,7 @@ exports.handler = async (event) => {
             var visionRequest = {
                 requests: [{
                     image: { content: imageBase64 },
-                    features: [{ type: 'TEXT_DETECTION', maxResults: 10 }],
+                    features: [{ type: 'DOCUMENT_TEXT_DETECTION', maxResults: 10 }],
                     imageContext: { languageHints: ['he', 'en'] }
                 }]
             };
@@ -208,11 +134,13 @@ exports.handler = async (event) => {
             }
 
             var responses = visionRes.data.responses;
-            if (!responses || !responses[0] || !responses[0].textAnnotations || !responses[0].textAnnotations[0]) {
+            var r0 = responses && responses[0];
+            if (!r0 || (!r0.fullTextAnnotation && !(r0.textAnnotations && r0.textAnnotations[0]))) {
                 return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ success: true, checks: [], rawText: '' }) };
             }
 
-            fullText = responses[0].textAnnotations[0].description || '';
+            // DOCUMENT_TEXT_DETECTION → fullTextAnnotation עשיר (קורא את קוד-ה-MICR/פרטי-הבנק); נפילה אחורה ל-textAnnotations
+            fullText = (r0.fullTextAnnotation && r0.fullTextAnnotation.text) || (r0.textAnnotations && r0.textAnnotations[0] && r0.textAnnotations[0].description) || '';
 
             // Vision-only mode: return raw text without Claude parsing
             if (body.visionOnly) {
@@ -226,8 +154,8 @@ exports.handler = async (event) => {
             return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Missing image or text data' }) };
         }
 
-        // Parse all checks with Claude in one call
-        var parsedChecks = await parseChecksWithClaude(fullText);
+        // Parse all checks deterministically (regex/heuristics — no AI, no token, no cost)
+        var parsedChecks = parseChecksDeterministic(fullText);
         var checks = parsedChecks.map(function(c, i) {
             return {
                 date: c.date || '',
