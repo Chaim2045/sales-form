@@ -2,6 +2,7 @@
 // Uses Firebase Admin REST API to update password directly
 
 const https = require('https');
+const crypto = require('crypto');
 
 const PROJECT_ID = 'law-office-sales-form';
 
@@ -21,19 +22,32 @@ function httpRequest(options, data) {
     });
 }
 
-// Exchange Google OAuth2 refresh token for access token
-async function getAccessToken(refreshToken) {
-    const clientId = process.env.GOOGLE_CLIENT_ID || '563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com';
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    if (!clientSecret) throw new Error('Server configuration error');
-    const postData = `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`;
+function b64url(obj) {
+    return Buffer.from(JSON.stringify(obj)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Mint a Google access token from the Firebase service account (cloud-platform = Firestore + Identity Toolkit).
+// (Was refresh-token based, but GOOGLE_CLIENT_SECRET + FIREBASE_REFRESH_TOKEN are not configured on the site.)
+async function getAccessToken() {
+    const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    const key = sa.private_key.replace(/\\n/g, '\n');
+    const now = Math.floor(Date.now() / 1000);
+    const claim = b64url({ alg: 'RS256', typ: 'JWT' }) + '.' + b64url({
+        iss: sa.client_email,
+        scope: 'https://www.googleapis.com/auth/cloud-platform',
+        aud: 'https://oauth2.googleapis.com/token',
+        iat: now,
+        exp: now + 3600
+    });
+    const sig = crypto.createSign('RSA-SHA256').update(claim).sign(key).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const post = 'grant_type=' + encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer') + '&assertion=' + claim + '.' + sig;
     const res = await httpRequest({
         hostname: 'oauth2.googleapis.com',
         path: '/token',
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(postData) }
-    }, postData);
-    if (res.status !== 200) throw new Error('Token exchange failed');
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(post) }
+    }, post);
+    if (res.status !== 200 || !res.data.access_token) throw new Error('SA token exchange failed');
     return res.data.access_token;
 }
 
@@ -54,7 +68,7 @@ async function verifyMaster(idToken) {
     const uid = verifyRes.data.users[0].localId;
 
     // Check user role in Firestore
-    const accessToken = await getAccessToken(process.env.FIREBASE_REFRESH_TOKEN);
+    const accessToken = await getAccessToken();
     const userDoc = await httpRequest({
         hostname: 'firestore.googleapis.com',
         path: `/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}`,
