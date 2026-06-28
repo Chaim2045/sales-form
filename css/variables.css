@@ -42,6 +42,9 @@
     --error-bg: rgba(239,68,68,0.06);
     --warning: rgba(245,158,11,0.75);
     --warning-bg: rgba(245,158,11,0.06);
+    /* Solid danger — for FILLED danger buttons (white text on solid red) */
+    --danger: #ef4444;
+    --danger-hover: #dc2626;
 
     /* Shadows — minimal */
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);

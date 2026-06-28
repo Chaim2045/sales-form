@@ -54,7 +54,7 @@ async function loadSalesData() {
         renderSalesView();
     } catch (error) {
         console.error('Error loading sales data:', error);
-        loading.innerHTML = '<p style="color:#ef4444;">שגיאה בטעינת הנתונים</p>';
+        loading.innerHTML = '<p style="color:var(--error);">שגיאה בטעינת הנתונים</p>';
     }
 }
 
@@ -383,14 +383,15 @@ function invoiceBadgeHTML(r, state, card) {
 
     var badge = '<span class="sm-invoice-badge ' + escapeHTML(state.code) + '" title="' + escapeHTML(title) + '">' + icon + escapeHTML(labelText) + '</span>';
 
-    // כשהופקה ויש קישור תקין (https בלבד) — הוסף קישור לצפייה ליד הבאדג'
+    // כשהופקה — סידור נקי: באדג' למעלה, שורת-מטא עדינה מתחת (#מספר · צפה)
     if (state.code === 'issued' || state.code === 'issued_unrecorded') {
         var url = r.invoiceUrl || '';
+        var meta = num ? '#' + escapeHTML(String(num)) : '';
         if (typeof url === 'string' && url.indexOf('https://') === 0) {
-            badge += ' <a href="' + escapeHTML(url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="font-size:11px;color:#2563eb;text-decoration:none;font-weight:600;">צפה</a>';
+            meta += (meta ? ' · ' : '') + '<a href="' + escapeHTML(url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation();" class="sm-invoice-link">צפה</a>';
         }
-        if (num) {
-            badge += ' <span style="font-size:11px;color:#64748b;">#' + escapeHTML(String(num)) + '</span>';
+        if (meta) {
+            badge = '<span class="sm-invoice-issued">' + badge + '<span class="sm-invoice-meta">' + meta + '</span></span>';
         }
     }
 
@@ -449,32 +450,31 @@ function renderSalesTableView(records, startIdx) {
         // File badge — clean SVG icon
         var fileBadge;
         if (r.checksPhotoURL) {
-            fileBadge = '<a href="' + escapeHTML(r.checksPhotoURL) + '" target="_blank" rel="noopener" class="sm-file-icon" onclick="event.stopPropagation();" title="צפה בקובץ"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></a>';
+            fileBadge = '<a href="' + escapeHTML(r.checksPhotoURL) + '" target="_blank" rel="noopener" class="sm-file-icon" onclick="event.stopPropagation();" title="צפה בקובץ שיקים" aria-label="צפה בקובץ שיקים"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></a>';
         } else if (needsCheckFile(r)) {
-            fileBadge = '<button onclick="event.stopPropagation();openCheckFileUploadModal(\'' + escapeHTML(r.id) + '\')" title="חסר קובץ שיקים — לחץ להעלאה" style="background:none;border:none;cursor:pointer;padding:4px;display:inline-flex;align-items:center;">' +
-                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+            fileBadge = '<button onclick="event.stopPropagation();openCheckFileUploadModal(\'' + escapeHTML(r.id) + '\')" title="חסר קובץ שיקים — לחץ להעלאה" aria-label="חסר קובץ שיקים — העלה קובץ" class="sm-file-warn" style="background:none;border:none;cursor:pointer;padding:4px;display:inline-flex;align-items:center;">' +
+                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
                 '</button>';
         } else {
-            fileBadge = '<span style="color:#e2e8f0;">—</span>';
+            fileBadge = '<span style="color:var(--text-quaternary);" aria-hidden="true">—</span>';
         }
-        var fileTdStyle = (!r.checksPhotoURL && needsCheckFile(r)) ? 'text-align:center;background:rgba(239,68,68,0.07);' : 'text-align:center;';
+        var fileTdStyle = 'text-align:center;';
 
         // Invoice status — 7 מצבים (issued/processing/pending_collection/error/issued_unrecorded/error_check/legacy)
         var invState = invoiceState(r);
         var invoiceCell = invoiceBadgeHTML(r, invState, false);
         var invoiceTdStyle = 'text-align:center;';
-        if (invState.tint) invoiceTdStyle += 'background:rgba(239,68,68,0.07);';
 
         return '<tr onclick="openSaleDetailModal(\'' + escapeHTML(r.id) + '\')" style="cursor:pointer;">' +
-            '<td style="font-size:12px;color:#94a3b8;font-weight:500;text-align:center;">' + rowNum + '</td>' +
-            '<td style="font-size:12px;color:#64748b;">' + dateStr + '</td>' +
-            '<td><strong style="color:#0f172a;">' + escapeHTML(r.clientName || '') + '</strong></td>' +
-            '<td style="color:#64748b;">' + escapeHTML(r.transactionType || '—') + '</td>' +
+            '<td style="font-size:12px;color:var(--text-tertiary);font-weight:500;text-align:center;">' + rowNum + '</td>' +
+            '<td style="font-size:12px;color:var(--text-secondary);">' + dateStr + '</td>' +
+            '<td><strong style="color:var(--text-primary);">' + escapeHTML(r.clientName || '') + '</strong></td>' +
+            '<td style="color:var(--text-secondary);">' + escapeHTML(r.transactionType || '—') + '</td>' +
             '<td class="bm-amount">₪' + amountBefore.toLocaleString('he-IL') + '</td>' +
             '<td class="bm-amount" style="font-weight:600;">₪' + amountWith.toLocaleString('he-IL') + '</td>' +
-            '<td style="color:#64748b;">' + paymentDisplay + '</td>' +
-            '<td style="color:#64748b;">' + escapeHTML(r.attorney || '—') + '</td>' +
-            '<td style="color:#64748b;">' + escapeHTML(r.branch || '—') + '</td>' +
+            '<td style="color:var(--text-secondary);">' + paymentDisplay + '</td>' +
+            '<td style="color:var(--text-secondary);">' + escapeHTML(r.attorney || '—') + '</td>' +
+            '<td style="color:var(--text-secondary);">' + escapeHTML(r.branch || '—') + '</td>' +
             '<td style="' + fileTdStyle + '">' + fileBadge + '</td>' +
             '<td style="' + invoiceTdStyle + '">' + invoiceCell + '</td>' +
             '<td><button class="bm-action-secondary" onclick="event.stopPropagation();openSaleDetailModal(\'' + escapeHTML(r.id) + '\')" style="padding:4px 12px;font-size:12px;">פרטים</button></td>' +
@@ -493,21 +493,20 @@ function renderSalesCardsView(records, startIdx) {
 
         var fileBadge;
         if (r.checksPhotoURL) {
-            fileBadge = '<a href="' + escapeHTML(r.checksPhotoURL) + '" target="_blank" rel="noopener" class="sm-file-icon" onclick="event.stopPropagation();" title="צפה בקובץ" style="display:inline-flex;align-items:center;gap:4px;color:#2563eb;font-size:12px;font-weight:500;text-decoration:none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>קובץ</a>';
+            fileBadge = '<a href="' + escapeHTML(r.checksPhotoURL) + '" target="_blank" rel="noopener" class="sm-file-icon" onclick="event.stopPropagation();" title="צפה בקובץ שיקים" aria-label="צפה בקובץ שיקים" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent-hover);font-size:12px;font-weight:500;text-decoration:none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>קובץ</a>';
         } else if (needsCheckFile(r)) {
-            fileBadge = '<button onclick="event.stopPropagation();openCheckFileUploadModal(\'' + escapeHTML(r.id) + '\')" title="חסר קובץ שיקים — לחץ להעלאה" style="display:inline-flex;align-items:center;gap:4px;color:#dc2626;font-size:12px;font-weight:600;background:none;border:none;cursor:pointer;padding:0;font-family:Heebo,sans-serif;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>חסר קובץ שיקים</button>';
+            fileBadge = '<button onclick="event.stopPropagation();openCheckFileUploadModal(\'' + escapeHTML(r.id) + '\')" title="חסר קובץ שיקים — לחץ להעלאה" aria-label="חסר קובץ שיקים — העלה קובץ" style="display:inline-flex;align-items:center;gap:4px;color:var(--error);font-size:12px;font-weight:600;background:none;border:none;cursor:pointer;padding:0;font-family:Heebo,sans-serif;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>חסר קובץ שיקים</button>';
         } else {
             fileBadge = '';
         }
 
         var invStateC = invoiceState(r);
         var invoiceHtml = invoiceBadgeHTML(r, invStateC, true);
-        var invoiceBg = invStateC.tint ? 'background:rgba(239,68,68,0.06);' : '';
 
         return '<div class="bm-card" onclick="openSaleDetailModal(\'' + escapeHTML(r.id) + '\')" style="cursor:pointer;">' +
             '<div class="bm-card-top">' +
                 '<div>' +
-                    '<div class="bm-card-name"><span style="color:#94a3b8;font-weight:400;font-size:12px;margin-left:6px;">#' + rowNum + '</span>' + escapeHTML(r.clientName || '') + '</div>' +
+                    '<div class="bm-card-name"><span style="color:var(--text-tertiary);font-weight:400;font-size:12px;margin-left:6px;">#' + rowNum + '</span>' + escapeHTML(r.clientName || '') + '</div>' +
                     '<div class="bm-card-case">' + escapeHTML(r.transactionType || '') + ' | ' + formatDate(r.date) + '</div>' +
                 '</div>' +
                 '<span class="bm-badge active" style="font-size:11px;">' + escapeHTML(r.attorney || '') + '</span>' +
@@ -530,7 +529,7 @@ function renderSalesCardsView(records, startIdx) {
                     '<div class="bm-card-field-value">' + escapeHTML(r.branch || '—') + '</div>' +
                 '</div>' +
             '</div>' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-top:1px solid rgba(0,0,0,0.06);gap:8px;border-radius:0 0 12px 12px;' + invoiceBg + '">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-top:1px solid rgba(0,0,0,0.06);gap:8px;border-radius:0 0 12px 12px;">' +
                 fileBadge + invoiceHtml +
             '</div>' +
         '</div>';
@@ -551,7 +550,7 @@ function openSaleDetailModal(saleId) {
 
     // כפתור העתקת כל הפרטים
     html += '<div style="text-align:center;margin-bottom:12px;">';
-    html += '<button onclick="copyAllClientDetails(salesRecords.find(function(r){return r.id===\'' + escapeHTML(record.id) + '\'}))" style="background:#2563eb;color:white;border:none;padding:8px 22px;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> העתק את כל הפרטים לחשבונית</button>';
+    html += '<button onclick="copyAllClientDetails(salesRecords.find(function(r){return r.id===\'' + escapeHTML(record.id) + '\'}))" style="background:var(--accent-hover);color:white;border:none;padding:8px 22px;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> העתק את כל הפרטים לחשבונית</button>';
     html += '</div>';
 
     // פרטי לקוח
@@ -597,7 +596,7 @@ function openSaleDetailModal(saleId) {
         html += saleDetailRow('מספר קבלה', record.invoiceReceiptNumber, true);
     } else {
         html += '<div style="padding:8px 0;">';
-        html += '<button onclick="closeDetailAndOpenInvoice(\'' + escapeHTML(record.id) + '\')" style="background:#ef4444;color:white;border:none;padding:8px 18px;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> לא יצאה חשבונית — לחץ לסימון</button>';
+        html += '<button onclick="closeDetailAndOpenInvoice(\'' + escapeHTML(record.id) + '\')" style="background:var(--danger);color:white;border:none;padding:8px 18px;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> לא יצאה חשבונית — לחץ לסימון</button>';
         html += '</div>';
     }
 
@@ -616,17 +615,17 @@ function openSaleDetailModal(saleId) {
         html += '<div class="billing-section-title" style="margin-top:16px;">קבצים מצורפים</div>';
         html += '<div style="padding:8px 0;display:flex;flex-direction:column;gap:8px;align-items:flex-start;">';
         if (record.checksPhotoURL) {
-            html += '<a href="' + escapeHTML(record.checksPhotoURL) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#f0f9ff;border:1px solid #bfdbfe;border-radius:8px;color:#2563eb;font-size:13px;text-decoration:none;font-weight:500;">';
+            html += '<a href="' + escapeHTML(record.checksPhotoURL) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--accent-subtle);border:1px solid var(--accent-ring);border-radius:8px;color:var(--accent-hover);font-size:13px;text-decoration:none;font-weight:500;">';
             html += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
             html += 'צפה בקובץ מצורף</a>';
-            html += '<button onclick="openCheckFileUploadModal(\'' + escapeHTML(record.id) + '\')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:white;border:1px solid #cbd5e1;border-radius:8px;color:#475569;font-size:13px;font-weight:500;cursor:pointer;font-family:Heebo,sans-serif;">';
+            html += '<button onclick="openCheckFileUploadModal(\'' + escapeHTML(record.id) + '\')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:white;border:1px solid var(--border-input);border-radius:8px;color:var(--text-secondary);font-size:13px;font-weight:500;cursor:pointer;font-family:Heebo,sans-serif;">';
             html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
             html += 'החלף קובץ</button>';
         } else {
-            html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:13px;font-weight:500;">';
+            html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--error-bg);border:1px solid var(--error-bg);border-radius:8px;color:var(--error);font-size:13px;font-weight:500;">';
             html += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
             html += 'חסר קובץ שיקים — הלקוח דווח כמשלם בשיקים אך לא הועלה צילום</div>';
-            html += '<button onclick="openCheckFileUploadModal(\'' + escapeHTML(record.id) + '\')" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">';
+            html += '<button onclick="openCheckFileUploadModal(\'' + escapeHTML(record.id) + '\')" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:var(--accent-hover);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Heebo,sans-serif;">';
             html += '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
             html += 'העלה קובץ שיקים</button>';
         }
@@ -635,9 +634,9 @@ function openSaleDetailModal(saleId) {
 
     // כפתור עריכה + מחיקה
     html += '<div style="text-align:center;margin-top:18px;display:flex;justify-content:center;gap:10px;">';
-    html += '<button onclick="openSaleEditModal(\'' + escapeHTML(record.id) + '\')" style="background:#2563eb;color:white;border:none;padding:10px 28px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">עריכת רשומה</button>';
+    html += '<button onclick="openSaleEditModal(\'' + escapeHTML(record.id) + '\')" style="background:var(--accent-hover);color:white;border:none;padding:10px 28px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">עריכת רשומה</button>';
     if (currentUserRole === 'master') {
-        html += '<button onclick="confirmDeleteSale(\'' + escapeHTML(record.id) + '\', \'' + escapeHTML(record.clientName || '').replace(/'/g, "\\'") + '\')" style="background:#ef4444;color:white;border:none;padding:10px 20px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">מחיקה</button>';
+        html += '<button onclick="confirmDeleteSale(\'' + escapeHTML(record.id) + '\', \'' + escapeHTML(record.clientName || '').replace(/'/g, "\\'") + '\')" style="background:var(--danger);color:white;border:none;padding:10px 20px;border-radius:8px;font-family:Heebo,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">מחיקה</button>';
     }
     html += '</div>';
 
@@ -656,8 +655,8 @@ function saleDetailRow(label, value, copyable) {
         ? ' <button onclick="copyToClipboard(\'' + escapeHTML(String(value)).replace(/'/g, "\\'") + '\',\'' + escapeHTML(label).replace(/'/g, "\\'") + '\')" class="sm-copy-btn" title="העתק">' + copyIcon + '</button>'
         : '';
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,0,0,0.06);">' +
-        '<span style="color:#6b7280;font-size:13px;flex-shrink:0;">' + escapeHTML(label) + '</span>' +
-        '<span style="display:flex;align-items:center;gap:4px;color:#1f2937;font-size:13px;font-weight:500;text-align:left;max-width:65%;word-break:break-word;">' + escapeHTML(String(value)) + copyBtn + '</span>' +
+        '<span style="color:var(--text-secondary);font-size:13px;flex-shrink:0;">' + escapeHTML(label) + '</span>' +
+        '<span style="display:flex;align-items:center;gap:4px;color:var(--text-primary);font-size:13px;font-weight:500;text-align:left;max-width:65%;word-break:break-word;">' + escapeHTML(String(value)) + copyBtn + '</span>' +
     '</div>';
 }
 
@@ -928,19 +927,19 @@ function openInvoicePopup(saleId) {
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML =
         '<div style="background:white;border-radius:16px;padding:24px;max-width:380px;width:90%;font-family:Heebo,sans-serif;direction:rtl;box-shadow:0 20px 60px rgba(0,0,0,0.2);">' +
-            '<h3 style="margin:0 0 16px;font-size:17px;color:#1e293b;text-align:center;">סימון הוצאת חשבונית</h3>' +
+            '<h3 style="margin:0 0 16px;font-size:17px;color:var(--text-primary);text-align:center;">סימון הוצאת חשבונית</h3>' +
             '<div style="margin-bottom:12px;">' +
-                '<label style="display:block;font-size:13px;color:#475569;margin-bottom:4px;font-weight:500;">תאריך הוצאת חשבונית</label>' +
-                '<input type="date" id="invoicePopupDate" value="' + today + '" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;font-family:Heebo,sans-serif;box-sizing:border-box;">' +
+                '<label style="display:block;font-size:13px;color:var(--text-secondary);margin-bottom:4px;font-weight:500;">תאריך הוצאת חשבונית</label>' +
+                '<input type="date" id="invoicePopupDate" value="' + today + '" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:8px;font-size:14px;font-family:Heebo,sans-serif;box-sizing:border-box;">' +
             '</div>' +
             '<div style="margin-bottom:16px;">' +
-                '<label style="display:block;font-size:13px;color:#475569;margin-bottom:4px;font-weight:500;">מספר קבלה / חשבונית</label>' +
-                '<input type="text" id="invoicePopupReceipt" placeholder="הזן מספר קבלה..." style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;font-family:Heebo,sans-serif;box-sizing:border-box;">' +
+                '<label style="display:block;font-size:13px;color:var(--text-secondary);margin-bottom:4px;font-weight:500;">מספר קבלה / חשבונית</label>' +
+                '<input type="text" id="invoicePopupReceipt" placeholder="הזן מספר קבלה..." style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:8px;font-size:14px;font-family:Heebo,sans-serif;box-sizing:border-box;">' +
             '</div>' +
-            '<div id="invoicePopupError" style="display:none;color:#dc2626;font-size:13px;margin-bottom:12px;text-align:center;"></div>' +
+            '<div id="invoicePopupError" style="display:none;color:var(--error);font-size:13px;margin-bottom:12px;text-align:center;"></div>' +
             '<div style="display:flex;gap:8px;">' +
-                '<button onclick="saveInvoice(\'' + escapeHTML(saleId) + '\')" style="flex:1;padding:10px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;">שמור</button>' +
-                '<button onclick="closeInvoicePopup()" style="flex:1;padding:10px;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-size:14px;font-weight:500;font-family:Heebo,sans-serif;cursor:pointer;">ביטול</button>' +
+                '<button onclick="saveInvoice(\'' + escapeHTML(saleId) + '\')" style="flex:1;padding:10px;background:var(--accent-hover);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;">שמור</button>' +
+                '<button onclick="closeInvoicePopup()" style="flex:1;padding:10px;background:var(--accent-subtle);color:var(--text-secondary);border:none;border-radius:8px;font-size:14px;font-weight:500;font-family:Heebo,sans-serif;cursor:pointer;">ביטול</button>' +
             '</div>' +
         '</div>';
 
@@ -1035,12 +1034,12 @@ function openInvoiceOverwriteWarning(saleId, invoiceDate, receiptNumber) {
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10002;display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML =
         '<div style="background:white;border-radius:16px;padding:24px;max-width:380px;width:90%;font-family:Heebo,sans-serif;direction:rtl;box-shadow:0 20px 60px rgba(0,0,0,0.2);">' +
-            '<h3 style="margin:0 0 12px;font-size:17px;color:#b91c1c;text-align:center;">כבר הופקה חשבונית</h3>' +
-            '<p style="margin:0 0 18px;font-size:14px;color:#475569;text-align:center;line-height:1.5;">לעסקה זו כבר קיים סימון חשבונית. לדרוס את הפרטים הקיימים?</p>' +
+            '<h3 style="margin:0 0 12px;font-size:17px;color:var(--error);text-align:center;">כבר הופקה חשבונית</h3>' +
+            '<p style="margin:0 0 18px;font-size:14px;color:var(--text-secondary);text-align:center;line-height:1.5;">לעסקה זו כבר קיים סימון חשבונית. לדרוס את הפרטים הקיימים?</p>' +
             '<div style="display:flex;gap:8px;">' +
                 // ברירת-המחדל היא הביטול (כפתור ראשי כחול), הדריסה משנית/אדומה
-                '<button id="invoiceOverwriteCancel" onclick="closeInvoiceOverwriteWarning()" style="flex:1;padding:10px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;">ביטול</button>' +
-                '<button onclick="confirmInvoiceOverwrite(\'' + escapeHTML(saleId) + '\')" style="flex:1;padding:10px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:8px;font-size:14px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;">דרוס בכל זאת</button>' +
+                '<button id="invoiceOverwriteCancel" onclick="closeInvoiceOverwriteWarning()" style="flex:1;padding:10px;background:var(--accent-hover);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;">ביטול</button>' +
+                '<button onclick="confirmInvoiceOverwrite(\'' + escapeHTML(saleId) + '\')" style="flex:1;padding:10px;background:var(--error-bg);color:var(--error);border:1px solid var(--error-bg);border-radius:8px;font-size:14px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;">דרוס בכל זאת</button>' +
             '</div>' +
         '</div>';
 
@@ -1143,25 +1142,25 @@ function openCheckFileUploadModal(saleId) {
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px;';
     overlay.innerHTML =
         '<div style="background:white;border-radius:16px;padding:24px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;font-family:Heebo,sans-serif;direction:rtl;box-shadow:0 20px 60px rgba(0,0,0,0.2);">' +
-            '<h3 style="margin:0 0 6px;font-size:17px;color:#1e293b;text-align:center;">' + titleText + '</h3>' +
-            '<div style="text-align:center;font-size:13px;color:#64748b;margin-bottom:16px;">' + escapeHTML(clientName) + '</div>' +
-            '<label for="checkUploadFileInput" style="display:block;padding:24px;border:2px dashed #cbd5e1;border-radius:12px;text-align:center;cursor:pointer;background:#f8fafc;">' +
-                '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.8" style="margin:0 auto 8px;display:block;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
-                '<div style="font-size:14px;color:#475569;font-weight:500;">בחר קובץ להעלאה</div>' +
-                '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">תמונות / PDF, עד 10MB</div>' +
+            '<h3 style="margin:0 0 6px;font-size:17px;color:var(--text-primary);text-align:center;">' + titleText + '</h3>' +
+            '<div style="text-align:center;font-size:13px;color:var(--text-secondary);margin-bottom:16px;">' + escapeHTML(clientName) + '</div>' +
+            '<label for="checkUploadFileInput" style="display:block;padding:24px;border:2px dashed var(--border-input);border-radius:12px;text-align:center;cursor:pointer;background:var(--accent-subtle);color:var(--text-secondary);">' +
+                '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" style="margin:0 auto 8px;display:block;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
+                '<div style="font-size:14px;color:var(--text-secondary);font-weight:500;">בחר קובץ להעלאה</div>' +
+                '<div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;">תמונות / PDF, עד 10MB</div>' +
             '</label>' +
             '<input type="file" id="checkUploadFileInput" accept="image/*,application/pdf" style="display:none;" onchange="handleCheckUploadFileSelect(event)">' +
-            '<div id="checkUploadFileName" style="margin-top:10px;font-size:13px;color:#1e293b;font-weight:500;text-align:center;display:none;"></div>' +
+            '<div id="checkUploadFileName" style="margin-top:10px;font-size:13px;color:var(--text-primary);font-weight:500;text-align:center;display:none;"></div>' +
             '<div id="checkUploadStatus" style="margin-top:10px;font-size:13px;text-align:center;display:none;"></div>' +
-            '<div id="checkUploadOcrSection" style="margin-top:14px;padding:14px;background:#f0f9ff;border-radius:10px;border:1px solid #bfdbfe;display:none;">' +
-                '<div style="font-size:13px;color:#1e40af;font-weight:600;margin-bottom:6px;">קרא פרטי שיקים אוטומטית (אופציונלי)</div>' +
-                '<div style="font-size:12px;color:#475569;margin-bottom:10px;">המערכת תזהה תאריך וסכום לכל שיק ותציע לשמור ברשומה.</div>' +
-                '<button type="button" id="checkUploadOcrBtn" onclick="runOcrOnCheckUpload()" style="width:100%;padding:9px;background:#2563eb;color:white;border:none;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">הפעל OCR</button>' +
+            '<div id="checkUploadOcrSection" style="margin-top:14px;padding:14px;background:var(--accent-subtle);border-radius:10px;border:1px solid var(--accent-ring);display:none;">' +
+                '<div style="font-size:13px;color:var(--accent-hover);font-weight:600;margin-bottom:6px;">קרא פרטי שיקים אוטומטית (אופציונלי)</div>' +
+                '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">המערכת תזהה תאריך וסכום לכל שיק ותציע לשמור ברשומה.</div>' +
+                '<button type="button" id="checkUploadOcrBtn" onclick="runOcrOnCheckUpload()" style="width:100%;padding:9px;background:var(--accent-hover);color:white;border:none;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">הפעל OCR</button>' +
                 '<div id="checkUploadOcrResult" style="margin-top:10px;display:none;"></div>' +
             '</div>' +
             '<div style="display:flex;gap:8px;margin-top:18px;">' +
-                '<button id="checkUploadSubmitBtn" onclick="uploadCheckFileToSale()" disabled style="flex:1;padding:10px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;opacity:0.5;">העלה</button>' +
-                '<button onclick="closeCheckUploadModal()" style="flex:1;padding:10px;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-size:14px;font-weight:500;font-family:Heebo,sans-serif;cursor:pointer;">סגור</button>' +
+                '<button id="checkUploadSubmitBtn" onclick="uploadCheckFileToSale()" disabled style="flex:1;padding:10px;background:var(--accent-hover);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;opacity:0.5;">העלה</button>' +
+                '<button onclick="closeCheckUploadModal()" style="flex:1;padding:10px;background:var(--accent-subtle);color:var(--text-secondary);border:none;border-radius:8px;font-size:14px;font-weight:500;font-family:Heebo,sans-serif;cursor:pointer;">סגור</button>' +
             '</div>' +
         '</div>';
 
@@ -1186,9 +1185,9 @@ function showCheckUploadStatus(msg, type) {
     if (!msg) { el.style.display = 'none'; return; }
     el.textContent = msg;
     el.style.display = 'block';
-    if (type === 'error') el.style.color = '#dc2626';
-    else if (type === 'success') el.style.color = '#059669';
-    else el.style.color = '#475569';
+    if (type === 'error') el.style.color = 'var(--error)';
+    else if (type === 'success') el.style.color = 'var(--success)';
+    else el.style.color = 'var(--text-secondary)';
 }
 
 function handleCheckUploadFileSelect(e) {
@@ -1292,27 +1291,27 @@ async function runOcrOnCheckUpload() {
         var result = await ocrExtractCheckData(_checkUploadCurrentFile);
         if (result && result.checks && result.checks.length > 0) {
             _checkUploadOcrChecks = result.checks;
-            var html = '<div style="font-size:13px;color:#1e40af;font-weight:600;margin-bottom:8px;">נמצאו ' + result.checks.length + ' שיקים:</div>';
+            var html = '<div style="font-size:13px;color:var(--accent-hover);font-weight:600;margin-bottom:8px;">נמצאו ' + result.checks.length + ' שיקים:</div>';
             html += '<div style="max-height:200px;overflow-y:auto;">';
             result.checks.forEach(function(c, idx) {
                 var dateDisplay = c.date ? formatDate(c.date) : '—';
                 var amountDisplay = (c.amount || c.amount === 0) ? '₪' + Number(c.amount).toLocaleString('he-IL') : '—';
-                html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e2e8f0;font-size:13px;">' +
-                    '<span style="color:#475569;">שיק #' + (idx + 1) + '</span>' +
-                    '<span style="color:#1e293b;">' + dateDisplay + ' | ' + amountDisplay + '</span>' +
+                html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-input);font-size:13px;">' +
+                    '<span style="color:var(--text-secondary);">שיק #' + (idx + 1) + '</span>' +
+                    '<span style="color:var(--text-primary);">' + dateDisplay + ' | ' + amountDisplay + '</span>' +
                 '</div>';
             });
             html += '</div>';
-            html += '<button onclick="saveOcrChecksToSale()" style="width:100%;margin-top:10px;padding:8px;background:#059669;color:white;border:none;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">שמור פרטי שיקים ברשומה</button>';
+            html += '<button onclick="saveOcrChecksToSale()" style="width:100%;margin-top:10px;padding:8px;background:var(--success);color:white;border:none;border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">שמור פרטי שיקים ברשומה</button>';
             resultEl.innerHTML = html;
             resultEl.style.display = 'block';
         } else {
-            resultEl.innerHTML = '<div style="font-size:13px;color:#b45309;text-align:center;">לא זוהו פרטי שיק בקובץ.</div>';
+            resultEl.innerHTML = '<div style="font-size:13px;color:var(--warning);text-align:center;">לא זוהו פרטי שיק בקובץ.</div>';
             resultEl.style.display = 'block';
         }
     } catch (err) {
         console.error('OCR on uploaded check error:', err);
-        resultEl.innerHTML = '<div style="font-size:13px;color:#dc2626;text-align:center;">שגיאה ב-OCR: ' + escapeHTML(err.message || '') + '</div>';
+        resultEl.innerHTML = '<div style="font-size:13px;color:var(--error);text-align:center;">שגיאה ב-OCR: ' + escapeHTML(err.message || '') + '</div>';
         resultEl.style.display = 'block';
     } finally {
         ocrBtn.disabled = false;
@@ -1363,7 +1362,7 @@ async function saveOcrChecksToSale() {
         }
 
         var resultEl = document.getElementById('checkUploadOcrResult');
-        if (resultEl) resultEl.innerHTML = '<div style="font-size:13px;color:#059669;text-align:center;font-weight:600;">✓ פרטי השיקים נשמרו ברשומה</div>';
+        if (resultEl) resultEl.innerHTML = '<div style="font-size:13px;color:var(--success);text-align:center;font-weight:600;">✓ פרטי השיקים נשמרו ברשומה</div>';
 
         renderSalesView();
     } catch (err) {
