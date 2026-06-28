@@ -121,7 +121,7 @@ body{font-family:'Heebo',sans-serif;background:#ffffff;color:#202124;min-height:
 .mbtns{display:flex;gap:8px;margin-top:14px}
 .mbp{flex:1;padding:10px;font-size:13px;border:none;border-radius:7px;cursor:pointer;background:var(--g);color:#fff;font-weight:500;font-family:'Heebo',sans-serif}
 .mbc{flex:1;padding:10px;font-size:13px;border:0.5px solid #d4cfc4;border-radius:7px;cursor:pointer;background:#f5f0e8;color:#8a8580;font-family:'Heebo',sans-serif}
-.db{background:none;border:none;cursor:pointer;color:#aaa8a0;padding:2px 6px;font-size:14px;border-radius:4px}.db:hover{color:var(--r)}
+.db{background:none;border:none;cursor:pointer;color:#aaa8a0;padding:2px 6px;font-size:14px;border-radius:4px}.db:hover{color:var(--r)}.eb{background:none;border:none;cursor:pointer;color:#aaa8a0;padding:2px 6px;font-size:13px;border-radius:4px}.eb:hover{color:#1D9E75}
 .chip{display:inline-block;background:#e8e2d5;border:0.5px solid #d4cfc4;border-radius:5px;padding:2px 8px;font-size:11px;margin:2px;color:#6a6560}
 
 /* UTIL BAR */
@@ -421,7 +421,7 @@ function vDash(){
       h+='<td style="font-weight:500">'+e.desc+(e.note?'<div style="font-size:10px;color:var(--mu)">'+e.note+'</div>':'')+'</td>';
       h+='<td>'+catBadge(e.cat,e.sc)+'</td>';
       h+='<td style="color:'+(e.tp==='income'?'var(--g)':'var(--r)')+';font-weight:500">'+(e.tp==='income'?'+':'-')+fmt(e.amt)+'</td>';
-      h+='<td><button class="db" data-eid="'+e.id+'" onclick="delE(parseInt(this.dataset.eid))">×</button></td></tr>';
+      h+='<td style="white-space:nowrap"><button class="eb" data-eid="'+e.id+'" onclick="editE(parseInt(this.dataset.eid))" title="ערוך">✎</button><button class="db" data-eid="'+e.id+'" onclick="delE(parseInt(this.dataset.eid))" title="מחק">×</button></td></tr>';
     });
     h+='</table>';
   }
@@ -441,7 +441,7 @@ function vEntries(){
     h+='<td>'+catBadge(e.cat,e.sc)+'</td>';
     h+='<td style="color:'+(e.tp==='income'?'var(--g)':'var(--r)')+';font-weight:500">'+(e.tp==='income'?'+':'-')+fmt(e.amt)+'</td>';
     h+='<td style="color:var(--mu);font-size:11px">'+(e.note||'')+'</td>';
-    h+='<td><button class="db" data-eid="'+e.id+'" onclick="delE(parseInt(this.dataset.eid))">×</button></td></tr>';
+    h+='<td style="white-space:nowrap"><button class="eb" data-eid="'+e.id+'" onclick="editE(parseInt(this.dataset.eid))" title="ערוך">✎</button><button class="db" data-eid="'+e.id+'" onclick="delE(parseInt(this.dataset.eid))" title="מחק">×</button></td></tr>';
   });
   h+='</table></div>';
   return h;
@@ -1052,7 +1052,7 @@ function vSettings(){
 }
 
 // ── MODALS ──
-function openM(type){
+function openM(type,editId){
   var mr=document.getElementById('MR');
   var html='';
 
@@ -1064,14 +1064,14 @@ function openM(type){
     var firstCat=S.cats[0]?S.cats[0].id:'';
     var initSubs=firstCat?getSubs(firstCat):[];
     var initSubsHtml=initSubs.length?'<option value="">-- כללי --</option>'+initSubs.map(function(s){return '<option value="'+s.id+'">'+s.lbl+'</option>';}).join(''):'';
-    html='<h3>הוספת תנועה</h3>';
+    html='<h3>'+(editId!=null?'עריכת תנועה':'הוספת תנועה')+'</h3>';
     html+='<div class="fr"><label>תאריך</label><input type="date" id="f1" value="'+today+'"></div>';
     html+='<div class="fr"><label>תיאור</label><input type="text" id="f2" placeholder="שם לקוח / תיאור העסקה"></div>';
     html+='<div class="fr"><label>קטגוריה</label><select id="f3">'+catOpts+'</select></div>';
     html+='<div class="fr" id="sub-wrap" style="'+(initSubs.length?'':'display:none')+'"><label>תת-קטגוריה</label><select id="f3b"><option value="">-- כללי --</option>'+initSubsHtml+'</select></div>';
     html+='<div class="fr"><label>סכום (₪)</label><input type="number" id="f4" placeholder="0" min="0" step="0.01"></div>';
     html+='<div class="fr"><label>הערה (אופציונלי)</label><input type="text" id="f5" placeholder="מספר חשבונית, הערה..."></div>';
-    html+='<div class="mbtns"><button class="mbc" onclick="closeM()">ביטול</button><button class="mbp" id="save-entry">שמור</button></div>';
+    html+='<div class="mbtns"><button class="mbc" onclick="closeM()">ביטול</button><button class="mbp" id="save-entry"'+(editId!=null?' data-eid="'+editId+'"':'')+'>שמור</button></div>';
   }
   else if(type==='addR'){
     var catOpts2=S.cats.map(function(c){return '<option value="'+c.id+'">'+c.lbl+'</option>';}).join('');
@@ -1135,7 +1135,23 @@ function openM(type){
       });
     }
 
-    // Save entry
+    // Edit mode: pre-fill the form from the existing entry
+    if(editId!=null){
+      var ee=S.entries.filter(function(x){return x.id===editId;})[0];
+      if(ee){
+        var d1=document.getElementById('f1');if(d1)d1.value=ee.date;
+        var d2=document.getElementById('f2');if(d2)d2.value=ee.desc;
+        var d3=document.getElementById('f3');if(d3)d3.value=ee.cat;
+        var wrp=document.getElementById('sub-wrap');var sl=document.getElementById('f3b');
+        var sbs=getSubs(ee.cat);
+        if(sbs.length){if(wrp)wrp.style.display='block';if(sl){sl.innerHTML='<option value="">-- כללי --</option>'+sbs.map(function(s){return '<option value="'+s.id+'">'+s.lbl+'</option>';}).join('');sl.value=ee.sc||'';}}
+        else if(wrp){wrp.style.display='none';}
+        var d4=document.getElementById('f4');if(d4)d4.value=ee.amt;
+        var d5=document.getElementById('f5');if(d5)d5.value=ee.note||'';
+      }
+    }
+
+    // Save entry (add new, OR update when editing)
     var seBtn=document.getElementById('save-entry');
     if(seBtn)seBtn.addEventListener('click',function(){
       var date=(document.getElementById('f1')||{}).value;
@@ -1145,8 +1161,15 @@ function openM(type){
       var amt=parseFloat((document.getElementById('f4')||{}).value||'0');
       var note=((document.getElementById('f5')||{}).value||'').trim();
       if(!date||!desc||!cat||!amt||amt<=0){toast('אנא מלא: תאריך, תיאור, קטגוריה וסכום');return;}
-      S.entries.push({id:S.nid++,date:date,desc:desc,cat:cat,sc:sc,amt:amt,tp:getCat(cat).tp,note:note});
-      save();closeM();render();toast('נשמר!');
+      var eid=this.dataset.eid;
+      if(eid!=null&&eid!==''){
+        var ex=S.entries.filter(function(x){return x.id===parseInt(eid);})[0];
+        if(ex){ex.date=date;ex.desc=desc;ex.cat=cat;ex.sc=sc;ex.amt=amt;ex.tp=getCat(cat).tp;ex.note=note;}
+        save();closeM();render();toast('עודכן!');
+      }else{
+        S.entries.push({id:S.nid++,date:date,desc:desc,cat:cat,sc:sc,amt:amt,tp:getCat(cat).tp,note:note});
+        save();closeM();render();toast('נשמר!');
+      }
     });
 
     // Save recurring
@@ -1210,6 +1233,7 @@ function delE(id){
   if(!confirm('🗑️ למחוק את '+info+'?\n\n⚠️ הפעולה אינה ניתנת לביטול.'))return;
   S.entries=S.entries.filter(function(x){return x.id!==id;});save();render();toast('נמחק');
 }
+function editE(id){openM('entry',id);}
 function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.className='show';setTimeout(function(){el.className='';},2500);}
 
 // ── EXPORT / IMPORT ──
