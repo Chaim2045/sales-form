@@ -565,32 +565,39 @@ document.getElementById('checksCount').addEventListener('input', function() {
     if (count > 0) {
         for (let i = 1; i <= count; i++) {
             const checkRow = document.createElement('div');
-            checkRow.className = 'form-row';
-            checkRow.style.marginBottom = '12px';
+            checkRow.className = 'check-card';
             checkRow.innerHTML = `
-                <div class="form-group" style="flex: 1;">
-                    <label>שיק ${i} - תאריך <span class="required">*</span></label>
-                    <input type="date" id="check_date_${i}" class="check-date" required>
+                <div class="check-card-head"><span class="check-card-num">שיק ${i}</span></div>
+                <div class="check-card-primary">
+                    <div class="form-group">
+                        <label>תאריך פירעון <span class="required">*</span></label>
+                        <input type="date" id="check_date_${i}" class="check-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>סכום <span class="required">*</span></label>
+                        <input type="number" id="check_amount_${i}" class="check-amount" placeholder="0" min="0" step="any" required>
+                    </div>
                 </div>
-                <div class="form-group" style="flex: 1;">
-                    <label>שיק ${i} - סכום <span class="required">*</span></label>
-                    <input type="number" id="check_amount_${i}" class="check-amount" placeholder="0" min="0" step="any" required>
-                </div>
-                <div class="form-group" style="flex: 1;">
-                    <label>בנק</label>
-                    <input type="text" id="check_bank_${i}" class="check-bank" placeholder="שם/קוד בנק">
-                </div>
-                <div class="form-group" style="flex: 1;">
-                    <label>סניף</label>
-                    <input type="text" id="check_branch_${i}" class="check-branch" inputmode="numeric" placeholder="000">
-                </div>
-                <div class="form-group" style="flex: 1;">
-                    <label>חשבון</label>
-                    <input type="text" id="check_account_${i}" class="check-account" inputmode="numeric" placeholder="מס׳ חשבון">
-                </div>
-                <div class="form-group" style="flex: 1;">
-                    <label>מס׳ שיק</label>
-                    <input type="text" id="check_chequenum_${i}" class="check-chequenum" inputmode="numeric" placeholder="מס׳ שיק">
+                <div class="check-card-bank">
+                    <div class="check-card-bank-label">פרטי בנק · זוהו אוטומטית מהצילום (ניתן לתקן)</div>
+                    <div class="check-card-bank-grid">
+                        <div class="form-group">
+                            <label>בנק</label>
+                            <input type="text" id="check_bank_${i}" class="check-bank" placeholder="שם/קוד בנק">
+                        </div>
+                        <div class="form-group">
+                            <label>סניף</label>
+                            <input type="text" id="check_branch_${i}" class="check-branch" inputmode="numeric" placeholder="000">
+                        </div>
+                        <div class="form-group">
+                            <label>חשבון</label>
+                            <input type="text" id="check_account_${i}" class="check-account" inputmode="numeric" placeholder="מס׳ חשבון">
+                        </div>
+                        <div class="form-group">
+                            <label>מס׳ שיק</label>
+                            <input type="text" id="check_chequenum_${i}" class="check-chequenum" inputmode="numeric" placeholder="מס׳ שיק">
+                        </div>
+                    </div>
                 </div>
             `;
             container.appendChild(checkRow);
