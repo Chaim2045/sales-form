@@ -22,6 +22,13 @@
 >
 > `leads` הוא **צומת משותף** (SHARED-CONTEXT §4 #3 — tofes + bot + bot-platform) → כל שינוי חוצה-פרויקטים. (חיים, 2026-06-15)
 
+> 📌 **עדכון 2026-06-28 — סקשן ניהול המשתמשים שוכתב (commits `8bee8db`,`784d66e`, חי ב-prod):**
+> - **טבלה ל-5 עמודות** + **עורך-הרשאות מקובץ** פר-משתמש (מודאל `#permissionsModal`; מחלקות `perm-*`/`um-perms-*` — `pm-*` שמור למודאל-התשלומים). הוספת הרשאה חדשה = שורה ב-`PERM_GROUPS` ב-`js/user-management.js`, **בלי עמודה חדשה**. 8 הרשאות (נוסף `invoiceSettings` = "חשבוניות ושיקים"); ספירת-השבב דינמית (`_permKeys.length`).
+> - **מחיקת-משתמש (master בלבד):** כפתור-פח → `removeUser(uid)` → **`netlify/functions/delete-user.js`** — master מאומת-בשרת + regex ל-`targetUid` + מגן עצמי/מנהל-אחרון + השבתת-Auth (best-effort) + מחיקת-doc (חובה) + audit שרת.
+> - **מגני-UX:** אזהרה בשינוי-תפקיד (דורס הרשאות), חסימת נעילה-עצמית / מנהל-אחרון, Escape-לסגירה, טוסט "נשמר".
+> - 🔴 **קונפיג קריטי:** `delete-user.js` מאמת דרך **`FIREBASE_SERVICE_ACCOUNT`** (JWT, cloud-platform scope) — לא דרך refresh-token. **`GOOGLE_CLIENT_SECRET` + `FIREBASE_REFRESH_TOKEN` אינם מוגדרים באתר** → `reset-password.js` (שעדיין משתמש בהם) **כנראה שבור** — להעביר גם אותו ל-SA אם צריך איפוס-סיסמה.
+> - **אבטחה (נבדק אדוורסרית 2026-06-28):** השרת הוא השער. `firestore.rules /users`: `delete:if false` (אין מחיקת-קליינט) + עדכון-עצמי מוגבל ל-`lastLogin` (אין הסלמת-הרשאות). `escapeHTML` (`js/billing.js:3`) בורח משני סוגי המרכאות. CORS צומצם לאתר בלבד (delete-user + reset-password).
+
 ---
 
 ## 1. PROJECT OVERVIEW
