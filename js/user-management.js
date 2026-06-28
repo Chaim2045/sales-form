@@ -89,7 +89,7 @@ function renderUsersTable() {
         // Permissions — summary chip that opens the grouped editor (scales without adding table columns)
         html += '<td style="text-align:center;">';
         html += '<button class="um-perms-btn" onclick="openPermissionsModal(\'' + u._uid + '\')" aria-label="עריכת הרשאות עבור ' + escapeHTML(u.displayName || '') + '">';
-        html += '<span class="um-perms-count">' + countActivePerms(u) + '</span><span class="um-perms-total"> / 7</span>';
+        html += '<span class="um-perms-count">' + countActivePerms(u) + '</span><span class="um-perms-total"> / ' + _permKeys.length + '</span>';
         html += '<span class="um-perms-edit">הרשאות</span>';
         html += '</button>';
         html += '</td>';
@@ -173,11 +173,12 @@ var PERM_GROUPS = [
         { key: 'activityLog', label: 'לוג פעילות', desc: 'צפייה בהיסטוריית הפעולות' },
         { key: 'userManagement', label: 'ניהול משתמשים', desc: 'יצירה והרשאות של משתמשים' }
     ] },
-    { title: 'כספים ותזרים', perms: [
+    { title: 'כספים וחשבוניות', perms: [
+        { key: 'invoiceSettings', label: 'חשבוניות ושיקים', desc: 'הגדרות הפקת חשבוניות ומעקב שיקים' },
         { key: 'yfCashflow', label: 'תזרים', desc: 'גישה לדשבורד התזרים', date: true }
     ] }
 ];
-var _permKeys = ['salesForm', 'billingManagement', 'salesManagement', 'activityLog', 'userManagement', 'leadsManagement', 'yfCashflow'];
+var _permKeys = ['salesForm', 'billingManagement', 'salesManagement', 'activityLog', 'userManagement', 'leadsManagement', 'yfCashflow', 'invoiceSettings'];
 var _permUid = null;
 var _permReturnFocus = null;
 var _permKeyHandler = null;

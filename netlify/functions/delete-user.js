@@ -1,9 +1,10 @@
 // Netlify Function: Remove a user (master only).
-// Disables the Auth account (can't log in) + deletes the Firestore user doc (gone from the list).
+// Disables the Auth account (best-effort) + deletes the Firestore user doc (gone from the list).
 // Guards: caller must be an active master; cannot remove self; cannot remove the last active master.
-// Mirrors reset-password.js (same getAccessToken / verifyMaster pattern).
+// Auth: uses FIREBASE_SERVICE_ACCOUNT (minted JWT, cloud-platform scope) — robust + already configured.
 
 const https = require('https');
+const crypto = require('crypto');
 
 const PROJECT_ID = 'law-office-sales-form';
 
@@ -23,25 +24,41 @@ function httpRequest(options, data) {
     });
 }
 
-async function getAccessToken(refreshToken) {
-    const clientId = process.env.GOOGLE_CLIENT_ID || '563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com';
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    if (!clientSecret) throw new Error('Server configuration error');
-    const postData = `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`;
+function b64url(obj) {
+    return Buffer.from(JSON.stringify(obj)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Mint a Google access token from the Firebase service account (cloud-platform = Firestore + Identity Toolkit).
+async function getAccessToken() {
+    const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    const key = sa.private_key.replace(/\\n/g, '\n');
+    const now = Math.floor(Date.now() / 1000);
+    const claim = b64url({ alg: 'RS256', typ: 'JWT' }) + '.' + b64url({
+        iss: sa.client_email,
+        scope: 'https://www.googleapis.com/auth/cloud-platform',
+        aud: 'https://oauth2.googleapis.com/token',
+        iat: now,
+        exp: now + 3600
+    });
+    const sig = crypto.createSign('RSA-SHA256').update(claim).sign(key).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const post = 'grant_type=' + encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer') + '&assertion=' + claim + '.' + sig;
     const res = await httpRequest({
         hostname: 'oauth2.googleapis.com',
         path: '/token',
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(postData) }
-    }, postData);
-    if (res.status !== 200) throw new Error('Token exchange failed');
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(post) }
+    }, post);
+    if (res.status !== 200 || !res.data.access_token) throw new Error('SA token exchange failed');
     return res.data.access_token;
 }
 
+// Verify the caller is an active master. Uses FIREBASE_API_KEY (public) to validate the ID token,
+// then re-checks the role in Firestore with the service-account token. Returns { uid, accessToken }.
 async function verifyMaster(idToken) {
+    const apiKey = process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY;
     const verifyRes = await httpRequest({
         hostname: 'identitytoolkit.googleapis.com',
-        path: `/v1/accounts:lookup?key=${process.env.FIREBASE_API_KEY}`,
+        path: `/v1/accounts:lookup?key=${apiKey}`,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
     }, JSON.stringify({ idToken }));
@@ -51,7 +68,7 @@ async function verifyMaster(idToken) {
     }
     const uid = verifyRes.data.users[0].localId;
 
-    const accessToken = await getAccessToken(process.env.FIREBASE_REFRESH_TOKEN);
+    const accessToken = await getAccessToken();
     const userDoc = await httpRequest({
         hostname: 'firestore.googleapis.com',
         path: `/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}`,
@@ -131,19 +148,20 @@ exports.handler = async (event) => {
             }
         }
 
-        // 1) Disable the Auth account (can no longer log in)
-        const disableData = JSON.stringify({ localId: targetUid, disableUser: true });
-        const disableRes = await httpRequest({
-            hostname: 'identitytoolkit.googleapis.com',
-            path: `/v1/projects/${PROJECT_ID}/accounts:update`,
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}`, 'Content-Length': Buffer.byteLength(disableData) }
-        }, disableData);
-        if (disableRes.status !== 200) {
-            return { statusCode: 500, headers: baseHeaders, body: JSON.stringify({ error: 'שגיאה בהשבתת חשבון הכניסה' }) };
-        }
+        // 1) Disable the Auth account (best-effort — the Firestore delete below is what truly removes access)
+        let authDisabled = false;
+        try {
+            const disableData = JSON.stringify({ localId: targetUid, disableUser: true });
+            const disableRes = await httpRequest({
+                hostname: 'identitytoolkit.googleapis.com',
+                path: `/v1/projects/${PROJECT_ID}/accounts:update`,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}`, 'Content-Length': Buffer.byteLength(disableData) }
+            }, disableData);
+            authDisabled = (disableRes.status === 200);
+        } catch (e) { /* best-effort */ }
 
-        // 2) Delete the Firestore user doc (removes from the list)
+        // 2) Delete the Firestore user doc (REQUIRED — removes from the list + signs them out on next auth state)
         const delRes = await httpRequest({
             hostname: 'firestore.googleapis.com',
             path: `/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${targetUid}`,
@@ -151,15 +169,16 @@ exports.handler = async (event) => {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         if (delRes.status !== 200 && delRes.status !== 204) {
-            return { statusCode: 500, headers: baseHeaders, body: JSON.stringify({ error: 'החשבון הושבת אך מחיקת הרשומה נכשלה' }) };
+            return { statusCode: 500, headers: baseHeaders, body: JSON.stringify({ error: 'מחיקת רשומת המשתמש נכשלה' }) };
         }
 
-        // Server-side audit trail (tamper-resistant — written with owner privileges, not the client)
+        // 3) Server-side audit trail (tamper-resistant — written with service-account privileges)
         try {
             const auditData = JSON.stringify({ fields: {
                 action: { stringValue: 'user_removed' },
                 performedByUid: { stringValue: callerUid },
                 targetUid: { stringValue: targetUid },
+                authDisabled: { booleanValue: authDisabled },
                 source: { stringValue: 'delete-user-function' },
                 clientTimestamp: { timestampValue: new Date().toISOString() }
             } });
@@ -171,7 +190,7 @@ exports.handler = async (event) => {
             }, auditData);
         } catch (e) { /* audit logging must never fail the operation */ }
 
-        return { statusCode: 200, headers: baseHeaders, body: JSON.stringify({ success: true }) };
+        return { statusCode: 200, headers: baseHeaders, body: JSON.stringify({ success: true, authDisabled }) };
 
     } catch (err) {
         return {
