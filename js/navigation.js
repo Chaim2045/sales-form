@@ -213,8 +213,9 @@ function updateNavVisibility() {
     var invSettingsBtn = document.getElementById('navInvoiceSettingsBtn');
     if (invSettingsBtn) invSettingsBtn.style.display = invSettingsVisible ? '' : 'none';
 
-    // ניהול שיקים (Phase 4c) — gated על salesManagement || master (תואם firestore.rules checks: salesManagement/billingManagement/master לקריאה)
-    var checksVisible = !!(perms.salesManagement || currentUserRole === 'master');
+    // ניהול שיקים (Phase 4c) — מאוחד תחת invoiceSettings ("חשבוניות ושיקים"); המתג שולט (כמו הגדרות-חשבוניות).
+    // (הערה: קריאת-הנתונים בשרת — firestore.rules checks — עדיין מתירה salesManagement/billingManagement; הסתרת הכפתור היא ה-UX.)
+    var checksVisible = !!perms.invoiceSettings;
     var checksBtn = document.getElementById('navChecksMgmtBtn');
     if (checksBtn) checksBtn.style.display = checksVisible ? '' : 'none';
 
