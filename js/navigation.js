@@ -208,8 +208,8 @@ function updateNavVisibility() {
     var usersBtn = document.getElementById('navUserMgmtBtn');
     if (usersBtn) usersBtn.style.display = perms.userManagement ? '' : 'none';
 
-    // הגדרות חשבוניות — gated על invoiceSettings permission || master (תואם firestore.rules invoice_config)
-    var invSettingsVisible = !!(perms.invoiceSettings || currentUserRole === 'master');
+    // הגדרות חשבוניות — gated על invoiceSettings permission בלבד (המתג שולט; master מקבל בברירת-מחדל ויכול להחזיר דרך ניהול-משתמשים)
+    var invSettingsVisible = !!perms.invoiceSettings;
     var invSettingsBtn = document.getElementById('navInvoiceSettingsBtn');
     if (invSettingsBtn) invSettingsBtn.style.display = invSettingsVisible ? '' : 'none';
 
