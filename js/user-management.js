@@ -72,11 +72,11 @@ function renderUsersTable() {
         html += '<tr class="' + (isActive ? '' : 'um-inactive-row') + '">';
 
         // Name + email
-        html += '<td><strong>' + escapeHTML(u.displayName || '') + '</strong><br><span style="font-size:11px;color:#94a3b8;">' + escapeHTML(u.email || '') + '</span></td>';
+        html += '<td><strong>' + escapeHTML(u.displayName || '') + '</strong><br><span style="font-size:11px;color:var(--text-tertiary);">' + escapeHTML(u.email || '') + '</span></td>';
 
         // Role — editable dropdown
         html += '<td>';
-        html += '<select class="um-role-select" onchange="changeUserRole(\'' + u._uid + '\', this.value)">';
+        html += '<select class="um-role-select" onchange="onRoleChange(\'' + u._uid + '\', this.value, this)">';
         var roles = ['master', 'office_manager', 'salesperson', 'accountant'];
         roles.forEach(function(r) {
             var sel = (u.role === r) ? ' selected' : '';
@@ -86,43 +86,213 @@ function renderUsersTable() {
         html += '</td>';
 
         // Permission toggles
-        var permKeys = ['salesForm', 'billingManagement', 'salesManagement', 'activityLog', 'userManagement', 'leadsManagement', 'yfCashflow'];
-        permKeys.forEach(function(perm) {
-            var checked = perms[perm] ? 'checked' : '';
-            html += '<td style="text-align:center;">';
-            html += '<label class="um-toggle">';
-            html += '<input type="checkbox" ' + checked + ' onchange="toggleUserPermission(\'' + u._uid + '\', \'' + perm + '\', this.checked)">';
-            html += '<span class="um-toggle-slider"></span>';
-            html += '</label>';
-            // תזרים: שדה "עד תאריך" לגישה זמנית (ריק = קבוע). ה-owner קבוע — לא רלוונטי.
-            if (perm === 'yfCashflow') {
-                var _exp = u.yfCashflowExpiresAt ? new Date(u.yfCashflowExpiresAt).toISOString().split('T')[0] : '';
-                html += '<br><input type="date" value="' + _exp + '" title="גישה עד תאריך (ריק = קבועה)" onchange="setYfExpiry(\'' + u._uid + '\', this.value)" style="font-size:10px;margin-top:5px;padding:2px 4px;border:1px solid #ddd;border-radius:4px;width:118px">';
-            }
-            html += '</td>';
-        });
+        // Permissions — summary chip that opens the grouped editor (scales without adding table columns)
+        html += '<td style="text-align:center;">';
+        html += '<button class="um-perms-btn" onclick="openPermissionsModal(\'' + u._uid + '\')" aria-label="עריכת הרשאות עבור ' + escapeHTML(u.displayName || '') + '">';
+        html += '<span class="um-perms-count">' + countActivePerms(u) + '</span><span class="um-perms-total"> / 7</span>';
+        html += '<span class="um-perms-edit">הרשאות</span>';
+        html += '</button>';
+        html += '</td>';
 
         // Active toggle
         html += '<td style="text-align:center;">';
         html += '<label class="um-toggle">';
-        html += '<input type="checkbox" ' + (isActive ? 'checked' : '') + ' onchange="toggleUserActive(\'' + u._uid + '\', this.checked)">';
+        html += '<input type="checkbox" ' + (isActive ? 'checked' : '') + ' aria-label="משתמש פעיל — ' + escapeHTML(u.displayName || '') + '" onchange="onActiveChange(\'' + u._uid + '\', this.checked, this)">';
         html += '<span class="um-toggle-slider"></span>';
         html += '</label>';
         html += '</td>';
 
         // Actions — reset password + send WhatsApp
         html += '<td style="text-align:center;white-space:nowrap;">';
-        html += '<button class="um-action-btn" onclick="openResetPasswordModal(\'' + u._uid + '\', \'' + escapeHTML(u.displayName || '') + '\')" title="איפוס סיסמה">';
-        html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+        html += '<button class="um-action-btn" onclick="openResetPasswordModal(\'' + u._uid + '\', \'' + escapeHTML(u.displayName || '') + '\')" title="איפוס סיסמה" aria-label="איפוס סיסמה">';
+        html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
         html += '</button> ';
-        html += '<button class="um-action-btn" onclick="openSendWhatsAppModal(\'' + u._uid + '\', \'' + escapeHTML(u.displayName || '') + '\', \'' + escapeHTML(u.phone || '') + '\')" title="שלח פרטי גישה ב-WhatsApp" style="color:#25d366;">';
-        html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>';
+        html += '<button class="um-action-btn" onclick="openSendWhatsAppModal(\'' + u._uid + '\', \'' + escapeHTML(u.displayName || '') + '\', \'' + escapeHTML(u.phone || '') + '\')" title="שלח פרטי גישה ב-WhatsApp" aria-label="שלח פרטי גישה ב-WhatsApp" style="color:#25d366;">';
+        html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>';
         html += '</button>';
+        if (currentUserRole === 'master' && (!authUser || u._uid !== authUser.uid)) {
+            html += ' <button class="um-action-btn um-action-danger" onclick="removeUser(\'' + u._uid + '\')" title="הסר משתמש (עזב את המשרד)" aria-label="הסר משתמש — ' + escapeHTML(u.displayName || '') + '">';
+            html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+            html += '</button>';
+        }
         html += '</td>';
         html += '</tr>';
     });
 
     tbody.innerHTML = html;
+}
+
+// ─── Remove user (master only — disables login + deletes the record; server-enforced) ───
+async function removeUser(uid) {
+    if (currentUserRole !== 'master') { showToast('פעולה ל-master בלבד', '#ef4444'); return; }
+    if (authUser && uid === authUser.uid) { showToast('אי אפשר למחוק את המשתמש שלך', '#ef4444'); return; }
+    var u = umUsers.find(function(x) { return x._uid === uid; });
+    var name = u ? (u.displayName || u.email || '') : '';
+    if (u && u.role === 'master') {
+        var otherMasters = umUsers.filter(function(x) { return x._uid !== uid && x.isActive !== false && x.role === 'master'; });
+        if (otherMasters.length === 0) { showToast('לא ניתן למחוק את המנהל האחרון', '#ef4444'); return; }
+    }
+    var ok = await tofesConfirm('להסיר לצמיתות את "' + name + '"?\nהכניסה שלו תושבת והרשומה תימחק. פעולה זו בלתי-הפיכה.', {
+        title: 'הסרת משתמש',
+        okText: 'הסר לצמיתות',
+        cancelText: 'ביטול',
+        danger: true
+    });
+    if (!ok) return;
+    try {
+        var idToken = await authUser.getIdToken();
+        var resp = await fetch('/api/delete-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+            body: JSON.stringify({ targetUid: uid })
+        });
+        var data = await resp.json();
+        if (resp.ok && data.success) {
+            umUsers = umUsers.filter(function(x) { return x._uid !== uid; });
+            renderUsersTable();
+            showToast('המשתמש הוסר');
+            logAuditEvent('user_removed', { targetUser: name, targetUid: uid });
+        } else {
+            showToast(data.error || 'שגיאה בהסרת המשתמש', '#ef4444');
+        }
+    } catch (e) {
+        console.error('removeUser error:', e);
+        showToast('שגיאה בהסרת המשתמש', '#ef4444');
+    }
+}
+
+// ─── Permissions editor (grouped drawer — scales without adding table columns) ───
+var PERM_GROUPS = [
+    { title: 'מכירות וגבייה', perms: [
+        { key: 'salesForm', label: 'טופס מכר', desc: 'דיווח עסקאות חדשות' },
+        { key: 'billingManagement', label: 'גבייה', desc: 'חיובים חוזרים וכרטיסי אשראי' },
+        { key: 'salesManagement', label: 'ניהול מכירות', desc: 'צפייה ועריכת כל העסקאות' }
+    ] },
+    { title: 'ניהול ומערכת', perms: [
+        { key: 'leadsManagement', label: 'לידים', desc: 'ניהול פניות ולקוחות פוטנציאליים' },
+        { key: 'activityLog', label: 'לוג פעילות', desc: 'צפייה בהיסטוריית הפעולות' },
+        { key: 'userManagement', label: 'ניהול משתמשים', desc: 'יצירה והרשאות של משתמשים' }
+    ] },
+    { title: 'כספים ותזרים', perms: [
+        { key: 'yfCashflow', label: 'תזרים', desc: 'גישה לדשבורד התזרים', date: true }
+    ] }
+];
+var _permKeys = ['salesForm', 'billingManagement', 'salesManagement', 'activityLog', 'userManagement', 'leadsManagement', 'yfCashflow'];
+var _permUid = null;
+var _permReturnFocus = null;
+var _permKeyHandler = null;
+
+function countActivePerms(u) {
+    var perms = (u && u.permissions) || {};
+    return _permKeys.filter(function(k) { return perms[k]; }).length;
+}
+
+function permSubText(u) {
+    return (ROLE_LABELS[u.role] || '') + ' · ' + countActivePerms(u) + ' הרשאות פעילות';
+}
+
+function renderPermissionsBody(u) {
+    var perms = u.permissions || {};
+    var html = '';
+    PERM_GROUPS.forEach(function(g) {
+        html += '<div class="perm-group-title">' + escapeHTML(g.title) + '</div>';
+        g.perms.forEach(function(p) {
+            var checked = perms[p.key] ? 'checked' : '';
+            html += '<div class="perm-row"><div class="perm-row-info">';
+            html += '<div class="perm-row-label">' + escapeHTML(p.label) + '</div>';
+            html += '<div class="perm-row-desc">' + escapeHTML(p.desc) + '</div>';
+            if (p.date) {
+                var _exp = u.yfCashflowExpiresAt ? new Date(u.yfCashflowExpiresAt).toISOString().split('T')[0] : '';
+                html += '<input type="date" class="perm-date" value="' + _exp + '" title="גישה עד תאריך (ריק = קבועה)" aria-label="גישת תזרים עד תאריך" onchange="setYfExpiry(\'' + u._uid + '\', this.value)">';
+            }
+            html += '</div>';
+            html += '<label class="um-toggle"><input type="checkbox" ' + checked + ' aria-label="הרשאת ' + escapeHTML(p.label) + '" onchange="onPermChange(\'' + u._uid + '\', \'' + p.key + '\', this.checked)"><span class="um-toggle-slider"></span></label>';
+            html += '</div>';
+        });
+    });
+    return html;
+}
+
+function openPermissionsModal(uid) {
+    var u = umUsers.find(function(x) { return x._uid === uid; });
+    if (!u) return;
+    _permUid = uid;
+    _permReturnFocus = document.activeElement;
+    document.getElementById('permTitle').textContent = 'הרשאות — ' + (u.displayName || '');
+    document.getElementById('permSub').textContent = permSubText(u);
+    document.getElementById('permContainer').innerHTML = renderPermissionsBody(u);
+    document.getElementById('permissionsModal').classList.add('show');
+    _permKeyHandler = function(e) { if (e.key === 'Escape') closePermissionsModal(); };
+    document.addEventListener('keydown', _permKeyHandler);
+    var _cb = document.querySelector('#permissionsModal .billing-modal-close');
+    if (_cb) _cb.focus();
+}
+
+function onPermChange(uid, perm, value) {
+    var u = umUsers.find(function(x) { return x._uid === uid; });
+    // Safety guard: never remove user-management from the last active admin
+    if (perm === 'userManagement' && value === false) {
+        var otherAdmins = umUsers.filter(function(x) {
+            return x._uid !== uid && x.isActive !== false && x.permissions && x.permissions.userManagement;
+        });
+        if (otherAdmins.length === 0) {
+            showToast('לא ניתן להסיר ניהול-משתמשים מהמנהל האחרון', '#ef4444');
+            if (u && _permUid === uid) document.getElementById('permContainer').innerHTML = renderPermissionsBody(u);
+            return;
+        }
+    }
+    if (u) { if (!u.permissions) u.permissions = {}; u.permissions[perm] = value; }
+    if (u && _permUid === uid) document.getElementById('permSub').textContent = permSubText(u);
+    toggleUserPermission(uid, perm, value);
+}
+
+function closePermissionsModal() {
+    var _uid = _permUid;
+    document.getElementById('permissionsModal').classList.remove('show');
+    if (_permKeyHandler) { document.removeEventListener('keydown', _permKeyHandler); _permKeyHandler = null; }
+    _permUid = null;
+    renderUsersTable();
+    var _back = _uid ? document.querySelector('.um-perms-btn[onclick*="' + _uid + '"]') : null;
+    if (_back) _back.focus();
+    else if (_permReturnFocus && _permReturnFocus.focus) _permReturnFocus.focus();
+    _permReturnFocus = null;
+}
+
+// ─── Role change (reset-warning) + Active toggle (self-lockout guard) ───
+async function onRoleChange(uid, newRole, selectEl) {
+    var u = umUsers.find(function(x) { return x._uid === uid; });
+    var oldRole = u ? u.role : null;
+    if (oldRole === newRole) return;
+    var ok = await tofesConfirm('שינוי התפקיד יאפס את ההרשאות לברירת-המחדל של "' + (ROLE_LABELS[newRole] || newRole) + '". להמשיך?', {
+        title: 'שינוי תפקיד',
+        okText: 'שנה ואפס הרשאות',
+        cancelText: 'ביטול',
+        danger: true
+    });
+    if (!ok) { if (selectEl && oldRole) selectEl.value = oldRole; return; }
+    changeUserRole(uid, newRole);
+}
+
+function onActiveChange(uid, isActive, el) {
+    if (isActive === false) {
+        if (authUser && uid === authUser.uid) {
+            showToast('אי אפשר להשבית את המשתמש שלך', '#ef4444');
+            if (el) el.checked = true;
+            return;
+        }
+        var u = umUsers.find(function(x) { return x._uid === uid; });
+        if (u && u.permissions && u.permissions.userManagement) {
+            var otherAdmins = umUsers.filter(function(x) {
+                return x._uid !== uid && x.isActive !== false && x.permissions && x.permissions.userManagement;
+            });
+            if (otherAdmins.length === 0) {
+                showToast('לא ניתן להשבית את המנהל האחרון', '#ef4444');
+                if (el) el.checked = true;
+                return;
+            }
+        }
+    }
+    toggleUserActive(uid, isActive);
 }
 
 // ─── Change Role ───
@@ -176,6 +346,7 @@ async function toggleUserPermission(uid, perm, value) {
             permission: perm,
             newValue: value
         });
+        showToast('נשמר');
     } catch (err) {
         console.error('Error updating permission:', err);
         alert('שגיאה בעדכון הרשאה');

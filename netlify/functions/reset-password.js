@@ -76,10 +76,9 @@ async function verifyMaster(idToken) {
 
 function getCorsOrigin(event) {
     const origin = event.headers.origin || event.headers.Origin || '';
-    // Allow same-site requests (Netlify) and localhost for dev
-    if (origin.endsWith('.netlify.app') || origin.startsWith('http://localhost')) {
-        return origin;
-    }
+    // Only THIS site (prod + draft deploys) and localhost dev — NOT any *.netlify.app
+    if (/^https:\/\/([a-z0-9-]+--)?helpful-licorice-ac11ba\.netlify\.app$/.test(origin)) return origin;
+    if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return origin;
     return '';
 }
 

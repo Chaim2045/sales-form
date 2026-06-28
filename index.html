@@ -1880,17 +1880,11 @@
                 <table class="bm-table" id="umTable">
                     <thead>
                         <tr>
-                            <th>שם</th>
-                            <th>תפקיד</th>
-                            <th>טופס מכר</th>
-                            <th>גבייה</th>
-                            <th>מכירות</th>
-                            <th>לוג</th>
-                            <th>משתמשים</th>
-                            <th>לידים</th>
-                            <th>תזרים</th>
-                            <th>פעיל</th>
-                            <th>פעולות</th>
+                            <th scope="col">שם</th>
+                            <th scope="col">תפקיד</th>
+                            <th scope="col">הרשאות</th>
+                            <th scope="col">פעיל</th>
+                            <th scope="col">פעולות</th>
                         </tr>
                     </thead>
                     <tbody id="umTableBody"></tbody>
@@ -1901,11 +1895,11 @@
         <!-- Loading -->
         <div id="umLoading" style="text-align:center;padding:40px;">
             <div class="bm-spinner"></div>
-            <p style="margin-top:12px;color:#94a3b8;">טוען משתמשים...</p>
+            <p style="margin-top:12px;color:var(--text-tertiary);">טוען משתמשים...</p>
         </div>
 
         <!-- Empty State -->
-        <div id="umEmpty" style="display:none;text-align:center;padding:40px;color:#94a3b8;">
+        <div id="umEmpty" style="display:none;text-align:center;padding:40px;color:var(--text-tertiary);">
             <p>אין משתמשים</p>
         </div>
     </div>
@@ -2096,6 +2090,22 @@
                 <button class="btn-primary" onclick="confirmSendWhatsApp()" style="width:100%;padding:10px;font-size:15px;">
                     שלח ב-WhatsApp
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Permissions Editor Modal -->
+    <div class="billing-modal-overlay" id="permissionsModal" role="dialog" aria-modal="true" aria-labelledby="permTitle" onclick="if(event.target===this) closePermissionsModal()">
+        <div class="billing-modal" style="max-width:440px;">
+            <div class="billing-modal-header">
+                <div>
+                    <h3 id="permTitle">הרשאות</h3>
+                    <div id="permSub" style="font-size:12px;color:var(--text-tertiary);margin-top:2px;"></div>
+                </div>
+                <button class="billing-modal-close" onclick="closePermissionsModal()" aria-label="סגור">&times;</button>
+            </div>
+            <div class="billing-modal-body" style="padding:8px 20px 20px;">
+                <div id="permContainer"></div>
             </div>
         </div>
     </div>
